@@ -9,7 +9,7 @@ Conventions:
 - Postgres 16+ (Render Postgres). Extensions: `pgcrypto` is not needed (`gen_random_uuid()` is built in), `citext` (users' sign-in email, from auth.md), `pg_trgm` (only if the search index below is kept).
 - IDs are `uuid default gen_random_uuid()`. Catalogue IDs are slugs (`data-analyst`). Times are `timestamptz`; calendar dates are `date`.
 - Money is `bigint` minor units plus `currency char(3)`. Amounts are positive. The currency always follows the employee's country (enforced by a composite foreign key, below).
-- Closed value lists are `text` plus a `CHECK`, not Postgres enums, except `user_role` and `user_status`, which auth.md already defines as enums. Reason: `text =` is a leakproof operator, which matters for index use under RLS (see [Indexes and RLS](#how-indexes-interact-with-rls)), and adding a value is a one-line migration either way.
+- Closed value lists are `text` plus a `CHECK`, not Postgres enums, except `user_status`, which auth.md defines as an enum. Roles are rows in `roles`, not an enum, because Global HR can add them. Reason: `text =` is a leakproof operator, which matters for index use under RLS (see [Indexes and RLS](#how-indexes-interact-with-rls)), and adding a value is a one-line migration either way.
 - Scale: 10,000 employees in 8 countries, about 20 HR users, a salary history of a few rows per employee, an audit log that grows without bound but slowly. At this size Postgres scans the whole `employees` table in a few milliseconds, so most indexes below are about keeping the 200 ms target comfortable and plans predictable, not about making the impossible possible. Indexes that are not clearly needed are marked **optional** or **add when measured**.
 
 ## Entities
@@ -21,7 +21,10 @@ Conventions:
 | `job_titles` | ~25 | no | Fixed catalogue |
 | `fx_rates` | 8 per rate date | no | Fixed, dated USD rates for indicative totals |
 | `users` | ~20 | no | HR users (auth.md) |
-| `user_countries` | ~30 | no | Country HR assignments (auth.md) |
+| `user_countries` | ~30 | no | Countries for users whose role is limited to assigned countries (auth.md) |
+| `roles` | a few | no | Roles: name, country scope, system flag (auth.md, RBAC) |
+| `permissions` | 11 | no | Permission catalogue, seeded from code (auth.md, RBAC) |
+| `role_permissions` | tens | no | Which permissions each role grants (auth.md, RBAC) |
 | `sessions` | tens | no | Server-side sessions (auth.md) |
 | `invites` | tens | no | Invite and password-reset links (auth.md) |
 | `employees` | 10,000 | yes | Current state of each person, including current salary |
@@ -34,7 +37,7 @@ Conventions:
 | `ai_salary_drafts` | grows | proposed | Salary changes proposed by Ask AI (`aiDraftId`) |
 | `app_private.ai_scope` | 0–2 | no | Scope of the Ask AI connection, keyed by backend PID (auth.md) |
 
-17 tables: 16 in `public`, 1 in `app_private`.
+20 tables: 19 in `public`, 1 in `app_private`.
 
 ```mermaid
 erDiagram
@@ -43,6 +46,9 @@ erDiagram
     departments ||--o{ employees : "department_id"
     job_titles ||--o{ employees : "job_title_id"
     users ||--o{ user_countries : "user_id"
+    roles ||--o{ users : "role_id"
+    roles ||--o{ role_permissions : "role_id"
+    permissions ||--o{ role_permissions : "permission_key"
     users ||--o{ sessions : "user_id"
     users ||--o{ invites : "user_id"
     users ||--o{ salary_changes : "created_by"
@@ -103,8 +109,21 @@ erDiagram
     users {
         uuid id PK
         citext email UK
-        user_role role
+        uuid role_id FK
         user_status status
+    }
+    roles {
+        uuid id PK
+        text key UK
+        text country_scope
+        bool is_system
+    }
+    role_permissions {
+        uuid role_id PK
+        text permission_key PK
+    }
+    permissions {
+        text key PK
     }
     imports {
         uuid id PK
@@ -155,7 +174,7 @@ PK `(as_of, currency)`. The API uses the latest `as_of`. Not money, so `numeric`
 | `id` | `uuid` | no | `gen_random_uuid()` | PK |
 | `email` | `citext` | no | | `UNIQUE`. Case-insensitive sign-in |
 | `name` | `text` | no | | |
-| `role` | `user_role` enum (`global_hr`, `country_hr`) | no | | |
+| `role_id` | `uuid` | no | | FK `roles(id) ON DELETE RESTRICT`. One role per user |
 | `status` | `user_status` enum (`invited`, `active`, `deactivated`) | no | `'invited'` | |
 | `password_hash` | `text` | yes | | argon2id PHC string |
 | `failed_sign_ins` | `int` | no | `0` | `CHECK (failed_sign_ins >= 0)` |
@@ -175,7 +194,29 @@ Constraints: `CHECK (status <> 'active' OR password_hash IS NOT NULL)`; `CHECK (
 | `user_id` | `uuid` | no | FK `users(id) ON DELETE CASCADE` |
 | `country_code` | `char(2)` | no | FK `countries(code)` |
 
-PK `(user_id, country_code)`. "At least one row for `country_hr`, none for `global_hr`" is a service rule (a cross-row rule; a constraint trigger is possible but not proposed).
+PK `(user_id, country_code)`. "At least one row when the user's role has `country_scope = 'assigned'`, none when it is `all`" is a service rule (a cross-row rule; a constraint trigger is possible but not proposed).
+
+### `roles` (from auth.md, RBAC)
+
+| Column | Type | Null | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `id` | `uuid` | no | `gen_random_uuid()` | PK |
+| `key` | `text` | no | | `UNIQUE`, `CHECK (key ~ '^[a-z][a-z0-9_]{1,39}$')`. Stable slug used by seeds, tests and audit rows (`global_hr`) |
+| `name` | `text` | no | | `UNIQUE`. Shown in the UI ("Global HR") |
+| `description` | `text` | yes | | |
+| `country_scope` | `text` | no | | `CHECK (country_scope IN ('all','assigned'))`. Cannot change after creation (service rule) |
+| `is_system` | `boolean` | no | `false` | Seeded roles, which cannot be deleted |
+| `version` | `int` | no | `1` | `PATCH /api/roles/:id` takes `version` |
+| `created_by` | `uuid` | yes | | FK `users(id)`. Null for seeded roles |
+| `created_at`, `updated_at` | `timestamptz` | no | `now()` | |
+
+### `permissions` (from auth.md, RBAC)
+
+`key text PK` (for example `employees:write`), `description text not null`. Migrations seed it and keep it in step with the catalogue in `@acme/shared`; `acme_app` can only read it. Dependencies between permissions ("`ai:ask` requires `insights:read`") live in the code catalogue, not in a table.
+
+### `role_permissions` (from auth.md, RBAC)
+
+`role_id uuid not null FK roles(id) ON DELETE CASCADE`, `permission_key text not null FK permissions(key)`, PK `(role_id, permission_key)`. The PK serves `loadSession`'s read of a role's permissions.
 
 ### `sessions` (from auth.md)
 
@@ -265,9 +306,9 @@ Append-only: `acme_app` has `SELECT, INSERT` only (auth.md). The one exception i
 | `id` | `uuid` | no | `gen_random_uuid()` | PK. Tiebreaker in the `(occurred_at, id)` cursor |
 | `occurred_at` | `timestamptz` | no | `clock_timestamp()` | `clock_timestamp()` rather than `now()`, so events in one transaction keep their order |
 | `actor_id` | `uuid` | no | | FK `users(id)`. Policy requires it to equal `app.user_id` |
-| `actor_role` | `user_role` | no | | Role at the time of the event (the API returns `actor.role`) |
-| `action` | `text` | no | | `CHECK (action IN ('employee.created','employee.updated','employee.terminated','salary.changed','import.committed','import.undone','export.created','user.invited','user.updated','user.deactivated'))` |
-| `entity_type` | `text` | no | | `CHECK (entity_type IN ('employee','import','export','user'))` |
+| `actor_role` | `text` | no | | Role `key` at the time of the event (the API returns `actor.role`). Text, not a FK, so the row survives the role being renamed or deleted |
+| `action` | `text` | no | | `CHECK (action IN ('employee.created','employee.updated','employee.terminated','salary.changed','import.committed','import.undone','export.created','user.invited','user.updated','user.deactivated','role.created','role.updated','role.deleted'))` |
+| `entity_type` | `text` | no | | `CHECK (entity_type IN ('employee','import','export','user','role'))` |
 | `entity_id` | `uuid` | yes | | Null for `export.created` |
 | `entity_label` | `text` | no | | e.g. `ACM-004211 Asha Rao`, so the log reads well after renames |
 | `country_code` | `char(2)` | yes | | FK `countries(code)`. The affected employee's country; null for user, import and export events (open question 2) |
@@ -329,7 +370,7 @@ None of the docs define these yet; they follow from api.md ("the server keeps th
 
 ### `app_private.ai_scope` (from auth.md)
 
-`backend_pid int PK`, `role user_role not null`, `countries char(2)[] not null`, `expires_at timestamptz not null`. auth.md declares `countries text[]`; see [the type note](#2-the-array-type-must-match-the-column-type).
+`backend_pid int PK`, `countries char(2)[] not null`, `expires_at timestamptz not null`. No role column: RLS reads only the resolved countries (auth.md, RLS policies).
 
 ## Indexes
 
@@ -367,7 +408,9 @@ This is the part to review hardest, because the policies in auth.md, as written,
 
 #### 1. An `OR` in the policy is not indexable
 
-auth.md's policy is `scope_role() = 'global_hr' OR country_code = ANY(scope_countries())`. An `OR` whose first arm does not mention a column cannot become an index condition, so for Country HR the country rule is applied as a filter after reading every row. `employees(country_code)` being indexed (auth.md) does not help this predicate.
+auth.md's original policy was `scope_role() = 'global_hr' OR country_code = ANY(scope_countries())`. An `OR` whose first arm does not mention a column cannot become an index condition, so for Country HR the country rule is applied as a filter after reading every row. `employees(country_code)` being indexed (auth.md) does not help this predicate.
+
+**Resolved by RBAC (decision #23).** Roles are now data, so a policy can no longer test a role name. `loadSession` resolves the visible countries (every country for an `all`-scope role) into `app.countries`, and auth.md's policies are now `country_code = ANY(scope_countries())`, with no `OR`. The `visible_countries()` function below is superseded; `scope_countries()` does its job. The reasoning still applies.
 
 Proposed: one function that returns the visible countries, and a policy with no `OR`:
 
@@ -537,7 +580,7 @@ Serves `GET /api/imports/:id/rows?outcome=error&page=` and `rows.csv?outcome=err
 
 ### Sessions and invites
 
-**PK `sessions(id)`** serves the per-request lookup in `loadSession` (`WHERE id = sha256(token)`, then the users PK and `user_countries` PK for role and countries). Three primary-key lookups per request.
+**PK `sessions(id)`** serves the per-request lookup in `loadSession` (`WHERE id = sha256(token)`, then the PKs of `users`, `roles`, `role_permissions` and `user_countries`; an `all`-scope role reads the 8-row `countries` table instead of `user_countries`). All primary-key lookups, in one query.
 
 **X1: `sessions (user_id)`.** Required: deactivation, password set and invite re-issue delete all of a user's sessions (auth.md).
 
@@ -556,6 +599,8 @@ Postgres does not index the referencing side of a foreign key. That index matter
 | `import_rows.import_id` | PK | |
 | `ai_messages.conversation_id` | PK | |
 | `user_countries.user_id` | PK | |
+| `role_permissions.role_id` | PK | |
+| `users.role_id`, `role_permissions.permission_key`, `roles.created_by` | none | About 20 users and a handful of roles. Deleting a role checks `users`, which is tiny |
 | `sessions.user_id`, `invites.user_id` | X1, X3 | Bulk deletes on deactivation |
 | `employees.created_by_import_id` | E5 (optional) | Undo |
 | `employees.country_code` | E1 | Leading column |
@@ -570,15 +615,15 @@ From auth.md, with the proposed changes marked.
 | Role | Login | Used by | Grants |
 | --- | --- | --- | --- |
 | `acme_owner` | yes | Migrations, seed | Owns everything; runs `SECURITY DEFINER` functions (import undo) |
-| `acme_app` | yes | API server | `SELECT, INSERT, UPDATE` on `employees`, `users`, `imports`, `import_rows`, `ai_conversations`; `SELECT, INSERT` on `salary_changes`, `audit_events`, `ai_messages`, `ai_salary_drafts`; `SELECT, INSERT, UPDATE, DELETE` on `sessions`, `invites`, `app_private.ai_scope`; `SELECT, INSERT, DELETE` on `user_countries`; `SELECT` on `countries`, `departments`, `job_titles`, `fx_rates`. `NOBYPASSRLS`, no DDL. **The import, AI, catalogue and FX grants are proposed; auth.md does not list them** |
+| `acme_app` | yes | API server | `SELECT, INSERT, UPDATE` on `employees`, `users`, `imports`, `import_rows`, `ai_conversations`; `SELECT, INSERT` on `salary_changes`, `audit_events`, `ai_messages`, `ai_salary_drafts`; `SELECT, INSERT, UPDATE, DELETE` on `sessions`, `invites`, `app_private.ai_scope`; `SELECT, INSERT, DELETE` on `user_countries`; `SELECT, INSERT, UPDATE, DELETE` on `roles`, `role_permissions`; `SELECT` on `permissions`; `SELECT` on `countries`, `departments`, `job_titles`, `fx_rates`. `NOBYPASSRLS`, no DDL. **The import, AI, catalogue and FX grants are proposed; auth.md does not list them** |
 | `acme_ai_reader` | yes | Ask AI `run_sql` | `SELECT` on `employees`, `salary_changes`, `countries`, `job_titles`, `departments` (auth.md); `fx_rates` proposed. Read-only by default, `statement_timeout = 5s`, no `TEMP` |
 
 | Table | Policy | Status |
 | --- | --- | --- |
-| `employees` | `country_code = ANY(visible_countries())` for all commands, `WITH CHECK` the same | auth.md's rule, rewritten without `OR` (effect 1) |
+| `employees` | `country_code = ANY(scope_countries())` for all commands, `WITH CHECK` the same | auth.md (no `OR` since RBAC, effect 1) |
 | `salary_changes` | `EXISTS (SELECT 1 FROM employees e WHERE e.id = employee_id)` | auth.md |
-| `audit_events` | Read: `country_code = ANY(visible_countries())` (plus own events, open question 2). Insert: `actor_id = app.user_id` | auth.md, rewritten |
-| `imports`, `import_rows` | Global HR, or `created_by = app.user_id` | **Proposed**; api.md says imports are RLS-scoped but auth.md has no policy (open question 3) |
+| `audit_events` | Read: `country_code = ANY(scope_countries())` (plus own events, open question 2). Insert: `actor_id = app.user_id` | auth.md, rewritten |
+| `imports`, `import_rows` | `created_by = app.user_id`, or every country in the import is visible (`country_codes <@ scope_countries()`) | **Proposed**; api.md says imports are RLS-scoped but auth.md has no policy (open question 3) |
 | `ai_conversations`, `ai_messages` | `user_id = app.user_id` (messages via their conversation) | **Proposed**; api.md says "own only" |
 | `ai_salary_drafts` | Employee visible, and conversation owned by `app.user_id` | **Proposed** |
 | Auth tables, catalogues, `fx_rates` | No RLS | auth.md |
@@ -601,9 +646,9 @@ How the indexes support the policies:
 
 ## Open questions
 
-1. **RLS policy rewrite.** Adopt `visible_countries()` (no `OR`) in place of auth.md's `scope_role() = 'global_hr' OR …`? Same semantics, but indexes become usable for Country HR. auth.md would need updating.
+1. **RLS policy rewrite.** Decided with RBAC (decision #23): policies use `country_code = ANY(scope_countries())`, with no `OR`, and auth.md is updated.
 2. **Audit visibility.** api.md says Country HR sees "events for employees in assigned countries, plus their own imports and exports"; auth.md's read policy only checks `country_code`, and assumes every audit row has one. `export.created`, `import.*` and `user.*` events have no single country. Options: add `OR actor_id = app.user_id` to the read policy (then A4 becomes useful), or store `country_codes char(2)[]` on the event.
-3. **Import scope.** api.md lists imports among RLS-filtered tables; auth.md has no policy for them. This draft proposes "Global HR or the uploader". Should a Country HR see imports by other Country HR users for the same country?
+3. **Import scope.** api.md lists imports among RLS-filtered tables; auth.md has no policy for them. This draft proposes "the uploader, or anyone who can see every country in the import". Should a Country HR see imports by other Country HR users for the same country?
 4. **Audit writes: service or trigger?** api.md says the service writes the audit row in the same transaction; auth.md recommends triggers on `employees` and `salary_changes`. The hand-off `CLAUDE.md` also mentioned a "DB trigger guard" for append-only history; the current docs rely on grants only. Pick one.
 5. **Ask AI reader: tables or views?** auth.md grants `acme_ai_reader` the base tables, including employee names and emails. The original hand-off `CLAUDE.md` said views without names and emails (`security_invoker = true`) and "send codes instead of names to the model". The current docs no longer mention views. Confirm that the model may read names and emails.
 6. **Which 8 countries?** The docs only name IN, GB and US (demo users). The first draft listed US, UK, DE, IN, CA, SG, BR, AU. The `countries` seed migration needs the list, including whether two share a currency.
