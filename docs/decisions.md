@@ -1,0 +1,39 @@
+# Decision log
+
+The choices made while planning and building, newest last. Bigger technical decisions have their own ADR in [`adr/`](adr/); this page is the index and also records the smaller calls that don't need one.
+
+| # | Date | Decision | Alternatives considered | Why |
+| --- | --- | --- | --- | --- |
+| 1 | 2026-11-18 | Write the one-page requirements before any code ([requirements.md](requirements.md)) | Start coding from the brief | The brief asks for it, and it fixes scope: two HR roles, Excel import and Ask AI in; payroll, bonus, live FX and approvals out. |
+| 2 | 2026-11-18 | Drop the first design draft (SQLite, single HR Manager, no sign-in) | Keep it alongside the requirements | It contradicted the current scope (Postgres with RLS, two roles, import, Ask AI). Replaced by [api.md](api.md), [auth.md](auth.md) and [ui.md](ui.md). |
+| 3 | 2026-11-18 | Start from an empty repo; leave out the hand-off's Ask AI starter code | Commit the starter code up front | Keeps the history honest: Ask AI is built in its own step, not imported at the start. |
+| 4 | 2026-11-18 | TypeScript for frontend and backend | — | One language, shared types and validation between API and UI, and the role is a TypeScript role. |
+| 5 | 2026-11-18 | npm workspaces monorepo: `apps/web`, `apps/api`, `packages/shared` | Single package; separate repos; Turborepo/Nx | Shared Zod schemas catch API/UI drift at compile time; one install, one CI. Plain workspaces are enough at this size. |
+| 6 | 2026-11-18 | Vite + React for the UI instead of Next.js | Next.js App Router | A separate Express API already owns the server side; Vite keeps the UI a simple SPA with fast dev and tests. |
+| 7 | 2026-11-18 | Express 5 API with Kysely over Postgres | NestJS; Prisma; Drizzle; SQLite | Small, explicit layering (routes → services → repositories); Kysely keeps SQL readable for the insights queries; Postgres gives row-level security for country scoping. See [ADR 0001](adr/0001-api-style.md). |
+| 8 | 2026-11-18 | Host on Render: one Node web service serving both the API and the built UI, plus Render Postgres | Supabase (cannot host the frontend; Edge Functions are Deno); Vercel + Neon (serverless, needs a pooler); Vercel + Supabase | One platform for app and database, long-running Node suits Express and 30 s AI calls, direct DB connection, same-origin cookies with no CORS. |
+| 9 | 2026-11-18 | Render free web service and free Postgres for now, in Singapore | Paid plans from the start; Oregon/Frankfurt | No cost while building; Singapore is the closest region. Upgrade both before reviewers look: the free service sleeps after 15 min and the free database is deleted on 2026-12-18. |
+| 10 | 2026-11-18 | Sessions in Postgres with hand-rolled cookie auth; three database roles so the app cannot bypass RLS | JWT; Better Auth; Clerk/Auth0; Passport | Simplest secure option a reviewer can read in one sitting; role/country changes apply on the next request. See [ADR 0002](adr/0002-auth-approach.md). |
+| 11 | 2026-11-18 | Ant Design v6 as the component library, themed to the design tokens | shadcn/ui + Tailwind; Mantine | Ready-made table, form, upload, steps and dialogs for a data-heavy admin UI, so time goes into domain logic and tests. See [ADR 0003](adr/0003-ui-library.md). |
+| 12 | 2026-11-18 | Recharts for charts | @ant-design/charts | SVG React components that take our tokens and test in jsdom; lighter than the G2 engine. |
+| 13 | 2026-11-18 | Visual direction from the Dribbble shot [Agentic Dashboard](https://dribbble.com/shots/27449642-Agentic-Dashboard); screens designed in a Claude Design canvas | Antd's default look | A calm, neutral admin look with one green accent; credited in the README. |
+| 14 | 2026-11-18 | Preview components in Ladle instead of an in-app `?gallery` page | Storybook 10; keep the custom gallery | Story-per-state isolation, a11y check and a static build, with far less setup than Storybook. Ladle bundles its own Vite 6, so it has a separate small config. |
+| 15 | 2026-11-18 | Design the API, auth layer and UI library with three parallel AI subagents, then reconcile | One sequential AI session | Independent areas with separate files; reconciling afterwards caught naming mismatches (`audit_events`, `app.user_role`). |
+| 16 | 2026-11-18 | Read the `frontend-patterns` skill as reference only instead of installing it with `npx skillfish` | Install the third-party skill | Installing adds third-party instructions to the AI tool's own config; reading it gave the useful patterns without that risk. |
+| 17 | 2026-11-18 | The AI assistant never commits or pushes; every commit is made by hand | Let the AI commit each step | Commit history is part of the assessment; manual commits keep each step reviewed and in my name (repo identity: Deb77). |
+| 18 | 2026-11-18 | Organise components by atomic design (atoms, molecules, organisms, templates), with an ESLint rule that blocks imports from a higher level | Flat `components/` folder; group by feature | The level shows how big and reusable a component is, and the lint rule keeps the dependency direction one way. Ladle groups stories by the same levels. |
+| 19 | 2026-11-20 | Replace Ant Design with Mantine 9, styled only through CSS modules; supersedes #11 | Keep antd (theme tokens for antd, CSS modules for our markup); shadcn/ui + Tailwind; MUI; Chakra | antd needed two styling mechanisms and lost specificity fights with our CSS (the broken dialogs). Mantine's CSS sits in a cascade layer, so one CSS module per component styles everything. A spike of Dialog and DataTable passed the existing tests first. See [ADR 0004](adr/0004-mantine-css-modules.md). |
+| 20 | 2026-11-20 | Plain markup for StatusTag, FormField, FileDropzone, avatars and the empty/error states; Tabler icons | Mantine Badge, Input.Wrapper, `@mantine/dropzone`, Avatar; keep `@ant-design/icons` | These are layout and colour only, so a library adds props and markup without behaviour. Tabler is the icon set Mantine recommends. |
+| 21 | 2026-11-20 | Add Mantine's official docs MCP server (`@mantine/mcp-server`, pinned to 9.8.0) in a project `.mcp.json` | Paste `mantine.dev/llms.txt` into prompts; rely on the model's memory | The AI assistant looks up current v9 props and Styles API instead of guessing, and the pin keeps the docs on the same version as `@mantine/core`. |
+| 22 | 2026-11-20 | `packages/shared` is grouped by domain (`core/`, `health/`, `employee/`, `salary-change/`, `ai/`) with `<domain>.schema.ts` files, a co-located test each and one barrel; a lint rule stops it importing from the apps; a `development` export condition points the API dev server at `src/` | A flat `src/`; subpath exports per domain; a separate contracts package | Matches common monorepo practice for shared Zod contracts while staying small. One barrel keeps imports as `@acme/shared`. Without the condition, `tsx` read stale `dist/` and schema edits did not reach the API until a rebuild. |
+
+## Open questions
+
+Raised by the design docs and not decided yet:
+
+- Can Render's default Postgres user create the extra database roles that auth.md relies on?
+- Invite links copied by hand in v1, or email?
+- Where the demo password lives (README or submission note only).
+- Future-dated salary changes, moving an employee to another country, and reinstating a terminated employee (all rejected in v1).
+- Import: a time limit on undo; how to treat rows for countries a Country HR user doesn't hold.
+- Money format by currency locale (current) or the viewer's locale.

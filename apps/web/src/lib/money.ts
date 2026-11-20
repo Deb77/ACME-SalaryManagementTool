@@ -4,10 +4,9 @@
  * Formatting goes through Intl.NumberFormat's exact decimal-string input.
  */
 
-export interface Money {
-  amountMinor: number;
-  currency: string;
-}
+import type { Money } from '@acme/shared';
+
+export type { Money };
 
 export interface FormatMoneyOptions {
   locale?: string;
