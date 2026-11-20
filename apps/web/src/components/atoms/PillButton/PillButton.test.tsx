@@ -31,4 +31,17 @@ describe('PillButton', () => {
 
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it('renders a link styled as a button when given an href', () => {
+    render(
+      <PillButton tone="primary" href="/employees/new">
+        Add employee
+      </PillButton>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Add employee' })).toHaveAttribute(
+      'href',
+      '/employees/new',
+    );
+  });
 });

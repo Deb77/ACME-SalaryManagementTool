@@ -1,8 +1,94 @@
 .root {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  min-width: 0;
+}
+
+/* Read out, never shown: the skeleton is the visual. */
+.label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.lines,
+.list {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  color: var(--acme-color-grey500);
+}
+
+.list {
+  gap: 18px;
+}
+
+.listRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.table {
+  display: flex;
+  flex-direction: column;
+}
+
+.tableHead {
+  display: none;
+}
+
+.tableRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--acme-color-grey100);
+}
+
+.tableRow:first-of-type {
+  border-top: 0;
+}
+
+.grow {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.end {
+  display: none;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 240px;
+}
+
+.bar {
+  flex: 1;
+  max-width: 36px;
+  border-radius: 8px 8px 3px 3px;
+}
+
+@media (min-width: 768px) {
+  .tableHead {
+    display: flex;
+    gap: 24px;
+    padding: 4px 0 12px;
+  }
+
+  .tableRow:first-of-type {
+    border-top: 1px solid var(--acme-color-grey100);
+  }
+
+  .end {
+    display: block;
+  }
 }

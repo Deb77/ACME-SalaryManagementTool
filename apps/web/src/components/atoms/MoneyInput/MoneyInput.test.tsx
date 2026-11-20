@@ -51,4 +51,23 @@ describe('MoneyInput', () => {
 
     expect(input).toHaveValue('12,00,000');
   });
+
+  it('keeps the hint and error wiring it is given (FormField)', () => {
+    render(
+      <>
+        <MoneyInput
+          id="salary"
+          currency="INR"
+          onChange={vi.fn()}
+          aria-describedby="salary-message"
+          aria-invalid
+        />
+        <span id="salary-message">Enter an amount above zero</span>
+      </>,
+    );
+
+    const input = screen.getByRole('textbox');
+    expect(input).toHaveAccessibleDescription('Enter an amount above zero');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+  });
 });

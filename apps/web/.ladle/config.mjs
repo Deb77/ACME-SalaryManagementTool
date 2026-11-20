@@ -6,7 +6,12 @@ export default {
   defaultStory: 'templates--layout--app-shell',
   addons: {
     a11y: { enabled: true },
-    width: { enabled: true },
+    // Screens are checked at phone, tablet and desktop widths (docs/ui.md).
+    width: {
+      enabled: true,
+      options: { phone: 375, tablet: 768, desktop: 1440 },
+      defaultState: 0,
+    },
     theme: { enabled: false },
   },
 };

@@ -1,0 +1,40 @@
+.button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  box-sizing: border-box;
+  color: var(--acme-color-grey800);
+  border-radius: 50%;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: var(--acme-shadow-focus);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.outline {
+  background: var(--acme-color-white);
+  border: 1px solid var(--acme-color-grey200);
+  box-shadow: var(--acme-shadow-button);
+}
+
+.outline:hover {
+  background: var(--acme-color-grey50);
+}
+
+.filled {
+  font-weight: 600;
+  color: var(--acme-color-grey700);
+  background: var(--acme-color-grey300);
+  border: 0;
+}

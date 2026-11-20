@@ -1,0 +1,38 @@
+.summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.summaryCell {
+  padding: 10px 12px;
+  background: var(--acme-color-grey50);
+  border: 1px solid var(--acme-color-grey150);
+  border-radius: var(--acme-radius-md);
+}
+
+.summaryCell dt {
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
+  color: var(--acme-color-grey500);
+}
+
+.summaryCell dd {
+  margin: 2px 0 0;
+  font-size: var(--acme-text-lg);
+  line-height: var(--acme-leading-lg);
+}
+
+.percent {
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
+  color: var(--acme-color-grey500);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+  color: var(--acme-color-danger-text);
+}

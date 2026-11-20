@@ -1,10 +1,17 @@
 /* Plain class selectors win over Mantine because its CSS sits in @layer mantine. */
 
+.inner {
+  align-items: flex-end;
+  padding: 0;
+}
+
 .content {
+  flex: 0 0 100%;
+  max-height: 92dvh;
   padding: 4px;
   background: var(--acme-color-grey50);
   border: 1px solid var(--acme-color-grey200);
-  border-radius: var(--acme-radius-xxl);
+  border-radius: var(--acme-radius-xxl) var(--acme-radius-xxl) 0 0;
   box-shadow: var(--acme-shadow-dialog);
 }
 
@@ -14,11 +21,18 @@
 }
 
 .title {
-  font-size: 14px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   font-weight: 500;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--acme-color-grey600);
+}
+
+/* 44px touch target on phones; the usual compact button from tablet width. */
+.close {
+  width: 44px;
+  height: 44px;
 }
 
 .body {
@@ -33,22 +47,63 @@
   box-shadow: var(--acme-shadow-panel);
 }
 
+/* On phones the sheet scrolls, so the actions stick to its bottom edge. */
 .footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 12px 8px 8px 16px;
+  background: var(--acme-color-grey50);
 }
 
 .note {
-  font-size: 13px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   color: var(--acme-color-grey500);
 }
 
 .actions {
   display: flex;
+  flex: 1 1 100%;
   gap: 8px;
-  margin-inline-start: auto;
+}
+
+.actions > * {
+  flex: 1;
+}
+
+@media (min-width: 768px) {
+  .inner {
+    align-items: center;
+    padding: 5dvh 5vw;
+  }
+
+  .content {
+    flex: 0 0 var(--modal-size);
+    max-height: calc(100dvh - 10dvh);
+    border-radius: var(--acme-radius-xxl);
+  }
+
+  .close {
+    width: 28px;
+    height: 28px;
+  }
+
+  .footer {
+    position: static;
+  }
+
+  .actions {
+    flex: none;
+    margin-inline-start: auto;
+  }
+
+  .actions > * {
+    flex: none;
+  }
 }

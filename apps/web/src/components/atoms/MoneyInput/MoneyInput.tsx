@@ -1,5 +1,5 @@
 import { Input } from '@mantine/core';
-import { useState } from 'react';
+import { forwardRef, useState, type ComponentPropsWithoutRef } from 'react';
 import {
   currencyFractionDigits,
   localeForCurrency,
@@ -19,6 +19,17 @@ export interface MoneyInputProps {
   'aria-invalid'?: boolean;
   disabled?: boolean;
 }
+
+/**
+ * Mantine's Input sets `aria-describedby` from its own wrapper (none here), which would drop
+ * the hint/error id FormField passes in. This element restores it from a data attribute.
+ */
+const DescribedInput = forwardRef<
+  HTMLInputElement,
+  ComponentPropsWithoutRef<'input'> & { 'data-describedby'?: string }
+>(function DescribedInput({ 'data-describedby': describedBy, ...props }, ref) {
+  return <input {...props} ref={ref} aria-describedby={describedBy} />;
+});
 
 function currencySymbol(currency: string): string {
   const parts = new Intl.NumberFormat(localeForCurrency(currency), {
@@ -61,6 +72,8 @@ export function MoneyInput({
       inputMode="decimal"
       autoComplete="off"
       disabled={disabled}
+      component={DescribedInput}
+      data-describedby={aria['aria-describedby']}
       error={aria['aria-invalid'] ? true : undefined}
       leftSection={<span className={styles.prefix}>{prefix}</span>}
       // Wide enough for "INR ₹" or "USD $"; the section is absolutely positioned.

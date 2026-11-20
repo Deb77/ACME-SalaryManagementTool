@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { colors, fonts, radii, shadows } from './tokens';
+import { colors, fonts, radii, shadows, typeScale } from './tokens';
 
 const kebab = (name: string) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
@@ -13,6 +13,10 @@ export function toCssVariables(): CSSProperties {
   for (const [name, value] of Object.entries(radii))
     vars[`--acme-radius-${kebab(name)}`] = `${value}px`;
   for (const [name, value] of Object.entries(shadows)) vars[`--acme-shadow-${kebab(name)}`] = value;
+  for (const [name, step] of Object.entries(typeScale)) {
+    vars[`--acme-text-${name}`] = `${step.size}rem`;
+    vars[`--acme-leading-${name}`] = `${step.lineHeight}rem`;
+  }
   vars['--acme-font-sans'] = fonts.sans;
   vars['--acme-font-mono'] = fonts.mono;
   return vars as CSSProperties;

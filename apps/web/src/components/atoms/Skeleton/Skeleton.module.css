@@ -1,0 +1,48 @@
+.bone {
+  display: block;
+  flex: none;
+  max-width: 100%;
+  border-radius: var(--acme-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--acme-color-grey150) 25%,
+    var(--acme-color-grey50) 45%,
+    var(--acme-color-grey150) 65%
+  );
+  background-size: 300% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.line {
+  min-width: 0;
+}
+
+.inline {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.circle {
+  border-radius: 50%;
+}
+
+.pill {
+  border-radius: var(--acme-radius-pill);
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bone {
+    animation: none;
+    background: var(--acme-color-grey150);
+  }
+}

@@ -1,5 +1,16 @@
 .header {
   display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.back {
+  display: flex;
+}
+
+.row {
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
@@ -8,15 +19,16 @@
 
 .title {
   margin: 0;
-  font-size: 30px;
-  line-height: 38px;
+  font-size: var(--acme-text-xxl);
+  line-height: var(--acme-leading-xxl);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
 
 .description {
   margin: 2px 0 0;
-  font-size: 15px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   color: var(--acme-color-grey500);
 }
 
@@ -24,4 +36,41 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+@media (min-width: 1024px) {
+  /*
+   * Sticky inside AppShell's scrolling <main>. The negative margin and matching padding pull
+   * the white background up over main's top padding, so nothing shows above the header.
+   */
+  .header {
+    position: sticky;
+    top: calc(-1 * var(--acme-main-padding-top, 0px));
+    z-index: 20;
+    margin-top: calc(-1 * var(--acme-main-padding-top, 0px));
+    padding-top: var(--acme-main-padding-top, 0px);
+    background: var(--acme-color-white);
+  }
+
+  /* Cards fade out under the header instead of being cut; at rest it only covers main's gap. */
+  .header::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    height: 20px;
+    pointer-events: none;
+    background: linear-gradient(to bottom, var(--acme-color-white), rgba(255, 255, 255, 0));
+  }
+
+  .title {
+    font-size: var(--acme-text-xxxl);
+    line-height: var(--acme-leading-xxxl);
+  }
+
+  .description {
+    font-size: var(--acme-text-md);
+    line-height: var(--acme-leading-md);
+  }
 }

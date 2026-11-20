@@ -1,109 +1,117 @@
+/*
+ * Mobile first. Base: phone (top bar + bottom tab bar). 768px: tablet, framed panel.
+ * 1024px: desktop, left navigation beside the panel.
+ */
+
 .frame {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   min-height: 100vh;
-  padding: 10px;
+  min-height: 100dvh;
   box-sizing: border-box;
   background:
-    radial-gradient(1100px 520px at 88% -8%, #d9eedf 0%, rgba(217, 238, 223, 0) 62%),
-    radial-gradient(900px 520px at -8% 108%, #e4e9f6 0%, rgba(228, 233, 246, 0) 60%),
+    radial-gradient(420px 320px at 100% -6%, #d9eedf 0%, rgba(217, 238, 223, 0) 65%),
     var(--acme-color-frame);
 }
 
+/* ---- Navigation: a bottom tab bar on phones and tablets ---- */
+
 .nav {
-  flex: 1 1 220px;
-  max-width: 100%;
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 100;
+  display: flex;
+  gap: 4px;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  padding: 14px 8px 8px;
+  padding: 6px 8px calc(8px + env(safe-area-inset-bottom));
+  background: var(--acme-color-white);
+  border-top: 1px solid var(--acme-color-grey200);
 }
 
-@media (min-width: 900px) {
-  .nav {
-    max-width: 248px;
-  }
+.brand,
+.spacer,
+.user {
+  display: none;
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 8px 16px;
-  border-bottom: 1px solid #e2e2e2;
-  font-size: 19px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+.groupBlock {
+  display: contents;
 }
 
-.logo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
-  color: var(--acme-color-white);
-  background: linear-gradient(145deg, #5db27f, var(--acme-color-accent) 62%);
+.groupLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .group {
   display: flex;
-  flex-direction: column;
+  flex: 1 1 0;
   gap: 4px;
+  min-width: 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.groupLabel {
-  padding: 0 10px 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--acme-color-grey500);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+.item {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .link {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
+  justify-content: center;
+  gap: 3px;
+  min-height: 52px;
   box-sizing: border-box;
-  padding: 0 12px;
+  padding: 4px 2px;
+  overflow: hidden;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
+  font-weight: 500;
+  color: var(--acme-color-grey600);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
   border: 1px solid transparent;
   border-radius: var(--acme-radius-md);
-  color: #444444;
-  font-size: 15px;
-  text-decoration: none;
-}
-
-.link:hover {
-  color: var(--acme-color-grey900);
-  background: rgba(255, 255, 255, 0.6);
 }
 
 .link[aria-current='page'] {
-  background: var(--acme-color-white);
-  border-color: #e2e2e2;
-  box-shadow: var(--acme-shadow-button);
-  color: var(--acme-color-grey900);
-  font-weight: 500;
+  color: var(--acme-color-accent);
+  font-weight: 600;
+  background: var(--acme-color-green100);
 }
 
-.spacer {
-  flex: 1;
+.link:focus-visible {
+  outline: 2px solid var(--acme-color-accent);
+  outline-offset: 2px;
 }
 
-.user {
-  display: flex;
+.icon {
+  display: inline-flex;
+}
+
+.hasShort .fullLabel {
+  display: none;
+}
+
+.logo {
+  display: inline-flex;
+  flex: none;
   align-items: center;
-  gap: 12px;
-  padding: 14px 8px 4px;
-  border-top: 1px solid #e2e2e2;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  color: var(--acme-color-white);
+  background: linear-gradient(145deg, #5db27f, var(--acme-color-accent) 62%);
 }
 
 .avatar {
@@ -119,42 +127,81 @@
   border-radius: 50%;
 }
 
+.phoneAvatar {
+  width: 44px;
+  height: 44px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+}
+
 .userName {
   font-weight: 500;
 }
 
 .userRole {
-  font-size: 13px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   color: var(--acme-color-grey500);
 }
 
+/* ---- Panel, top bar and content ---- */
+
 .panel {
-  flex: 999 1 560px;
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  min-width: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
   background: var(--acme-color-white);
-  border: 1px solid var(--acme-color-grey200);
-  border-radius: var(--acme-radius-xxl);
-  box-shadow: var(--acme-shadow-frame);
 }
 
 .topBar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 24px;
-  border-bottom: 1px solid #efefef;
+  gap: 10px;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 8px 12px 8px 16px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--acme-color-grey100);
+}
+
+.phoneLogo {
+  display: inline-flex;
+  flex: none;
+}
+
+.topBarStart {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+}
+
+.topBarEnd {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
 }
 
 .main {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 20px;
-  padding: 26px 26px 30px;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
+}
+
+.main:focus {
+  outline: none;
 }
 
 .skip {
@@ -165,9 +212,225 @@
 .skip:focus {
   left: 16px;
   top: 16px;
-  z-index: 10;
+  z-index: 200;
   padding: 8px 14px;
   background: var(--acme-color-white);
   border-radius: var(--acme-radius-pill);
   box-shadow: var(--acme-shadow-panel);
+}
+
+/* ---- Tablet: framed panel, still the bottom tab bar ---- */
+
+@media (min-width: 768px) {
+  .frame {
+    padding: 10px 10px 0;
+  }
+
+  .panel {
+    min-height: calc(100dvh - 10px);
+    border: 1px solid var(--acme-color-grey200);
+    border-bottom: 0;
+    border-radius: var(--acme-radius-xxl) var(--acme-radius-xxl) 0 0;
+    box-shadow: var(--acme-shadow-frame);
+  }
+
+  .topBar {
+    padding: 10px 20px 10px 24px;
+    border-radius: var(--acme-radius-xxl) var(--acme-radius-xxl) 0 0;
+  }
+
+  .main {
+    gap: 20px;
+    padding: 24px 24px 112px;
+  }
+
+  .nav {
+    padding-inline: 10vw;
+  }
+
+  .link {
+    flex-direction: row;
+    gap: 8px;
+    font-size: var(--acme-text-sm);
+    line-height: var(--acme-leading-sm);
+  }
+}
+
+/* ---- Desktop: left navigation beside a rounded panel ---- */
+
+@media (min-width: 1024px) {
+  /* The window never scrolls on desktop: the panel fits it and only <main> scrolls. */
+  .frame {
+    display: flex;
+    gap: 10px;
+    height: 100vh;
+    height: 100dvh;
+    padding: 10px;
+    overflow: hidden;
+    background:
+      radial-gradient(1100px 520px at 88% -8%, #d9eedf 0%, rgba(217, 238, 223, 0) 62%),
+      radial-gradient(900px 520px at -8% 108%, #e4e9f6 0%, rgba(228, 233, 246, 0) 60%),
+      var(--acme-color-frame);
+  }
+
+  .nav {
+    position: sticky;
+    top: 10px;
+    flex: none;
+    flex-direction: column;
+    gap: 22px;
+    width: 248px;
+    height: calc(100dvh - 20px);
+    padding: 14px 8px 8px;
+    background: transparent;
+    border-top: 0;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 8px 16px;
+    border-bottom: 1px solid #e2e2e2;
+    font-size: var(--acme-text-lg);
+    line-height: var(--acme-leading-lg);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .logo {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+  }
+
+  .groupBlock {
+    display: block;
+  }
+
+  .groupLabel {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    padding: 0 10px 6px;
+    font-size: var(--acme-text-xs);
+    line-height: var(--acme-leading-xs);
+    font-weight: 500;
+    color: var(--acme-color-grey500);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .group {
+    flex-direction: column;
+  }
+
+  .link {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 12px;
+    font-size: var(--acme-text-sm);
+    line-height: var(--acme-leading-sm);
+    font-weight: 400;
+    color: #444444;
+    text-align: left;
+  }
+
+  .link:hover {
+    color: var(--acme-color-grey900);
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  .link[aria-current='page'] {
+    color: var(--acme-color-grey900);
+    font-weight: 500;
+    background: var(--acme-color-white);
+    border-color: #e2e2e2;
+    box-shadow: var(--acme-shadow-button);
+  }
+
+  .hasShort .fullLabel {
+    display: inline;
+  }
+
+  .shortLabel {
+    display: none;
+  }
+
+  .spacer {
+    display: block;
+    flex: 1;
+  }
+
+  .user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 8px 4px;
+    border-top: 1px solid #e2e2e2;
+  }
+
+  .panel {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    border-bottom: 1px solid var(--acme-color-grey200);
+    border-radius: var(--acme-radius-xxl);
+  }
+
+  .topBar {
+    position: static;
+    padding: 14px 24px;
+    background: transparent;
+    backdrop-filter: none;
+    border-bottom-color: #efefef;
+  }
+
+  .phoneLogo,
+  .phoneAvatar,
+  .phoneOnly {
+    display: none;
+  }
+
+  .main {
+    /* Read by PageHeader so it can stick flush to the top of the scrolling area. */
+    --acme-main-padding-top: 26px;
+    flex: 1 1 0;
+    min-height: 0;
+    padding: var(--acme-main-padding-top) 26px 30px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    /* No scrollbar: the fades at the top and bottom edges show there is more. */
+    scrollbar-width: none;
+  }
+
+  .main::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Children keep their height in the scrolling column (a scrollable child would shrink to 0). */
+  .main > * {
+    flex-shrink: 0;
+  }
+
+  /*
+   * Cards fade out at the bottom edge of the panel instead of being cut. It sticks to the
+   * scrollport's bottom (minus main's 30px bottom padding); the -20px margin cancels main's
+   * flex gap, so once scrolled to the end it sits in the padding, below the last card.
+   */
+  .main::after {
+    content: '';
+    position: sticky;
+    bottom: -30px;
+    z-index: 20;
+    flex: none;
+    height: 28px;
+    margin-top: -20px;
+    pointer-events: none;
+    background: linear-gradient(to top, var(--acme-color-white), rgba(255, 255, 255, 0));
+  }
 }

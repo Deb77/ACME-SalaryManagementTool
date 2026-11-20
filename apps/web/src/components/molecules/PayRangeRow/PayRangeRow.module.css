@@ -1,16 +1,38 @@
 .row {
   display: grid;
-  grid-template-columns: minmax(120px, 220px) 1fr 72px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'title median'
+    'bar bar';
+  gap: 8px 12px;
   align-items: center;
 }
 
 .title {
+  grid-area: title;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.row > [role='img'] {
+  grid-area: bar;
+}
+
 .median {
+  grid-area: median;
   text-align: right;
+}
+
+.row > [data-skeleton] {
+  grid-area: bar;
+}
+
+/* From tablet width the row is one line: title, bar, median. */
+@media (min-width: 768px) {
+  .row {
+    grid-template-columns: minmax(120px, 220px) 1fr 72px;
+    grid-template-areas: 'title bar median';
+    gap: 16px;
+  }
 }

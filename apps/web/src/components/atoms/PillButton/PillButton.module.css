@@ -6,9 +6,11 @@
 
 .button {
   height: 44px;
+  text-decoration: none;
   padding-inline: 18px;
   font-family: var(--acme-font-sans);
-  font-size: 15px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   font-weight: 500;
   border-radius: var(--acme-radius-pill);
 }
@@ -18,10 +20,18 @@
   box-shadow: var(--acme-shadow-focus);
 }
 
+/* Small buttons keep a 44px touch target on phones and shrink from tablet width. */
 .small {
-  height: 36px;
+  height: 44px;
   padding-inline: 14px;
-  font-size: 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+}
+
+@media (min-width: 768px) {
+  .small {
+    height: 36px;
+  }
 }
 
 .primary {

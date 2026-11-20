@@ -24,15 +24,22 @@ export function FilterSelect({
   onChange,
   allLabel = 'All',
 }: FilterSelectProps) {
+  // Sized to its own text, like a chip, instead of Mantine's default input width.
+  const shown = options.find((option) => option.value === value)?.label ?? allLabel;
+  const prefixWidth = label.length * 7.5 + 24;
+  const width = Math.min(prefixWidth + shown.length * 8 + (value ? 64 : 40), 280);
   return (
     <Select
       aria-label={label}
       leftSection={<span className={styles.prefix}>{label}</span>}
       // The section is absolutely positioned, so it needs a width: about 7.5px a letter.
-      leftSectionWidth={label.length * 7.5 + 24}
+      leftSectionWidth={prefixWidth}
       leftSectionPointerEvents="none"
       placeholder={allLabel}
       clearable
+      clearButtonProps={{ className: styles.clear }}
+      rightSectionWidth={value ? 56 : 32}
+      w={width}
       allowDeselect
       data={options.map((option) => ({ value: option.value, label: option.label }))}
       value={value ?? null}

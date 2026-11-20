@@ -19,7 +19,8 @@
 
 .description {
   max-width: 40ch;
-  font-size: 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   color: var(--acme-color-grey500);
 }
 

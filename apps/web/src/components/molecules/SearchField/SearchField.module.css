@@ -1,6 +1,8 @@
+/* Phones: 44px target and 16px text so iOS doesn't zoom the field; compact from tablet. */
 .input {
-  height: 40px;
-  font-size: 14px;
+  height: 44px;
+  font-size: var(--acme-text-md);
+  line-height: var(--acme-leading-md);
   background: var(--acme-color-white);
   border-color: var(--acme-color-grey200);
   border-radius: var(--acme-radius-pill);
@@ -14,4 +16,22 @@
 /* The browser's own clear button duplicates ours. */
 .input::-webkit-search-cancel-button {
   appearance: none;
+}
+
+.clear {
+  width: 44px;
+  height: 44px;
+}
+
+@media (min-width: 768px) {
+  .input {
+    height: 40px;
+    font-size: var(--acme-text-sm);
+    line-height: var(--acme-leading-sm);
+  }
+
+  .clear {
+    width: 28px;
+    height: 28px;
+  }
 }

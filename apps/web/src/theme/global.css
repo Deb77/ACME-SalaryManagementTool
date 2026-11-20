@@ -1,8 +1,22 @@
+/*
+ * No elastic overscroll: on macOS a hard scroll past either end pulled the whole frame away
+ * and showed a bare gap above the navigation. The html background matches the frame in case a
+ * browser still bounces.
+ */
+html {
+  background: #f1f2f1;
+  overscroll-behavior: none;
+}
+
 body {
   margin: 0;
+  overscroll-behavior: none;
   background: #f1f2f1;
   color: #111111;
   font-family: 'Geist Sans', Geist, Inter, system-ui, sans-serif;
+  /* Body text is the scale's `sm` step (14/20): the usual size for data-dense apps. */
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   font-variant-numeric: tabular-nums;
 }
 
