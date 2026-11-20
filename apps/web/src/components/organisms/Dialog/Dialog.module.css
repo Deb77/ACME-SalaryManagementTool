@@ -1,0 +1,54 @@
+/* Plain class selectors win over Mantine because its CSS sits in @layer mantine. */
+
+.content {
+  padding: 4px;
+  background: var(--acme-color-grey50);
+  border: 1px solid var(--acme-color-grey200);
+  border-radius: var(--acme-radius-xxl);
+  box-shadow: var(--acme-shadow-dialog);
+}
+
+.header {
+  padding: 10px 8px 8px 16px;
+  background: transparent;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--acme-color-grey600);
+}
+
+.body {
+  padding: 0;
+}
+
+.panel {
+  padding: 20px;
+  background: var(--acme-color-white);
+  border: 1px solid var(--acme-color-grey150);
+  border-radius: var(--acme-radius-lg);
+  box-shadow: var(--acme-shadow-panel);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 8px 8px 16px;
+}
+
+.note {
+  font-size: 13px;
+  color: var(--acme-color-grey500);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-inline-start: auto;
+}

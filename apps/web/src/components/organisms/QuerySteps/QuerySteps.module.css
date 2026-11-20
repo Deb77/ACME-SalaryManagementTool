@@ -1,0 +1,48 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 8px;
+  border-radius: 50%;
+  background: var(--acme-color-green500);
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.query {
+  display: block;
+  overflow-x: auto;
+  font-family: var(--acme-font-mono);
+  font-size: 12.5px;
+  color: var(--acme-color-grey600);
+  white-space: pre;
+}
+
+.result {
+  flex: none;
+  font-size: 13px;
+  color: var(--acme-color-grey500);
+}

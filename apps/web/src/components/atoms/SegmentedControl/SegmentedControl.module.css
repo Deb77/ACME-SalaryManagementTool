@@ -1,0 +1,21 @@
+.root {
+  padding: 3px;
+  background: var(--acme-color-grey100);
+  border-radius: var(--acme-radius-pill);
+}
+
+.indicator {
+  background: var(--acme-color-white);
+  border-radius: var(--acme-radius-pill);
+  box-shadow: var(--acme-shadow-button);
+}
+
+.label {
+  padding-inline: 14px;
+  font-weight: 500;
+  color: var(--acme-color-grey600);
+}
+
+.label[data-active] {
+  color: var(--acme-color-grey900);
+}

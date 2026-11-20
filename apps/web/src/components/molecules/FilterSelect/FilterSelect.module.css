@@ -1,0 +1,32 @@
+.root {
+  min-width: 160px;
+}
+
+.input {
+  height: 36px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--acme-color-grey900);
+  background: var(--acme-color-grey100);
+  border-color: transparent;
+  border-radius: var(--acme-radius-pill);
+}
+
+.input:focus {
+  border-color: var(--acme-color-accent);
+  box-shadow: var(--acme-shadow-focus);
+}
+
+.input::placeholder {
+  color: var(--acme-color-grey900);
+}
+
+.prefix {
+  font-size: 14px;
+  color: var(--acme-color-grey500);
+}
+
+.option[data-combobox-selected] {
+  color: var(--acme-color-grey900);
+  background: var(--acme-color-green100);
+}
