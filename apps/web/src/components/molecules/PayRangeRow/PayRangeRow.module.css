@@ -1,0 +1,16 @@
+.row {
+  display: grid;
+  grid-template-columns: minmax(120px, 220px) 1fr 72px;
+  gap: 16px;
+  align-items: center;
+}
+
+.title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.median {
+  text-align: right;
+}

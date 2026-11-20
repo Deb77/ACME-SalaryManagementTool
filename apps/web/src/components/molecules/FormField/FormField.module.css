@@ -1,0 +1,30 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--acme-color-grey900);
+}
+
+.required {
+  color: var(--acme-color-danger);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--acme-color-grey500);
+}
+
+.hint {
+  font-size: 13px;
+  color: var(--acme-color-grey500);
+}
+
+.error {
+  font-size: 13px;
+  color: var(--acme-color-danger-text);
+}

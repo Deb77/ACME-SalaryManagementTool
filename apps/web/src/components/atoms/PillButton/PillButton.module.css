@@ -1,0 +1,72 @@
+/*
+ * Mantine sets its button variables (--button-bg …) inline, so these rules set
+ * the real properties instead. Mantine's own rules sit in @layer mantine,
+ * so these plain classes win.
+ */
+
+.button {
+  height: 44px;
+  padding-inline: 18px;
+  font-family: var(--acme-font-sans);
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: var(--acme-radius-pill);
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: var(--acme-shadow-focus);
+}
+
+.small {
+  height: 36px;
+  padding-inline: 14px;
+  font-size: 14px;
+}
+
+.primary {
+  color: var(--acme-color-white);
+  background: var(--acme-color-accent);
+  border: 1px solid transparent;
+  box-shadow: var(--acme-shadow-primary-button);
+}
+
+.primary:hover {
+  background: var(--acme-color-accent-hover);
+}
+
+.secondary {
+  color: var(--acme-color-grey800);
+  background: var(--acme-color-white);
+  border: 1px solid var(--acme-color-grey300);
+  box-shadow: var(--acme-shadow-button);
+}
+
+.secondary:hover {
+  background: var(--acme-color-grey50);
+}
+
+.quiet {
+  color: var(--acme-color-accent);
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.quiet:hover {
+  background: var(--acme-color-green50);
+}
+
+.danger {
+  color: var(--acme-color-danger-text);
+  background: var(--acme-color-white);
+  border: 1px solid var(--acme-color-danger);
+}
+
+.danger:hover {
+  background: var(--acme-color-danger-bg);
+}
+
+.button:disabled,
+.button[data-disabled] {
+  opacity: 0.55;
+}

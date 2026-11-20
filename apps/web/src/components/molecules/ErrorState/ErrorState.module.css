@@ -1,0 +1,28 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.icon {
+  margin-bottom: 8px;
+  color: var(--acme-color-warning);
+}
+
+.title {
+  font-weight: 500;
+  color: var(--acme-color-grey900);
+}
+
+.description {
+  max-width: 40ch;
+  font-size: 14px;
+  color: var(--acme-color-grey500);
+}
+
+.action {
+  margin-top: 12px;
+}

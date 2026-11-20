@@ -1,7 +1,14 @@
+import { ErrorBoundary } from './components';
+import { ThemeProvider } from './theme';
+
 export function App() {
   return (
-    <main>
-      <h1>ACME Salary Management</h1>
-    </main>
+    <ThemeProvider>
+      <ErrorBoundary>
+        <main>
+          <h1>ACME Salary Management</h1>
+        </main>
+      </ErrorBoundary>
+    </ThemeProvider>
   );
 }

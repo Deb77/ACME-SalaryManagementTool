@@ -1,0 +1,24 @@
+body {
+  margin: 0;
+  background: #f1f2f1;
+  color: #111111;
+  font-family: 'Geist Sans', Geist, Inter, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.acme-root {
+  min-height: 100vh;
+  font-family: var(--acme-font-sans);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

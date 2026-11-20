@@ -7,17 +7,28 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "ladle": "ladle serve",
+    "ladle:build": "ladle build"
   },
   "dependencies": {
     "@acme/shared": "^0.0.0",
+    "@fontsource/geist-mono": "^5.3.0",
+    "@fontsource/geist-sans": "^5.3.0",
+    "@mantine/core": "9.8.0",
+    "@mantine/hooks": "9.8.0",
+    "@tabler/icons-react": "3.51.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "react-is": "^19.3.1",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
+    "@ladle/react": "^5.1.1",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.9",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",

@@ -1,0 +1,27 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 30px;
+  line-height: 38px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.description {
+  margin: 2px 0 0;
+  font-size: 15px;
+  color: var(--acme-color-grey500);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
