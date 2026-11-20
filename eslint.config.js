@@ -34,7 +34,8 @@ export default tseslint.config(
           patterns: [
             {
               group: ['@acme/web', '@acme/web/*', '@acme/api', '@acme/api/*', '**/apps/**'],
-              message: 'packages/shared must not import from the apps; move the code into shared instead.',
+              message:
+                'packages/shared must not import from the apps; move the code into shared instead.',
             },
           ],
         },
