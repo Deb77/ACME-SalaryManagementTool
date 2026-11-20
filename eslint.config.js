@@ -24,6 +24,23 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  // The shared contract is consumed by the apps and must never depend on them.
+  {
+    files: ['packages/shared/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@acme/web', '@acme/web/*', '@acme/api', '@acme/api/*', '**/apps/**'],
+              message: 'packages/shared must not import from the apps; move the code into shared instead.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Atomic design: a component level may only import from lower levels.
   ...atomicLevelRules(),
   prettier,
