@@ -26,14 +26,16 @@ The choices made while planning and building, newest last. Bigger technical deci
 | 20 | 2026-11-20 | Plain markup for StatusTag, FormField, FileDropzone, avatars and the empty/error states; Tabler icons | Mantine Badge, Input.Wrapper, `@mantine/dropzone`, Avatar; keep `@ant-design/icons` | These are layout and colour only, so a library adds props and markup without behaviour. Tabler is the icon set Mantine recommends. |
 | 21 | 2026-11-20 | Add Mantine's official docs MCP server (`@mantine/mcp-server`, pinned to 9.8.0) in a project `.mcp.json` | Paste `mantine.dev/llms.txt` into prompts; rely on the model's memory | The AI assistant looks up current v9 props and Styles API instead of guessing, and the pin keeps the docs on the same version as `@mantine/core`. |
 | 22 | 2026-11-20 | `packages/shared` is grouped by domain (`core/`, `health/`, `employee/`, `salary-change/`, `ai/`) with `<domain>.schema.ts` files, a co-located test each and one barrel; a lint rule stops it importing from the apps; a `development` export condition points the API dev server at `src/` | A flat `src/`; subpath exports per domain; a separate contracts package | Matches common monorepo practice for shared Zod contracts while staying small. One barrel keeps imports as `@acme/shared`. Without the condition, `tsx` read stale `dist/` and schema edits did not reach the API until a rebuild. |
+| 23 | 2026-11-20 | RBAC with roles in the database: `roles`, `permissions` and `role_permissions` tables, one role per user, each role a permission set plus a country scope (`all` or `assigned`). The auth layer checks `requirePermission` on every route. Global HR and Country HR are seeded system roles; the permission catalogue is defined in code | A fixed role enum checked with `requireRole`; a role-to-permission map in code | Global HR can add a role (for example a read-only finance viewer) without a deploy. Routes name permissions, so the catalogue stays in code. RLS reads only the resolved countries, never a role name, which also removes the `OR` that stopped indexes being used. Escalation rules are in [auth.md](auth.md#roles-and-permissions-rbac). |
+| 24 | 2026-11-20 | Country HR imports only their assigned countries. Rows for other countries are row errors that tell them to ask Global HR, and are never applied | Reject the whole file; silently skip the rows | The rest of the file still imports and every row is explained, while changes to other countries stay with Global HR. |
+| 25 | 2026-11-20 | Invite links are copied by hand in v1 (shown once to the inviting user); no email | Send invites by email | Email needs a provider and domain setup, and with about 20 users copying a link is workable. |
+| 26 | 2026-11-20 | Money is formatted in the currency's own locale (₹32,40,000 for INR), not the viewer's | Format in the viewer's browser locale | Matches how each country's HR team reads its own numbers, and the same amount looks the same for everyone. |
 
 ## Open questions
 
 Raised by the design docs and not decided yet:
 
 - Can Render's default Postgres user create the extra database roles that auth.md relies on?
-- Invite links copied by hand in v1, or email?
 - Where the demo password lives (README or submission note only).
 - Future-dated salary changes, moving an employee to another country, and reinstating a terminated employee (all rejected in v1).
-- Import: a time limit on undo; how to treat rows for countries a Country HR user doesn't hold.
-- Money format by currency locale (current) or the viewer's locale.
+- Import: a time limit on undo.
