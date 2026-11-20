@@ -10,12 +10,12 @@ export interface StatTileProps {
   /** Short emphasised figure in the footer, e.g. "+412" or "+8.4%". */
   delta?: string;
   deltaTone?: DeltaTone;
-  /** Text after the delta, e.g. "hired in 2026". */
-  note?: string;
+  /** Text after the delta, e.g. "hired in 2026" (or a Skeleton while it loads). */
+  note?: ReactNode;
   /** Decorative mini bar chart; the value and note carry the meaning. */
   trend?: readonly number[];
-  /** The dark green hero tile used for the headline KPI. */
-  variant?: 'default' | 'hero';
+  /** `hero`: the dark green headline KPI. `warning`: a count that needs attention (rows to fix). */
+  variant?: 'default' | 'hero' | 'warning';
 }
 
 const MIN_BAR_PX = 6;
@@ -34,7 +34,11 @@ export function StatTile({
   const max = trend && trend.length > 0 ? Math.max(...trend) : 0;
   return (
     <section aria-labelledby={labelId} className={trayStyles.tray}>
-      <div className={[styles.panel, variant === 'hero' && styles.hero].filter(Boolean).join(' ')}>
+      <div
+        className={[styles.panel, variant !== 'default' && styles[variant]]
+          .filter(Boolean)
+          .join(' ')}
+      >
         <h2 id={labelId} className={styles.label}>
           {label}
         </h2>

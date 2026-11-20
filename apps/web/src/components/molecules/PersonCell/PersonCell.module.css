@@ -20,19 +20,22 @@
 .small {
   width: 30px;
   height: 30px;
-  font-size: 12px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
 }
 
 .medium {
   width: 38px;
   height: 38px;
-  font-size: 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
 }
 
 .large {
   width: 56px;
   height: 56px;
-  font-size: 18px;
+  font-size: var(--acme-text-lg);
+  line-height: var(--acme-leading-lg);
   border-radius: var(--acme-radius-md);
 }
 
@@ -53,7 +56,8 @@ a.name:hover {
 
 .detail {
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   color: var(--acme-color-grey500);
   text-overflow: ellipsis;
   white-space: nowrap;

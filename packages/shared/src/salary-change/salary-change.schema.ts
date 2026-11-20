@@ -1,5 +1,10 @@
 import { z } from 'zod';
-import { isoDateSchema, timestampSchema, userRefSchema, versionSchema } from '../core/common.schema.js';
+import {
+  isoDateSchema,
+  timestampSchema,
+  userRefSchema,
+  versionSchema,
+} from '../core/common.schema.js';
 import { employeeSchema } from '../employee/employee.schema.js';
 import { moneySchema, salaryAmountMinorSchema } from '../core/money.schema.js';
 
@@ -65,3 +70,8 @@ export const createSalaryChangeResponseSchema = z.object({
 });
 
 export type CreateSalaryChangeResponse = z.infer<typeof createSalaryChangeResponseSchema>;
+
+/** `GET /api/employees/:id/salary-changes`: the full history, newest first. */
+export const salaryHistoryResponseSchema = z.object({ items: z.array(salaryChangeSchema) });
+
+export type SalaryHistoryResponse = z.infer<typeof salaryHistoryResponseSchema>;

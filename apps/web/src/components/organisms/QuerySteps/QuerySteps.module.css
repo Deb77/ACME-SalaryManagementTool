@@ -28,7 +28,8 @@
 }
 
 .label {
-  font-size: 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   font-weight: 500;
 }
 
@@ -36,13 +37,15 @@
   display: block;
   overflow-x: auto;
   font-family: var(--acme-font-mono);
-  font-size: 12.5px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   color: var(--acme-color-grey600);
   white-space: pre;
 }
 
 .result {
   flex: none;
-  font-size: 13px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   color: var(--acme-color-grey500);
 }

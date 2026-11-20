@@ -1,0 +1,88 @@
+.roleGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.filter {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.filter > * {
+  width: max-content;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.memberCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.memberMain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.logItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 12px 0;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+  border-top: 1px solid var(--acme-color-grey100);
+}
+
+.logItem:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.inviteUrl {
+  display: block;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+  font-family: var(--acme-font-mono);
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
+  background: var(--acme-color-grey50);
+  border: 1px solid var(--acme-color-grey150);
+  border-radius: var(--acme-radius-sm);
+}
+
+.preview {
+  padding: 12px 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+  background: var(--acme-color-green50);
+  border: 1px solid var(--acme-color-green200);
+  border-radius: var(--acme-radius-md);
+}
+
+@media (min-width: 768px) {
+  .roleGrid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+}
+
+.skeletonEnd {
+  margin-left: auto;
+}

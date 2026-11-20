@@ -1,9 +1,18 @@
+/* 16px on phones so iOS doesn't zoom the field. */
 .input {
   height: 44px;
-  font-size: 15px;
+  font-size: var(--acme-text-md);
+  line-height: var(--acme-leading-md);
   font-weight: 600;
   border-color: var(--acme-color-grey200);
   border-radius: var(--acme-radius-md);
+}
+
+@media (min-width: 768px) {
+  .input {
+    font-size: var(--acme-text-sm);
+    line-height: var(--acme-leading-sm);
+  }
 }
 
 .input:focus {
@@ -16,6 +25,7 @@
 }
 
 .prefix {
-  font-size: 15px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   color: var(--acme-color-grey600);
 }

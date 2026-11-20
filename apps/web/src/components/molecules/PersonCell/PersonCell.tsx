@@ -1,4 +1,6 @@
+import { AppLink } from '../../atoms/AppLink/AppLink';
 import { initialsOf } from './PersonCell.utils';
+import { Skeleton } from '../../atoms/Skeleton/Skeleton';
 import styles from './PersonCell.module.css';
 
 export interface PersonCellProps {
@@ -19,13 +21,38 @@ export function PersonCell({ name, detail, href, size = 'medium' }: PersonCellPr
       </span>
       <div className={styles.text}>
         {href ? (
-          <a href={href} className={styles.name}>
+          <AppLink href={href} className={styles.name}>
             {name}
-          </a>
+          </AppLink>
         ) : (
           <div className={styles.name}>{name}</div>
         )}
         {detail && <div className={styles.detail}>{detail}</div>}
+      </div>
+    </div>
+  );
+}
+
+/** PersonCell while it loads: same avatar size, a name line and a detail line. */
+export function PersonCellSkeleton({
+  size = 'medium',
+  nameWidth = 120,
+  detailWidth = 200,
+}: {
+  size?: PersonCellProps['size'];
+  nameWidth?: number | string;
+  detailWidth?: number | string;
+}) {
+  return (
+    <div className={styles.root} aria-hidden="true">
+      <span className={`${styles.avatar} ${styles[size]}`} />
+      <div className={styles.text}>
+        <div className={styles.name}>
+          <Skeleton inline width={nameWidth} height={12} />
+        </div>
+        <div className={styles.detail}>
+          <Skeleton inline width={detailWidth} height={11} />
+        </div>
       </div>
     </div>
   );

@@ -1,0 +1,154 @@
+import { permissionKeys } from '@acme/shared';
+import { IconPlus, IconUserPlus } from '@tabler/icons-react';
+import {
+  DataTable,
+  PageHeader,
+  PageSkeleton,
+  PersonCellSkeleton,
+  PillButton,
+  RoleCardSkeleton,
+  Skeleton,
+  TrayCard,
+  type DataTableColumn,
+} from '../../components';
+import { useOptionalSession } from '../../session/SessionContext';
+import shared from '../shared/screen.module.css';
+import styles from './Access.module.css';
+
+const memberColumns: DataTableColumn<never>[] = [
+  {
+    key: 'person',
+    width: '30%',
+    title: 'Person',
+    render: () => null,
+    skeleton: <PersonCellSkeleton nameWidth={120} detailWidth={180} />,
+  },
+  {
+    key: 'role',
+    width: '15%',
+    title: 'Role',
+    render: () => null,
+    skeleton: <Skeleton inline width={90} height={24} pill />,
+  },
+  {
+    key: 'countries',
+    width: '27%',
+    title: 'Countries',
+    render: () => null,
+    skeleton: (
+      <div className={styles.chips}>
+        <Skeleton width={56} height={24} pill />
+        <Skeleton width={64} height={24} pill />
+      </div>
+    ),
+  },
+  { key: 'lastActive', width: '17%', title: 'Last active', render: () => null },
+  {
+    key: 'action',
+    width: '11%',
+    title: <span className="visually-hidden">Action</span>,
+    align: 'right',
+    render: () => null,
+    skeleton: <Skeleton width={56} height={36} pill className={styles.skeletonEnd} />,
+  },
+];
+
+const LOG_WIDTHS = [320, 260, 360];
+
+/**
+ * AccessView while roles and people load: real titles, buttons (from permissions), footers
+ * and table headers; role cards, rows and log entries as placeholders.
+ */
+export function AccessSkeleton() {
+  // Before the session loads (first page load), assume everything is visible.
+  const can = useOptionalSession()?.can ?? (() => true);
+  return (
+    <PageSkeleton label="Loading access…">
+      <PageHeader
+        title="Access & roles"
+        description={
+          <>
+            Who can see and change salary data · <Skeleton inline width={130} height={12} />
+          </>
+        }
+        actions={
+          can('users:manage') && (
+            <PillButton tone="primary" icon={<IconUserPlus size={16} />}>
+              Invite person
+            </PillButton>
+          )
+        }
+      />
+      <TrayCard
+        title="Roles"
+        extra={
+          can('roles:manage') && (
+            <PillButton size="small" icon={<IconPlus size={14} />}>
+              New role
+            </PillButton>
+          )
+        }
+        footer="A role is a set of permissions plus a country scope. Every person has one role."
+      >
+        <div className={styles.roleGrid}>
+          {[0, 1, 2].map((index) => (
+            <RoleCardSkeleton
+              key={index}
+              permissionCount={permissionKeys.length}
+              withActions={index > 0 && can('roles:manage')}
+            />
+          ))}
+        </div>
+      </TrayCard>
+      {can('users:manage') && (
+        <TrayCard
+          title="Team members"
+          flush
+          extra={<Skeleton width={258} height={30} pill />}
+          footer="You can't remove the last Global HR. Every access change is logged."
+        >
+          <DataTable<never>
+            label="Team members"
+            columns={memberColumns}
+            rows={[]}
+            rowKey={() => ''}
+            total={0}
+            query={{ page: 1, pageSize: 5 }}
+            onQueryChange={() => {}}
+            skeletonRows={5}
+            renderCard={() => null}
+            skeletonCard={
+              <div className={styles.memberCard}>
+                <div className={styles.memberMain}>
+                  <PersonCellSkeleton nameWidth={120} detailWidth={170} />
+                  <div className={styles.chips}>
+                    <Skeleton inline width={90} height={24} pill />
+                    <Skeleton inline width={56} height={24} pill />
+                  </div>
+                  <div className={`${shared.small} ${shared.muted}`}>
+                    <Skeleton inline width={110} height={11} />
+                  </div>
+                </div>
+                <Skeleton width={44} height={44} circle />
+              </div>
+            }
+          />
+        </TrayCard>
+      )}
+      {can('audit:read') && (
+        <TrayCard title="Recent access changes">
+          <ul className={styles.log} aria-hidden="true">
+            {LOG_WIDTHS.map((width, index) => (
+              <li key={index} className={styles.logItem}>
+                <Skeleton inline width={width} height={12} />
+                <span className={`${shared.small} ${shared.muted}`}>
+                  <Skeleton inline width={70} height={11} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </TrayCard>
+      )}
+    </PageSkeleton>
+  );
+}

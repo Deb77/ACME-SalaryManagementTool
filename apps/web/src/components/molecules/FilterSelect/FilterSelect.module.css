@@ -1,10 +1,17 @@
 .root {
-  min-width: 160px;
+  max-width: 100%;
 }
 
 .input {
-  height: 36px;
-  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Phones: 44px target and 16px text so iOS doesn't zoom the field; compact from tablet. */
+.input {
+  height: 44px;
+  font-size: var(--acme-text-md);
+  line-height: var(--acme-leading-md);
   font-weight: 500;
   color: var(--acme-color-grey900);
   background: var(--acme-color-grey100);
@@ -22,11 +29,30 @@
 }
 
 .prefix {
-  font-size: 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   color: var(--acme-color-grey500);
+}
+
+.clear {
+  width: 44px;
+  height: 44px;
 }
 
 .option[data-combobox-selected] {
   color: var(--acme-color-grey900);
   background: var(--acme-color-green100);
+}
+
+@media (min-width: 768px) {
+  .input {
+    height: 36px;
+    font-size: var(--acme-text-sm);
+    line-height: var(--acme-leading-sm);
+  }
+
+  .clear {
+    width: 28px;
+    height: 28px;
+  }
 }

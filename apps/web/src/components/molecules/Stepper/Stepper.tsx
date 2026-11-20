@@ -27,7 +27,7 @@ export function Stepper({ label, steps, current }: StepperProps) {
             <span className={styles.mark} aria-hidden="true">
               {state === 'done' ? <IconCheck size={14} stroke={2.5} /> : index + 1}
             </span>
-            {step}
+            <span className={styles.text}>{step}</span>
             {state === 'done' && <span className="visually-hidden"> (done)</span>}
           </li>
         );

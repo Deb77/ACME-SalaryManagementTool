@@ -19,7 +19,8 @@ export interface DialogProps {
 /**
  * Mantine Modal in the tray style: uppercase title, white body panel and a
  * footer strip. Every part is styled by one CSS module through `classNames`.
- * Mantine handles focus trapping, Esc and restoring focus.
+ * Mantine handles focus trapping, Esc and restoring focus. On phones it is a
+ * bottom sheet with full-width actions; from tablet width a centred dialog.
  */
 export function Dialog({
   open,
@@ -43,10 +44,12 @@ export function Dialog({
       closeOnClickOutside={!busy}
       closeButtonProps={{ 'aria-label': 'Close' }}
       classNames={{
+        inner: styles.inner,
         content: styles.content,
         header: styles.header,
         title: styles.title,
         body: styles.body,
+        close: styles.close,
       }}
     >
       <div className={styles.panel}>{children}</div>

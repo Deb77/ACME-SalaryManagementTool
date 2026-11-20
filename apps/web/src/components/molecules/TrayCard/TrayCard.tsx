@@ -10,6 +10,11 @@ export interface TrayCardProps {
   footer?: ReactNode;
   /** Remove body padding, e.g. when the body is a table. */
   flush?: boolean;
+  /**
+   * From desktop width, grow to the rest of the page height and let the body's own content
+   * scroll (a DataTable with `fill`), so headers and the footer stay in view.
+   */
+  fill?: boolean;
   as?: 'section' | 'aside';
   headingLevel?: 2 | 3;
   className?: string;
@@ -22,6 +27,7 @@ export function TrayCard({
   extra,
   footer,
   flush = false,
+  fill = false,
   as: Element = 'section',
   headingLevel = 2,
   className,
@@ -32,7 +38,7 @@ export function TrayCard({
   return (
     <Element
       aria-labelledby={titleId}
-      className={[styles.tray, className].filter(Boolean).join(' ')}
+      className={[styles.tray, fill && styles.fill, className].filter(Boolean).join(' ')}
     >
       <div className={styles.header}>
         <Heading id={titleId} className={styles.title}>

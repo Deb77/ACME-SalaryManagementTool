@@ -3,7 +3,7 @@
   align-items: center;
   gap: 6px;
   padding: 1px 10px;
-  font-size: 13px;
+  font-size: var(--acme-text-xs);
   font-weight: 500;
   line-height: 20px;
   white-space: nowrap;

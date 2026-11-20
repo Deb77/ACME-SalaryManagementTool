@@ -20,7 +20,8 @@
 
 .title {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   font-weight: 500;
   color: var(--acme-color-grey600);
   letter-spacing: 0.05em;
@@ -30,7 +31,7 @@
 .body {
   flex: 1;
   min-width: 0;
-  padding: 20px;
+  padding: 16px;
   background: var(--acme-color-white);
   border: 1px solid var(--acme-color-grey150);
   border-radius: var(--acme-radius-lg);
@@ -49,6 +50,28 @@
   justify-content: space-between;
   gap: 8px;
   padding: 10px 14px 8px;
-  font-size: 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   color: var(--acme-color-grey500);
+}
+
+@media (min-width: 768px) {
+  .body {
+    padding: 20px;
+  }
+}
+
+/* Fills the rest of AppShell's scrolling <main>; below 360px tall the page scrolls instead. */
+@media (min-width: 1024px) {
+  .fill {
+    flex: 1 0 360px;
+    min-height: 360px;
+  }
+
+  .fill > .body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
 }

@@ -57,6 +57,28 @@ export const fonts = {
   mono: "'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
 } as const;
 
+/**
+ * Type scale: seven sizes, each with its line height on a 4px grid (the same steps as
+ * Tailwind's and close to IBM Carbon's productive scale). In rem, so the browser's font-size
+ * setting scales the whole UI. Body text is `sm` (14/20), the usual size for data-dense apps;
+ * `md` (16/24) is for reading text and phone inputs (iOS zooms inputs under 16px).
+ */
+export const typeScale = {
+  /** Uppercase labels, tags, badges, meta lines, helper and error text. */
+  xs: { size: 0.75, lineHeight: 1 },
+  /** Body and UI text: tables, buttons, lists, descriptions. */
+  sm: { size: 0.875, lineHeight: 1.25 },
+  /** Reading text (chat answers), phone inputs, primary lines on phone cards. */
+  md: { size: 1, lineHeight: 1.5 },
+  /** Small headings: role names, the brand, emphasised figures. */
+  lg: { size: 1.125, lineHeight: 1.75 },
+  xl: { size: 1.25, lineHeight: 1.75 },
+  /** Page titles on phones, key figures. */
+  xxl: { size: 1.5, lineHeight: 2 },
+  /** Page titles and key figures from desktop width. */
+  xxxl: { size: 1.875, lineHeight: 2.25 },
+} as const;
+
 export const shadows = {
   panel: '0 1px 2px rgba(16,16,16,0.04), 0 10px 28px -14px rgba(16,16,16,0.12)',
   frame: '0 1px 3px rgba(16,16,16,0.04), 0 30px 70px -36px rgba(16,40,24,0.25)',
@@ -83,4 +105,19 @@ export const chartColors = {
   highlight: colors.accent,
   grid: colors.grey100,
   axis: colors.grey500,
+} as const;
+
+/**
+ * Layout breakpoints, mobile first: base styles target a 390px phone. CSS modules repeat the
+ * pixel values in `@media (min-width: …)` because custom properties don't work in media
+ * queries; JavaScript reads `mediaQueries` (e.g. DataTable's card list on phones).
+ */
+export const breakpoints = {
+  tablet: 768,
+  desktop: 1024,
+} as const;
+
+export const mediaQueries = {
+  tablet: `(min-width: ${breakpoints.tablet}px)`,
+  desktop: `(min-width: ${breakpoints.desktop}px)`,
 } as const;

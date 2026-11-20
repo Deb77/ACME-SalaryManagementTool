@@ -1,5 +1,6 @@
 import { Button } from '@mantine/core';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { AppLink } from '../AppLink/AppLink';
 import styles from './PillButton.module.css';
 
 export type PillButtonTone = 'primary' | 'secondary' | 'quiet' | 'danger';
@@ -21,6 +22,10 @@ export interface PillButtonProps extends Omit<
   /** Shows a spinner and blocks presses. */
   loading?: boolean;
   type?: 'button' | 'submit' | 'reset';
+  /** Renders a link styled as this button (navigation, downloads). */
+  href?: string;
+  /** With `href`: download the target instead of navigating (CSV export, templates). */
+  download?: boolean | string;
   children: ReactNode;
 }
 
@@ -32,16 +37,34 @@ export function PillButton({
   loading = false,
   type = 'button',
   className,
+  href,
+  download,
   children,
   ...rest
 }: PillButtonProps) {
+  const classes = [styles.button, styles[tone], styles[size], className].filter(Boolean).join(' ');
+  if (href) {
+    return (
+      <Button
+        component={AppLink}
+        href={href}
+        download={download}
+        leftSection={icon}
+        variant="default"
+        className={classes}
+        aria-label={rest['aria-label']}
+      >
+        {children}
+      </Button>
+    );
+  }
   return (
     <Button
       type={type}
       loading={loading}
       leftSection={icon}
       variant="default"
-      className={[styles.button, styles[tone], styles[size], className].filter(Boolean).join(' ')}
+      className={classes}
       {...rest}
     >
       {children}

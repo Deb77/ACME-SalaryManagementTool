@@ -75,3 +75,44 @@ describe('DataTable', () => {
     );
   });
 });
+
+describe('DataTable on a phone', () => {
+  // The test setup's matchMedia never matches, which is the phone (base) layout.
+  function renderCards(query: TableQuery, onQueryChange = vi.fn()) {
+    render(
+      <DataTable
+        label="Employees"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        total={25}
+        query={query}
+        onQueryChange={onQueryChange}
+        itemName="employees"
+        renderCard={(row) => `${row.name} — ${row.title}`}
+      />,
+    );
+    return onQueryChange;
+  }
+
+  it('renders a list of cards instead of the table', () => {
+    renderCards({ page: 1, pageSize: 10 });
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    const list = screen.getByRole('list', { name: 'Employees' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(list).getByText('Arjun Mehta — Data Analyst')).toBeInTheDocument();
+  });
+
+  it('moves sorting to a Sort menu built from the sortable columns', async () => {
+    const onQueryChange = renderCards({ page: 2, pageSize: 10 });
+
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort' }), 'name:desc');
+
+    expect(onQueryChange).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 10,
+      sort: { field: 'name', order: 'desc' },
+    });
+  });
+});

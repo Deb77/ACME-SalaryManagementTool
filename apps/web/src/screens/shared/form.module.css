@@ -1,0 +1,165 @@
+/*
+ * Native form controls styled like the Mantine inputs. Native date pickers and selects are
+ * the best touch experience on phones, and plain elements keep FormField's aria wiring.
+ */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.control {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  font: inherit;
+  font-size: var(--acme-text-md);
+  line-height: var(--acme-leading-md);
+  color: var(--acme-color-grey900);
+  background: var(--acme-color-white);
+  border: 1px solid var(--acme-color-grey300);
+  border-radius: var(--acme-radius-md);
+}
+
+.control:focus {
+  outline: none;
+  border-color: var(--acme-color-accent);
+  box-shadow: var(--acme-shadow-focus);
+}
+
+.control[aria-invalid='true'] {
+  border-color: var(--acme-color-danger);
+}
+
+.control:disabled {
+  color: var(--acme-color-grey500);
+  background: var(--acme-color-grey50);
+}
+
+select.control {
+  appearance: none;
+  padding-right: 36px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #6b6b6b 50%),
+    linear-gradient(135deg, #6b6b6b 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 13px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
+textarea.control {
+  min-height: 88px;
+  padding: 10px 14px;
+  resize: vertical;
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
+  font-weight: 500;
+  color: var(--acme-color-grey600);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.note {
+  margin: 0;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
+  color: var(--acme-color-grey500);
+}
+
+.radioRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+  background: var(--acme-color-white);
+  border: 1px solid var(--acme-color-grey200);
+  border-radius: var(--acme-radius-pill);
+  cursor: pointer;
+}
+
+.radio:has(input:checked) {
+  font-weight: 500;
+  background: var(--acme-color-green50);
+  border-color: var(--acme-color-green300);
+}
+
+.radio input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--acme-color-accent);
+}
+
+/* Form actions stick above the phone tab bar so Save is always reachable. */
+.actions {
+  position: sticky;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  padding: 12px 0;
+  background: var(--acme-color-white);
+  border-top: 1px solid var(--acme-color-grey100);
+}
+
+.actions > * {
+  flex: 1;
+}
+
+@media (min-width: 768px) {
+  .row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .actions {
+    position: static;
+    justify-content: flex-end;
+    border-top: 0;
+  }
+
+  .actions > * {
+    flex: none;
+  }
+}
+
+.error {
+  margin: 0;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+  color: var(--acme-color-danger-text);
+}

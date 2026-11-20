@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextSort } from './DataTable.utils';
+import { nextSort, parseSortValue, sortValue } from './DataTable.utils';
 
 describe('nextSort', () => {
   it('cycles a column through ascending, descending and unsorted', () => {
@@ -16,5 +16,18 @@ describe('nextSort', () => {
       field: 'title',
       order: 'asc',
     });
+  });
+});
+
+describe('sortValue and parseSortValue', () => {
+  it('round-trips a sort through the phone sort menu value', () => {
+    expect(sortValue({ field: 'salary', order: 'desc' })).toBe('salary:desc');
+    expect(parseSortValue('salary:desc')).toEqual({ field: 'salary', order: 'desc' });
+  });
+
+  it('treats an empty or malformed value as the default order', () => {
+    expect(sortValue(undefined)).toBe('');
+    expect(parseSortValue('')).toBeUndefined();
+    expect(parseSortValue('salary:sideways')).toBeUndefined();
   });
 });

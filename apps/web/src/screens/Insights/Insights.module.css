@@ -1,0 +1,52 @@
+.countryPicker {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.countryPicker > * {
+  width: max-content;
+}
+
+.titleList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.payrollCell {
+  display: grid;
+  grid-template-columns: minmax(60px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 160px;
+}
+
+/* The payroll table needs about half the width, so this row splits evenly on desktop. */
+@media (min-width: 1024px) {
+  .evenColumns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.countryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.countryLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* A tile value placeholder as tall as the real tile's 48px mini chart. */
+.skeletonTrendValue {
+  display: flex;
+  align-items: center;
+  height: 48px;
+}

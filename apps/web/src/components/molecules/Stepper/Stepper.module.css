@@ -1,6 +1,8 @@
 .list {
   display: flex;
-  flex-wrap: wrap;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
   gap: 4px;
   margin: 0;
   padding: 4px;
@@ -12,12 +14,14 @@
 
 .step {
   display: inline-flex;
+  flex: none;
   align-items: center;
   gap: 8px;
   height: 36px;
   padding: 0 14px 0 6px;
   border-radius: var(--acme-radius-pill);
-  font-size: 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   color: var(--acme-color-grey600);
 }
 
@@ -36,7 +40,8 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  font-size: 12px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   font-weight: 600;
   background: var(--acme-color-grey200);
   color: var(--acme-color-grey600);
@@ -50,4 +55,32 @@
 .current .mark {
   background: var(--acme-color-accent);
   color: var(--acme-color-white);
+}
+
+/* Phones show the label of the current step only; the others keep it for screen readers. */
+.step:not(.current) .text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.step:not(.current) {
+  padding-right: 6px;
+}
+
+@media (min-width: 768px) {
+  .step:not(.current) .text {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+  }
+
+  .step:not(.current) {
+    padding-right: 14px;
+  }
 }

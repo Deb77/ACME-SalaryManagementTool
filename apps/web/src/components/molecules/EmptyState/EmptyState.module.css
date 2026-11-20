@@ -18,7 +18,8 @@
 }
 
 .description {
-  font-size: 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   color: var(--acme-color-grey500);
 }
 

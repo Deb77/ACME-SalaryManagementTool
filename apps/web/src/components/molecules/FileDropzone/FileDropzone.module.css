@@ -42,6 +42,7 @@
 }
 
 .hint {
-  font-size: 13px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   color: var(--acme-color-grey500);
 }

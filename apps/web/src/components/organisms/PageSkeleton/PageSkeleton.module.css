@@ -1,0 +1,154 @@
+.root {
+  min-height: 60vh;
+  min-width: 0;
+}
+
+/* A screen's own skeleton: lays out its children exactly like AppShell's <main> does. */
+.screen {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: inherit;
+  min-width: 0;
+  min-height: 0;
+}
+
+.screen > * {
+  flex-shrink: 0;
+}
+
+.label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.page,
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.page {
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.actions,
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.search {
+  flex: 1 1 220px;
+}
+
+.tray {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 4px;
+  background: var(--acme-color-grey50);
+  border: 1px solid var(--acme-color-grey150);
+  border-radius: var(--acme-radius-xl);
+}
+
+.trayHeader {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 14px;
+}
+
+.trayBody {
+  padding: 16px;
+  background: var(--acme-color-white);
+  border: 1px solid var(--acme-color-grey150);
+  border-radius: var(--acme-radius-lg);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.full {
+  grid-column: 1 / -1;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--acme-color-white);
+  border: 1px solid var(--acme-color-grey150);
+  border-radius: var(--acme-radius-xl);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (min-width: 768px) {
+  .trayBody {
+    padding: 20px;
+  }
+
+  .tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .columns {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}

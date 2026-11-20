@@ -1,5 +1,5 @@
 import { createTheme, type MantineColorsTuple } from '@mantine/core';
-import { colors, fonts, radii } from './tokens';
+import { colors, fonts, radii, typeScale } from './tokens';
 
 /**
  * Mantine theme built from our tokens. It only sets what Mantine needs to pick
@@ -38,4 +38,20 @@ export const mantineTheme = createTheme({
     xl: `${radii.xl}px`,
   },
   focusRing: 'auto',
+  // Mantine's size names already use the same steps as `typeScale` (12/14/16/18/20); the
+  // line heights are set to match it instead of Mantine's looser 1.55 default.
+  fontSizes: {
+    xs: `${typeScale.xs.size}rem`,
+    sm: `${typeScale.sm.size}rem`,
+    md: `${typeScale.md.size}rem`,
+    lg: `${typeScale.lg.size}rem`,
+    xl: `${typeScale.xl.size}rem`,
+  },
+  lineHeights: {
+    xs: String(typeScale.xs.lineHeight / typeScale.xs.size),
+    sm: String(typeScale.sm.lineHeight / typeScale.sm.size),
+    md: String(typeScale.md.lineHeight / typeScale.md.size),
+    lg: String(typeScale.lg.lineHeight / typeScale.lg.size),
+    xl: String(typeScale.xl.lineHeight / typeScale.xl.size),
+  },
 });

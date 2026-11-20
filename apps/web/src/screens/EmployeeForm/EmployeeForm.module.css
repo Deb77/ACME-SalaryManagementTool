@@ -1,0 +1,22 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 880px;
+}
+
+.benchmark {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--acme-color-green50);
+  border: 1px solid var(--acme-color-green200);
+  border-radius: var(--acme-radius-md);
+}
+
+.benchmarkTitle {
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+  font-weight: 500;
+}

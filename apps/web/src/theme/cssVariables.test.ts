@@ -16,6 +16,14 @@ describe('toCssVariables', () => {
 
     expect(vars['--acme-radius-xl']).toBe(`${radii.xl}px`);
   });
+
+  it('exposes the type scale in rem with a line height per step', () => {
+    const vars = toCssVariables() as Record<string, string>;
+
+    expect(vars['--acme-text-sm']).toBe('0.875rem');
+    expect(vars['--acme-leading-sm']).toBe('1.25rem');
+    expect(vars['--acme-text-xxxl']).toBe('1.875rem');
+  });
 });
 
 describe('toRootCss', () => {

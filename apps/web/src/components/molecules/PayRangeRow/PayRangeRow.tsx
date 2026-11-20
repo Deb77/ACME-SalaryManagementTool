@@ -1,5 +1,5 @@
 import { formatMoney } from '../../../lib/money';
-import { MoneyText, RangeBar } from '../../atoms';
+import { MoneyText, RangeBar, Skeleton } from '../../atoms';
 import styles from './PayRangeRow.module.css';
 
 export interface PayRangeRowProps {
@@ -48,6 +48,28 @@ export function PayRangeRow({
       />
       <span className={styles.median}>
         <MoneyText amountMinor={medianMinor} currency={currency} compact strong />
+      </span>
+    </div>
+  );
+}
+
+/** PayRangeRow while its numbers load: same grid, title, 16px bar and median slots. */
+export function PayRangeRowSkeleton({
+  title,
+  titleWidth = '70%',
+}: {
+  /** A title that is known before the numbers, e.g. "Pay range". */
+  title?: string;
+  titleWidth?: string;
+}) {
+  return (
+    <div className={styles.row} aria-hidden="true">
+      <span className={styles.title}>
+        {title ?? <Skeleton inline width={titleWidth} height={14} />}
+      </span>
+      <Skeleton height={16} pill />
+      <span className={styles.median}>
+        <Skeleton inline width={52} height={14} />
       </span>
     </div>
   );

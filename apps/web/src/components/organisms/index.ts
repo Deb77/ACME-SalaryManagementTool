@@ -14,5 +14,10 @@ export {
   type HistogramBin,
 } from './HistogramChart/HistogramChart';
 export { PageHeader, type PageHeaderProps } from './PageHeader/PageHeader';
+export {
+  PageSkeleton,
+  type PageSkeletonProps,
+  type PageSkeletonVariant,
+} from './PageSkeleton/PageSkeleton';
 export { QuerySteps, type QueryStepsProps, type QueryStep } from './QuerySteps/QuerySteps';
 export { TrendChart, type TrendChartProps, type TrendPoint } from './TrendChart/TrendChart';

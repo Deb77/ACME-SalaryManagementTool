@@ -66,3 +66,61 @@ describe('AppShell', () => {
     expect(screen.getByText('Global HR')).toBeInTheDocument();
   });
 });
+
+describe('AppShell on small screens', () => {
+  it('names a link by its full label when the tab bar shows a short one', () => {
+    render(
+      <AppShell
+        productName="ACME People"
+        navGroups={[
+          {
+            label: 'Admin',
+            items: [
+              { key: 'access', label: 'Access & roles', shortLabel: 'Access', href: '/access' },
+            ],
+          },
+        ]}
+        activeKey="access"
+        user={{ name: 'Riya Kapoor', role: 'Global HR' }}
+      >
+        <p>Content</p>
+      </AppShell>,
+    );
+
+    expect(screen.getByRole('link', { name: 'Access & roles' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+  });
+
+  it('shows the signed-in person as an account badge in the top bar', () => {
+    renderShell();
+
+    expect(
+      within(screen.getByRole('banner')).getByRole('img', {
+        name: 'Signed in as Riya Kapoor, Global HR',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('marks the top bar as phone-only when there is no top-bar content', () => {
+    render(
+      <AppShell
+        productName="ACME People"
+        navGroups={navGroups}
+        activeKey="employees"
+        user={{ name: 'Riya Kapoor', role: 'Global HR' }}
+      >
+        <h1>Employees</h1>
+      </AppShell>,
+    );
+
+    expect(screen.getByRole('banner')).toHaveAttribute('data-phone-only');
+  });
+
+  it('keeps the top bar on every width when it has content', () => {
+    renderShell();
+
+    expect(screen.getByRole('banner')).not.toHaveAttribute('data-phone-only');
+  });
+});

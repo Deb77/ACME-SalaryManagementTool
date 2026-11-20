@@ -5,7 +5,8 @@
 }
 
 .label {
-  font-size: 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   font-weight: 500;
   color: var(--acme-color-grey900);
 }
@@ -20,11 +21,13 @@
 }
 
 .hint {
-  font-size: 13px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   color: var(--acme-color-grey500);
 }
 
 .error {
-  font-size: 13px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   color: var(--acme-color-danger-text);
 }

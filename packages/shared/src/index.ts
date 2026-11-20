@@ -6,3 +6,8 @@ export * from './health/health.schema.js';
 export * from './employee/employee.schema.js';
 export * from './salary-change/salary-change.schema.js';
 export * from './ai/ai.schema.js';
+export * from './access/access.schema.js';
+export * from './meta/meta.schema.js';
+export * from './insights/insights.schema.js';
+export * from './import/import.schema.js';
+export * from './audit/audit.schema.js';

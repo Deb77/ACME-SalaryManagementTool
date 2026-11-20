@@ -30,9 +30,14 @@ export function SearchField({
       leftSection={<IconSearch aria-hidden="true" size={16} />}
       rightSection={
         value ? (
-          <CloseButton size="sm" aria-label="Clear search" onClick={() => onChange('')} />
+          <CloseButton
+            className={styles.clear}
+            aria-label="Clear search"
+            onClick={() => onChange('')}
+          />
         ) : null
       }
+      rightSectionWidth={44}
       value={value}
       onChange={(event) => onChange(event.currentTarget.value)}
       w={width}

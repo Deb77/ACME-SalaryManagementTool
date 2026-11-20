@@ -25,7 +25,8 @@
 
 .label {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
   font-weight: 500;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -36,6 +37,16 @@
   color: #cfe7d8;
 }
 
+.warning {
+  color: #8e1f16;
+  background: #fff7f6;
+  border-color: #f3cfcb;
+}
+
+.warning .label {
+  color: var(--acme-color-danger-text);
+}
+
 .row {
   display: flex;
   align-items: flex-end;
@@ -44,18 +55,23 @@
 }
 
 .value {
-  font-size: 30px;
-  line-height: 34px;
+  font-size: var(--acme-text-xxl);
+  line-height: var(--acme-leading-xxl);
   font-weight: 600;
   letter-spacing: -0.02em;
   white-space: nowrap;
 }
 
+/* Decorative; in a narrow tile the oldest bars are clipped rather than the value. */
 .bars {
   display: flex;
+  flex: 0 1 auto;
   align-items: flex-end;
+  justify-content: flex-end;
   gap: 5px;
+  min-width: 0;
   height: 48px;
+  overflow: hidden;
 }
 
 .bar {
@@ -72,7 +88,8 @@
   display: flex;
   align-items: center;
   padding: 10px 14px 8px;
-  font-size: 14px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
   color: var(--acme-color-grey500);
 }
 
@@ -89,4 +106,11 @@
 .neutral {
   color: var(--acme-color-grey900);
   font-weight: 500;
+}
+
+@media (min-width: 1024px) {
+  .value {
+    font-size: var(--acme-text-xxxl);
+    line-height: var(--acme-leading-xxxl);
+  }
 }
