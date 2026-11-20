@@ -1,6 +1,6 @@
 import { IconFileSpreadsheet } from '@tabler/icons-react';
 import { useRef, useState, type ReactNode } from 'react';
-import { hasAcceptedExtension } from './accept';
+import { hasAcceptedExtension } from './FileDropzone.utils';
 import styles from './FileDropzone.module.css';
 
 export type FileRejection = 'type' | 'size';

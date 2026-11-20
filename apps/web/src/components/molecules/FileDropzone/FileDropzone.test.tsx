@@ -1,7 +1,7 @@
 import { render, screen } from '../../../test/render';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { hasAcceptedExtension } from './accept';
+import { hasAcceptedExtension } from './FileDropzone.utils';
 import { FileDropzone } from './FileDropzone';
 
 function fileInput(container: HTMLElement) {

@@ -1,6 +1,6 @@
 import { render, screen } from '../../../test/render';
 import { describe, expect, it } from 'vitest';
-import { initialsOf } from './initials';
+import { initialsOf } from './PersonCell.utils';
 import { PersonCell } from './PersonCell';
 
 describe('PersonCell', () => {

@@ -1,4 +1,4 @@
-import { initialsOf } from './initials';
+import { initialsOf } from './PersonCell.utils';
 import styles from './PersonCell.module.css';
 
 export interface PersonCellProps {

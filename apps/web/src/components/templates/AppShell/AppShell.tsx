@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { initialsOf } from '../../molecules/PersonCell/initials';
+import { initialsOf } from '../../molecules/PersonCell/PersonCell.utils';
 import styles from './AppShell.module.css';
 
 export interface NavItem {

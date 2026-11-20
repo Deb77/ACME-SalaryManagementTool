@@ -1,4 +1,4 @@
-import { toPercent } from './scale';
+import { toPercent } from './RangeBar.utils';
 import styles from './RangeBar.module.css';
 
 export interface RangeBarProps {

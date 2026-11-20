@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nextSort } from './sort';
+import { nextSort } from './DataTable.utils';
 
 describe('nextSort', () => {
   it('cycles a column through ascending, descending and unsorted', () => {

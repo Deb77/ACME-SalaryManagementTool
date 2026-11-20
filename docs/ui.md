@@ -53,7 +53,7 @@ Rules for `components/`:
 - **One styling mechanism**: every component is styled by its own CSS module, reading the tokens as `--acme-*` variables. Mantine parts are styled through their `classNames` prop; Mantine's CSS loads as `@layer mantine`, so a plain class always wins. No inline style objects except for values that come from props (a width, a position), no `!important`, and never target Mantine's own `.mantine-*` classes.
 - Use Mantine where it brings behaviour (focus trapping, comboboxes, pagination); write plain markup where a component is only layout and colour (StatusTag, FormField, avatars, the state messages).
 - No `index.ts` per component. Each level has one `index.ts` barrel that names exactly what leaves each folder (helpers such as `toPercent` or `initialsOf` only when another layer needs them), and `components/index.ts` re-exports the four levels, so screens import from `components` without knowing the level. Inside `components/`, one component imports another by its file path (`../Dialog/Dialog`), not through a barrel, to avoid import cycles.
-- Helpers that are not components live in their own file (for example `PersonCell/initials.ts`) so React Fast Refresh keeps working.
+- Helpers that are not components live in their own file (named `<Component>.utils.ts`, for example `PersonCell/PersonCell.utils.ts`) so React Fast Refresh keeps working.
 
 ## Component inventory
 
@@ -144,6 +144,6 @@ Not adopted here: context + reducer stores, data-fetching hooks, virtualisation 
 
 - Mantine's full stylesheet is loaded (`styles.layer.css`, about 296 kB unminified CSS, 66 kB gzipped, in the current build). Importing only the used components' CSS would cut that; worth doing once the screens settle.
 - The JavaScript bundle is about 278 kB minified (86 kB gzipped) for the whole current app, well under antd's 540 kB core. Screens should still be lazy-loaded per route.
-- Mantine's Table does not sort or page by itself, so DataTable wires both (`sort.ts` holds the ascending → descending → unsorted cycle).
+- Mantine's Table does not sort or page by itself, so DataTable wires both (`DataTable.utils.ts` holds the ascending → descending → unsorted cycle).
 - Mantine sets component variables (`--button-bg` …) inline, so CSS modules set real properties (`background`, `height`) rather than overriding those variables.
 - MoneyInput keeps its own text after the first render (`defaultValueMinor`); to reset it, remount it with a new `key`.

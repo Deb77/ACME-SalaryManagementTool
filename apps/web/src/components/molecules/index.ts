@@ -6,7 +6,7 @@ export {
   type FileDropzoneProps,
   type FileRejection,
 } from './FileDropzone/FileDropzone';
-export { hasAcceptedExtension } from './FileDropzone/accept';
+export { hasAcceptedExtension } from './FileDropzone/FileDropzone.utils';
 export {
   FilterSelect,
   type FilterSelectProps,
@@ -16,7 +16,7 @@ export { FormField, type FormFieldProps, type FieldControlProps } from './FormFi
 export { LoadingState, type LoadingStateProps } from './LoadingState/LoadingState';
 export { PayRangeRow, type PayRangeRowProps } from './PayRangeRow/PayRangeRow';
 export { PersonCell, type PersonCellProps } from './PersonCell/PersonCell';
-export { initialsOf } from './PersonCell/initials';
+export { initialsOf } from './PersonCell/PersonCell.utils';
 export { SearchField, type SearchFieldProps } from './SearchField/SearchField';
 export { StatTile, type StatTileProps, type DeltaTone } from './StatTile/StatTile';
 export { Stepper, type StepperProps } from './Stepper/Stepper';

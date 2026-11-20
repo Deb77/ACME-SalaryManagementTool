@@ -1,7 +1,7 @@
 import { render, screen } from '../../../test/render';
 import { describe, expect, it } from 'vitest';
 import { RangeBar } from './RangeBar';
-import { toPercent } from './scale';
+import { toPercent } from './RangeBar.utils';
 
 describe('RangeBar', () => {
   it('describes the spread to screen readers as a single image', () => {

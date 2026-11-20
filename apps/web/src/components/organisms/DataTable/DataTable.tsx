@@ -1,7 +1,7 @@
 import { LoadingOverlay, Pagination, Table, UnstyledButton } from '@mantine/core';
 import type { AriaAttributes, Key, ReactNode } from 'react';
 import styles from './DataTable.module.css';
-import { nextSort } from './sort';
+import { nextSort } from './DataTable.utils';
 
 export type SortOrder = 'asc' | 'desc';
 
