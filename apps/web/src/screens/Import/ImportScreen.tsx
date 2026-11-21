@@ -11,7 +11,7 @@ import {
 import { useResource } from '../../api/useResource';
 import { todayIso } from '../../lib/format';
 import { useSession } from '../../session/SessionContext';
-import type { ImportStep } from './Import.utils';
+import { scopeNoteFor, type ImportStep } from './Import.utils';
 import { ImportView } from './ImportView';
 
 /** Container for `/employees/import`: drives the upload → dry run → commit flow. */
@@ -69,11 +69,7 @@ export function ImportScreen() {
   return (
     <ImportView
       step={step}
-      scopeNote={
-        scoped
-          ? `Rows for countries outside your access (${me.countries.map(countryName).join(', ')}) are reported as errors.`
-          : undefined
-      }
+      scopeNote={scoped ? scopeNoteFor(me.countries.map(countryName)) : undefined}
       error={error}
       busy={busy}
       onFileSelected={(file) =>

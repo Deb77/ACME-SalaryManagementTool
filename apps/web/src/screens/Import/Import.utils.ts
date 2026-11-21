@@ -178,3 +178,8 @@ export function columnLetter(index: number): string {
   }
   return letters;
 }
+
+/** Country HR's note about rows outside their countries; its words come with the page. */
+export function scopeNoteFor(countries: readonly string[]) {
+  return `Rows for countries outside your access (${countries.join(', ')}) are reported as errors.`;
+}

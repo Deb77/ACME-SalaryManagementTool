@@ -177,10 +177,16 @@
   background: linear-gradient(to bottom, var(--acme-color-white), rgba(255, 255, 255, 0));
 }
 
+/*
+ * Desktop: the bar never moves. Its white background reaches up over main's 20px gap to the
+ * header's bottom edge, and it sticks exactly there, which is where it already sits at rest
+ * (PageHeader sticks at -(main's top padding), so its bottom edge is this far down).
+ */
 @media (min-width: 1024px) {
   .steps {
-    /* PageHeader sticks at -(main's top padding), so its bottom edge is this far down. */
     top: calc(var(--acme-page-header-height, 0px) - var(--acme-main-padding-top, 0px));
+    margin-top: -20px;
+    padding-top: 20px;
   }
 }
 
