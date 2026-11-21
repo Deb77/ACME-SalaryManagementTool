@@ -21,4 +21,8 @@ export class SalaryChangeRepository {
     const [row] = await tx.insert(salaryChanges).values(values).returning();
     return row!;
   }
+
+  async insertMany(tx: Tx, values: NewSalaryChangeRow[]): Promise<void> {
+    if (values.length > 0) await tx.insert(salaryChanges).values(values);
+  }
 }

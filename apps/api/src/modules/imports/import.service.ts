@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { and, asc, count, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import {
   IMPORT_PREVIEW_ROWS,
   type CommitImportRequest,
@@ -12,24 +11,18 @@ import {
 } from '@acme/shared';
 import type { Actor } from '../../auth/actor.js';
 import type { ScopedDb, Tx } from '../../db/scope.js';
-import {
-  auditEvents,
-  employees,
-  importRows,
-  imports,
-  salaryChanges,
-} from '../../db/schema/index.js';
 import type { Clock } from '../../lib/clock.js';
 import { AppError, conflict, invalid, notFound } from '../../lib/errors.js';
 import type { AuditService } from '../audit/audit.service.js';
 import type { EmployeeRepository, EmployeeRow } from '../employees/employee.repository.js';
 import type { CatalogueService } from '../meta/catalogue.service.js';
+import type { SalaryChangeRepository } from '../salary/salary.repository.js';
 import type { SalaryService } from '../salary/salary.service.js';
+import type { ImportRecord, ImportRepository } from './import.repository.js';
 import { parseSpreadsheet, suggestMapping } from './import.parser.js';
 import { planRows, rowNumberOf, summarise, type PlannedRow } from './import.plan.js';
 
 const BATCH = 1000;
-type ImportRecord = typeof imports.$inferSelect;
 
 function chunks<T>(items: readonly T[], size = BATCH): T[][] {
   const out: T[][] = [];
@@ -61,6 +54,8 @@ export class ImportService {
     private readonly audit: AuditService,
     private readonly catalogue: CatalogueService,
     private readonly clock: Clock,
+    private readonly imports: ImportRepository,
+    private readonly salaryChanges: SalaryChangeRepository,
   ) {}
 
   async upload(
@@ -69,26 +64,23 @@ export class ImportService {
   ): Promise<ImportUploadResponse> {
     const sheet = await parseSpreadsheet(file.originalname, file.buffer);
     return this.scoped.run(actor, async (tx) => {
-      const [created] = await tx
-        .insert(imports)
-        .values({
-          createdBy: actor.userId,
-          fileName: file.originalname.slice(0, 200),
-          fileFormat: sheet.format,
-          fileSizeBytes: file.size,
-          fileSha256: createHash('sha256').update(file.buffer).digest(),
-          columns: sheet.columns,
-        })
-        .returning();
+      const created = await this.imports.create(tx, {
+        createdBy: actor.userId,
+        fileName: file.originalname.slice(0, 200),
+        fileFormat: sheet.format,
+        fileSizeBytes: file.size,
+        fileSha256: createHash('sha256').update(file.buffer).digest(),
+        columns: sheet.columns,
+      });
       for (const batch of chunks(
-        sheet.rows.map((raw, i) => ({ importId: created!.id, rowNumber: rowNumberOf(i), raw })),
+        sheet.rows.map((raw, i) => ({ importId: created.id, rowNumber: rowNumberOf(i), raw })),
       )) {
-        await tx.insert(importRows).values(batch);
+        await this.imports.insertRows(tx, batch);
       }
       return {
-        id: created!.id,
+        id: created.id,
         status: 'uploaded' as const,
-        fileName: created!.fileName,
+        fileName: created.fileName,
         columns: sheet.columns,
         rowCount: sheet.rows.length,
         sampleRows: sheet.rows.slice(0, IMPORT_PREVIEW_ROWS),
@@ -98,9 +90,7 @@ export class ImportService {
   }
 
   list(actor: Actor): Promise<Import[]> {
-    return this.scoped.run(actor, async (tx) =>
-      (await tx.select().from(imports).orderBy(desc(imports.createdAt)).limit(20)).map(toImport),
-    );
+    return this.scoped.run(actor, async (tx) => (await this.imports.latest(tx)).map(toImport));
   }
 
   get(actor: Actor, id: string): Promise<Import> {
@@ -120,13 +110,14 @@ export class ImportService {
         if (!columns.includes(header))
           throw invalid(`mapping.${field}`, `No column called "${header}"`);
       }
-      const raw = await this.rawRows(tx, id);
+      const raw = await this.imports.rawRows(tx, id);
       const plan = await this.plan(tx, actor, columns, raw, request);
       const summary = summarise(plan);
 
-      await tx.delete(importRows).where(eq(importRows.importId, id));
+      await this.imports.deleteRows(tx, id);
       for (const batch of chunks(plan)) {
-        await tx.insert(importRows).values(
+        await this.imports.insertRows(
+          tx,
           batch.map((row) => ({
             importId: id,
             rowNumber: row.rowNumber,
@@ -145,19 +136,19 @@ export class ImportService {
           plan.filter((r) => r.outcome !== 'error' && r.countryCode).map((r) => r.countryCode!),
         ),
       ].sort();
-      const [updated] = await tx
-        .update(imports)
-        .set({
+      const updated = await this.imports.update(
+        tx,
+        id,
+        {
           status: 'validated',
           mapping: request.mapping,
           defaults: request.defaults ?? null,
           summary,
           countryCodes,
-          validatedAt: sql`now()`,
-        })
-        .where(eq(imports.id, id))
-        .returning();
-      return toImport(updated!);
+        },
+        'validatedAt',
+      );
+      return toImport(updated);
     });
   }
 
@@ -170,25 +161,7 @@ export class ImportService {
   ) {
     return this.scoped.run(actor, async (tx) => {
       const record = await this.load(tx, id);
-      const where = and(
-        eq(importRows.importId, id),
-        outcome ? eq(importRows.outcome, outcome) : undefined,
-      );
-      const [rows, [total]] = await Promise.all([
-        tx
-          .select({
-            row: importRows,
-            firstName: employees.firstName,
-            lastName: employees.lastName,
-          })
-          .from(importRows)
-          .leftJoin(employees, eq(employees.id, importRows.employeeId))
-          .where(where)
-          .orderBy(asc(importRows.rowNumber))
-          .limit(pageSize)
-          .offset((page - 1) * pageSize),
-        tx.select({ n: count() }).from(importRows).where(where),
-      ]);
+      const { rows, total } = await this.imports.page(tx, id, outcome, page, pageSize);
       // The name as the file has it, for rows that match no (visible) employee.
       const columns = (record.columns as string[] | null) ?? [];
       const mapping = (record.mapping as ImportMappingRequest['mapping'] | null) ?? {};
@@ -213,7 +186,7 @@ export class ImportService {
           (r.errors as ImportRow['errors'] | null) ??
           (r.outcome ? [] : [{ column: '', message: 'Not validated yet' }]),
       }));
-      return { items, page, pageSize, total: total?.n ?? 0 };
+      return { items, page, pageSize, total };
     });
   }
 
@@ -229,15 +202,7 @@ export class ImportService {
             : `This import is already ${record.status}`,
         );
       }
-      const stored = await tx
-        .select({
-          rowNumber: importRows.rowNumber,
-          outcome: importRows.outcome,
-          raw: importRows.raw,
-        })
-        .from(importRows)
-        .where(eq(importRows.importId, id))
-        .orderBy(asc(importRows.rowNumber));
+      const stored = await this.imports.storedRows(tx, id);
       const request = {
         mapping: record.mapping as ImportMappingRequest['mapping'],
         defaults: (record.defaults ?? undefined) as ImportMappingRequest['defaults'],
@@ -276,11 +241,12 @@ export class ImportService {
       for (const row of plan.filter((r) => r.outcome === 'update'))
         await this.applyUpdate(tx, actor, id, row);
 
-      const [updated] = await tx
-        .update(imports)
-        .set({ status: 'committed', summary, committedAt: sql`now()` })
-        .where(eq(imports.id, id))
-        .returning();
+      const updated = await this.imports.update(
+        tx,
+        id,
+        { status: 'committed', summary },
+        'committedAt',
+      );
       await this.audit.record(tx, actor, {
         action: 'import.committed',
         entityType: 'import',
@@ -290,7 +256,7 @@ export class ImportService {
         after: summary,
         details: { countries: record.countryCodes },
       });
-      return toImport(updated!);
+      return toImport(updated);
     });
   }
 
@@ -302,12 +268,7 @@ export class ImportService {
       if (record.status !== 'committed' || !record.committedAt)
         throw conflict(`Only a committed import can be undone (this one is ${record.status})`);
 
-      const touched = await tx
-        .select({ row: importRows, employee: employees })
-        .from(importRows)
-        .innerJoin(employees, eq(employees.id, importRows.employeeId))
-        .where(and(eq(importRows.importId, id), inArray(importRows.outcome, ['create', 'update'])))
-        .for('update', { of: employees });
+      const touched = await this.imports.lockTouched(tx, id);
       const blocking = touched.filter(
         ({ employee }) => employee.updatedAt.getTime() > record.committedAt!.getTime(),
       );
@@ -360,15 +321,8 @@ export class ImportService {
         restored += 1;
       }
 
-      const { rows } = await tx.execute<{ deleted: number }>(
-        sql`select app_private.delete_import_created_employees(${id}::uuid) as deleted`,
-      );
-      const removed = Number(rows[0]?.deleted ?? 0);
-      const [updated] = await tx
-        .update(imports)
-        .set({ status: 'undone', undoneAt: sql`now()` })
-        .where(eq(imports.id, id))
-        .returning();
+      const removed = await this.imports.deleteCreatedEmployees(tx, id);
+      const updated = await this.imports.update(tx, id, { status: 'undone' }, 'undoneAt');
       await this.audit.record(tx, actor, {
         action: 'import.undone',
         entityType: 'import',
@@ -377,7 +331,7 @@ export class ImportService {
         importId: id,
         after: { restored, removed },
       });
-      return toImport(updated!);
+      return toImport(updated);
     });
   }
 
@@ -385,14 +339,7 @@ export class ImportService {
     if (rows.length === 0) return;
     const catalogue = await this.catalogue.get();
     const needCodes = rows.filter((r) => !r.values.employeeCode).length;
-    const generated =
-      needCodes > 0
-        ? (
-            await tx.execute<{ code: string }>(
-              sql`select app_private.next_employee_code() as code from generate_series(1, ${needCodes}::int)`,
-            )
-          ).rows.map((r) => r.code)
-        : [];
+    const generated = await this.employees.nextCodes(tx, needCodes);
 
     for (const batch of chunks(rows)) {
       const values = batch.map((row) => {
@@ -412,8 +359,9 @@ export class ImportService {
           createdByImportId: importId,
         };
       });
-      const created = await tx.insert(employees).values(values).returning();
-      await tx.insert(salaryChanges).values(
+      const created = await this.employees.insertMany(tx, values);
+      await this.salaryChanges.insertMany(
+        tx,
         created.map((e) => ({
           employeeId: e.id,
           countryCode: e.countryCode,
@@ -425,15 +373,15 @@ export class ImportService {
           createdBy: actor.userId,
         })),
       );
-      await tx.insert(auditEvents).values(
+      await this.audit.recordMany(
+        tx,
+        actor,
         created.map((e) => ({
-          actorId: actor.userId,
-          actorRole: actor.role.key,
           action: 'employee.created' as const,
           entityType: 'employee' as const,
           entityId: e.id,
           entityLabel: label(e),
-          countryCode: e.countryCode,
+          country: e.countryCode,
           after: {
             employeeCode: e.employeeCode,
             country: e.countryCode,
@@ -444,14 +392,15 @@ export class ImportService {
         })),
       );
       // Remember which employee each row became, for the review screen and for undo.
-      const pairs = batch.map(
-        (row, i) =>
-          sql`(${row.rowNumber}::int, ${created[i]!.id}::uuid, ${created[i]!.employeeCode})`,
+      await this.imports.linkCreated(
+        tx,
+        importId,
+        batch.map((row, i) => ({
+          rowNumber: row.rowNumber,
+          employeeId: created[i]!.id,
+          employeeCode: created[i]!.employeeCode,
+        })),
       );
-      await tx.execute(sql`
-        update import_rows r set employee_id = v.id, employee_code = v.code
-          from (values ${sql.join(pairs, sql`, `)}) as v(row_number, id, code)
-         where r.import_id = ${importId} and r.row_number = v.row_number`);
     }
   }
 
@@ -520,18 +469,8 @@ export class ImportService {
     });
   }
 
-  private async rawRows(tx: Tx, id: string): Promise<string[][]> {
-    const rows = await tx
-      .select({ raw: importRows.raw })
-      .from(importRows)
-      .where(and(eq(importRows.importId, id), gt(importRows.rowNumber, 0)))
-      .orderBy(asc(importRows.rowNumber));
-    return rows.map((r) => r.raw as string[]);
-  }
-
   private async load(tx: Tx, id: string, lock = false): Promise<ImportRecord> {
-    const query = tx.select().from(imports).where(eq(imports.id, id));
-    const [record] = lock ? await query.for('update') : await query;
+    const record = await this.imports.get(tx, id, { lock });
     if (!record) throw notFound('Import not found');
     return record;
   }

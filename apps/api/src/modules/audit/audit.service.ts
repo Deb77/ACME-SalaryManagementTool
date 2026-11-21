@@ -68,19 +68,26 @@ function decodeCursor(raw: string): Cursor {
  */
 export class AuditService {
   async record(tx: Tx, actor: Actor, entry: AuditEntry): Promise<void> {
-    await tx.insert(auditEvents).values({
-      actorId: actor.userId,
-      actorRole: actor.role.key,
-      action: entry.action,
-      entityType: entry.entityType,
-      entityId: entry.entityId ?? randomUUID(),
-      entityLabel: entry.entityLabel,
-      countryCode: entry.country ?? null,
-      before: entry.before ?? null,
-      after: entry.after ?? null,
-      importId: entry.importId ?? null,
-      details: entry.details ?? null,
-    });
+    await this.recordMany(tx, actor, [entry]);
+  }
+
+  async recordMany(tx: Tx, actor: Actor, entries: AuditEntry[]): Promise<void> {
+    if (entries.length === 0) return;
+    await tx.insert(auditEvents).values(
+      entries.map((entry) => ({
+        actorId: actor.userId,
+        actorRole: actor.role.key,
+        action: entry.action,
+        entityType: entry.entityType,
+        entityId: entry.entityId ?? randomUUID(),
+        entityLabel: entry.entityLabel,
+        countryCode: entry.country ?? null,
+        before: entry.before ?? null,
+        after: entry.after ?? null,
+        importId: entry.importId ?? null,
+        details: entry.details ?? null,
+      })),
+    );
   }
 
   /** Rows are already limited by RLS: in-scope countries, own events, admin events for all-country roles. */

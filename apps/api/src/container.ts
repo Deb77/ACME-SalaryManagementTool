@@ -17,6 +17,7 @@ import { UserService } from './modules/access/user.service.js';
 import { AuditService } from './modules/audit/audit.service.js';
 import { EmployeeRepository } from './modules/employees/employee.repository.js';
 import { EmployeeService } from './modules/employees/employee.service.js';
+import { ImportRepository } from './modules/imports/import.repository.js';
 import { ImportService } from './modules/imports/import.service.js';
 import { InsightsService } from './modules/insights/insights.service.js';
 import { CatalogueService } from './modules/meta/catalogue.service.js';
@@ -36,6 +37,7 @@ export interface Registry {
   auditService: AuditService;
   employeeRepository: EmployeeRepository;
   salaryChangeRepository: SalaryChangeRepository;
+  importRepository: ImportRepository;
   salaryService: SalaryService;
   employeeService: EmployeeService;
   insightsService: InsightsService;
@@ -81,6 +83,7 @@ export function buildContainer(config: Config): AppContainer {
     .register('auditService', () => new AuditService())
     .register('employeeRepository', () => new EmployeeRepository())
     .register('salaryChangeRepository', () => new SalaryChangeRepository())
+    .register('importRepository', () => new ImportRepository())
     .register(
       'salaryService',
       (c) =>
@@ -135,6 +138,8 @@ export function buildContainer(config: Config): AppContainer {
           c.resolve('auditService'),
           c.resolve('catalogueService'),
           c.resolve('clock'),
+          c.resolve('importRepository'),
+          c.resolve('salaryChangeRepository'),
         ),
     )
     .register('aiSettings', (c) => aiSettings(c.resolve('config')))
