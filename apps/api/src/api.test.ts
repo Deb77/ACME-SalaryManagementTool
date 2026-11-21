@@ -28,7 +28,7 @@ import {
 } from '@acme/shared';
 import { createApp } from './app.js';
 import type { Config } from './config.js';
-import { buildContainer, type AppContainer } from './container.js';
+import { buildServices, type AppServices } from './services.js';
 import { createDb, type Db } from './db/database.js';
 import { seedDatabase } from './db/seed/seed.js';
 import type { Clock } from './lib/clock.js';
@@ -36,7 +36,7 @@ import { resetAndMigrate } from './evals/test-db.js';
 import { testDatabaseUrl } from './test/database.js';
 
 /**
- * The HTTP API against a real Postgres with row-level security on, through the same container
+ * The HTTP API against a real Postgres with row-level security on, through the same services
  * the server uses. It drops and recreates the schema.
  */
 const url = testDatabaseUrl();
@@ -50,7 +50,7 @@ type Agent = ReturnType<typeof request.agent>;
 
 describe('HTTP API', () => {
   let owner: Db;
-  let container: AppContainer;
+  let services: AppServices;
   let app: Express;
   let globalHr: Agent;
   let indiaHr: Agent;
@@ -123,15 +123,17 @@ describe('HTTP API', () => {
       dbPoolSize: 4,
       authRateLimit: 1000,
     };
-    container = buildContainer(config).override('clock', () => fixedClock);
-    container.override('logger', () => ({ error: () => {}, info: () => {} }));
-    app = createApp({ container });
+    services = buildServices(config, {
+      clock: fixedClock,
+      logger: { error: () => {}, info: () => {} },
+    });
+    app = createApp({ services });
     globalHr = await signIn(GLOBAL);
     indiaHr = await signIn(INDIA);
   }, 120_000);
 
   afterAll(async () => {
-    await container?.resolve('db').$client.end();
+    await services?.db.$client.end();
     await owner?.$client.end();
   });
 

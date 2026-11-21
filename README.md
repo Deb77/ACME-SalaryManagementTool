@@ -60,9 +60,9 @@ Ask AI answers questions with SQL that Claude writes and the API checks and runs
 
 ## Backend structure
 
-`apps/api/src` is layered routes → services → repositories, wired by a small inversion-of-control container (decision #31):
+`apps/api/src` is layered routes → services → repositories, wired in one place (decision #31):
 
-- `container.ts`: the composition root. It registers every dependency by name (config, clock, pool, services); classes receive collaborators through their constructors. Tests override single entries, e.g. a fixed clock.
+- `services.ts`: the composition root. `buildServices(config)` creates the pool, repositories and services with plain constructor calls; classes receive collaborators through their constructors. Tests pass overrides for the clock, logger or model.
 - `auth/`: sessions (SHA-256 token hashes in `sessions`), argon2id sign-in with lockout, invites, the session middleware.
 - `db/scope.ts`: `ScopedDb.run(actor, fn)` opens one transaction per request and sets `app.user_id` / `app.countries` / `app.all_countries`, which the RLS policies read.
 - `modules/*`: one folder per area (employees, salary, insights, imports, audit, access, meta). Routes only parse with the shared Zod schemas, call one service method and send; services throw typed errors that one middleware turns into the `{ error: { code, message, details } }` envelope.

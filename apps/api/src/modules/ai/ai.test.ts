@@ -15,7 +15,7 @@ import {
 import { createApp } from '../../app.js';
 import { Argon2Hasher } from '../../auth/password.js';
 import type { Config } from '../../config.js';
-import { buildContainer, type AppContainer } from '../../container.js';
+import { buildServices, type AppServices } from '../../services.js';
 import { createDb, type Db } from '../../db/database.js';
 import { seedDatabase } from '../../db/seed/seed.js';
 import { FakeLlmClient, lastToolResults, type FakeScript } from '../../evals/fake-llm.js';
@@ -58,7 +58,7 @@ interface Logged {
 
 describe('Ask AI', () => {
   let owner: Db;
-  let container: AppContainer;
+  let services: AppServices;
   let app: Express;
   let fake: FakeLlmClient;
   let aiUrl: string;
@@ -67,7 +67,7 @@ describe('Ask AI', () => {
   let globalHr: Agent;
   let viewer: Agent;
   const logs: Logged[] = [];
-  const extraContainers: AppContainer[] = [];
+  const extraServices: AppServices[] = [];
 
   const baseConfig = (): Config => ({
     databaseUrl: url,
@@ -81,15 +81,16 @@ describe('Ask AI', () => {
   });
 
   function makeApp(config: Config, llm: FakeLlmClient | null) {
-    const c = buildContainer(config)
-      .override('clock', () => clock)
-      .override('llmClient', () => llm)
-      .override('logger', () => ({
+    const c = buildServices(config, {
+      clock,
+      llmClient: llm,
+      logger: {
         error: (message, meta) => logs.push({ level: 'error', message, meta }),
         info: (message, meta) => logs.push({ level: 'info', message, meta }),
         warn: (message, meta) => logs.push({ level: 'warn', message, meta }),
-      }));
-    return { container: c, app: createApp({ container: c }) };
+      },
+    });
+    return { services: c, app: createApp({ services: c }) };
   }
 
   async function signIn(target: Express, email: string): Promise<Agent> {
@@ -201,7 +202,7 @@ describe('Ask AI', () => {
     aiUrl = reader.url;
     restoreReader = reader.restore;
     fake = new FakeLlmClient(() => ({ text: 'Hello.' }));
-    ({ container, app } = makeApp(baseConfig(), fake));
+    ({ services, app } = makeApp(baseConfig(), fake));
     indiaHr = await signIn(app, 'india.hr@demo.acme.test');
     globalHr = await signIn(app, 'global.hr@demo.acme.test');
     viewer = await makeUser('ai_viewer', ASK_PERMS, ['IN']);
@@ -212,9 +213,9 @@ describe('Ask AI', () => {
   });
 
   afterAll(async () => {
-    for (const c of [container, ...extraContainers]) {
-      await c?.resolve('db').$client.end();
-      await c?.resolve('aiPool')?.end();
+    for (const c of [services, ...extraServices]) {
+      await c?.db.$client.end();
+      await c?.aiPool?.end();
     }
     await restoreReader?.();
     await owner?.$client.end();
@@ -393,7 +394,7 @@ describe('Ask AI', () => {
       ['select country_code from employees for update', 'forbidden_clause'],
       ['select 1::regclass', 'forbidden_type'],
     ])('rejects %s before it reaches the database, and logs it', async (sqlText, code) => {
-      const pool = container.resolve('aiPool')!;
+      const pool = services.aiPool!;
       const connect = vi.spyOn(pool, 'connect');
       fake.setScript(sqlStep(sqlText));
       const res = await ask(indiaHr, 'Try this');
@@ -735,7 +736,7 @@ describe('Ask AI', () => {
         { ...baseConfig(), ai: {} },
         new FakeLlmClient(() => ({ text: 'k' })),
       );
-      extraContainers.push(limited.container);
+      extraServices.push(limited.services);
       const agent = await makeUser('ai_rate', ASK_PERMS, ['IN'], limited.app);
       for (let i = 0; i < 20; i++) {
         expect((await ask(agent, `q${i}`)).status).toBe(200);
@@ -749,7 +750,7 @@ describe('Ask AI', () => {
 
     it('answers 503 without an API key while the rest of the app works', async () => {
       const keyless = makeApp(baseConfig(), null);
-      extraContainers.push(keyless.container);
+      extraServices.push(keyless.services);
       const agent = await signIn(keyless.app, 'india.hr@demo.acme.test');
       const res = await ask(agent, 'Hello');
       expect(res.status).toBe(503);
@@ -809,7 +810,7 @@ describe('Ask AI', () => {
 
     it('serves Prometheus text only with the metrics token', async () => {
       const withToken = makeApp({ ...baseConfig(), metricsToken: 'test-metrics-token' }, fake);
-      extraContainers.push(withToken.container);
+      extraServices.push(withToken.services);
       expect((await request(withToken.app).get('/metrics')).status).toBe(401);
       const ok = await request(withToken.app)
         .get('/metrics')
