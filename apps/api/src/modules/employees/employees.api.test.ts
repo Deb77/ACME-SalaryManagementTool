@@ -72,16 +72,12 @@ describe('employees and country scope', () => {
   });
 
   it('refuses to create an employee in a country outside the scope', async () => {
-    const res = await api.send(api.indiaHr, 'post', '/api/employees', {
-      firstName: 'Out',
-      lastName: 'Of Scope',
-      email: 'out.of.scope@acme.test',
-      country: 'GB',
-      jobTitleId: 'data-analyst',
-      departmentId: 'data',
-      hireDate: '2026-11-02',
-      salaryAmountMinor: 5_000_000,
-    });
+    const res = await api.send(
+      api.indiaHr,
+      'post',
+      '/api/employees',
+      anEmployee().named('Out', 'Of Scope').inCountry('GB').earning(5_000_000).build(),
+    );
     expect(res.status).toBe(403);
   });
 
@@ -130,16 +126,14 @@ describe('employees and country scope', () => {
   });
 
   it('exports CSV with formula cells neutralised and an audit row', async () => {
-    await api.send(api.globalHr, 'post', '/api/employees', {
-      firstName: '=HYPERLINK("x")',
-      lastName: 'Formula',
-      email: 'formula@acme.test',
-      country: 'DE',
-      jobTitleId: 'data-analyst',
-      departmentId: 'data',
-      hireDate: '2026-11-02',
-      salaryAmountMinor: 6_000_000,
-    });
+    await api.hire(
+      anEmployee()
+        .named('=HYPERLINK("x")', 'Formula')
+        .withEmail('formula@acme.test')
+        .inCountry('DE')
+        .earning(6_000_000),
+      api.globalHr,
+    );
     const res = await api.globalHr.get('/api/employees/export.csv?country=DE&q=formula');
     expect(res.headers['content-type']).toMatch(/text\/csv/);
     expect(res.text).toContain(`"'=HYPERLINK(""x"")"`);
