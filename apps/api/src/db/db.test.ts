@@ -135,6 +135,14 @@ describe('database migrations and seed', () => {
   }, 60_000);
 
   it('enforces the core rules in the database itself', async () => {
+    await seedDatabase(db, {
+      employees: 10,
+      seed: 7,
+      asOf: '2026-11-01',
+      reset: true,
+      demoUsers: false,
+      log: quiet,
+    });
     const [employee] = await db.select().from(employees).where(ne(employees.countryCode, 'US'));
     // Currency must follow the country.
     await expect(

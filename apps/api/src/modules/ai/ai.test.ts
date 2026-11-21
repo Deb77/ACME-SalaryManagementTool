@@ -767,7 +767,12 @@ describe('Ask AI', () => {
   describe('SQL audit log and metrics', () => {
     it('shows Country HR their own runs and all-country admins every run', async () => {
       fake.setScript(sqlStep('select count(*) from countries'));
+      await ask(indiaHr, 'Countries?');
       await ask(globalHr, 'Countries?');
+      for (const attempt of ['select * from users', 'select 1; select 2', 'reset role']) {
+        fake.setScript(sqlStep(attempt));
+        await ask(globalHr, 'Try this');
+      }
       const india = aiSqlRunsResponseSchema.parse((await indiaHr.get('/api/ai/sql-runs')).body);
       expect(india.items.length).toBeGreaterThan(0);
       expect(new Set(india.items.map((r) => r.user.name))).toEqual(new Set(['India HR (demo)']));
@@ -799,6 +804,12 @@ describe('Ask AI', () => {
     });
 
     it('serves metrics to administrators only', async () => {
+      fake.setScript(sqlStep('select * from users'));
+      await ask(indiaHr, 'Try this');
+      fake.setScript((req) =>
+        req.model === PRIMARY ? { fail: 'api_error' } : { text: 'From the fallback.' },
+      );
+      await ask(indiaHr, 'Hello');
       const res = await globalHr.get('/api/ai/metrics');
       expect(res.status).toBe(200);
       const metrics = aiMetricsSchema.parse(res.body);
