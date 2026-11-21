@@ -7,6 +7,12 @@ export default defineProject({
       '@acme/shared': fileURLToPath(new URL('../../packages/shared/src/index.ts', import.meta.url)),
     },
   },
-  // The database suites reset the same test database, so files run one at a time.
-  test: { name: 'api', environment: 'node', fileParallelism: false },
+  test: {
+    name: 'api',
+    environment: 'node',
+    // Starts a throwaway Postgres when TEST_DATABASE_URL is unset (see the file).
+    globalSetup: ['./src/test/global-setup.ts'],
+    // The database suites reset the same test database, so files run one at a time.
+    fileParallelism: false,
+  },
 });

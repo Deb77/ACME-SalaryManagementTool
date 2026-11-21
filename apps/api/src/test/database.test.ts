@@ -11,8 +11,8 @@ describe('test database', () => {
     expect(url, 'TEST_DATABASE_URL').toBeTruthy();
     const client = new pg.Client({ connectionString: url });
     await client.connect();
-    const { rows } = await client.query<{ version: string }>('show server_version');
+    const { rows } = await client.query<{ server_version: string }>('show server_version');
     await client.end();
-    expect(Number.parseInt(rows[0]!.version, 10)).toBeGreaterThanOrEqual(16);
+    expect(Number.parseInt(rows[0]!.server_version, 10)).toBeGreaterThanOrEqual(16);
   });
 });
