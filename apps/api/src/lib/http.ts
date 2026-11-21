@@ -21,38 +21,34 @@ export const requireAuth: RequestHandler = (req, _res, next) => {
   next(req.actor ? undefined : unauthenticated());
 };
 
-/** Route guard: the actor's role must grant every listed permission (403 names the first gap). */
-export const requirePermission =
-  (...needed: Permission[]): RequestHandler =>
+/** A route guard: signed in, then `check` the role's permissions (an error means 403). */
+const permissionGuard =
+  (check: (granted: ReadonlySet<Permission>) => AppError | undefined): RequestHandler =>
   (req, _res, next) => {
-    const actor = req.actor;
-    if (!actor) return next(unauthenticated());
-    const missing = needed.find((permission) => !actor.permissions.has(permission));
-    if (missing) {
-      return next(
-        forbidden(`Your role does not include "${missing}"`, [
-          { path: 'permission', message: missing },
-        ]),
-      );
-    }
-    next();
+    if (!req.actor) return next(unauthenticated());
+    next(check(req.actor.permissions));
   };
 
-/** For the one route open to either of two permissions (`GET /api/roles`). */
-export const requireAnyPermission =
-  (...options: Permission[]): RequestHandler =>
-  (req, _res, next) => {
-    const actor = req.actor;
-    if (!actor) return next(unauthenticated());
-    if (!options.some((permission) => actor.permissions.has(permission))) {
-      return next(
-        forbidden(`Your role needs one of ${options.join(', ')}`, [
+/** The role must grant every listed permission (403 names the first gap). */
+export const requirePermission = (...needed: Permission[]) =>
+  permissionGuard((granted) => {
+    const missing = needed.find((permission) => !granted.has(permission));
+    return missing
+      ? forbidden(`Your role does not include "${missing}"`, [
+          { path: 'permission', message: missing },
+        ])
+      : undefined;
+  });
+
+/** The role must grant at least one of them (only `GET /api/roles`). */
+export const requireAnyPermission = (...options: Permission[]) =>
+  permissionGuard((granted) =>
+    options.some((permission) => granted.has(permission))
+      ? undefined
+      : forbidden(`Your role needs one of ${options.join(', ')}`, [
           { path: 'permission', message: options.join(' | ') },
         ]),
-      );
-    }
-    next();
-  };
+  );
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
