@@ -5,7 +5,7 @@ import type { Express } from 'express';
 import { aiStreamEventSchema, type AiStreamEvent } from '@acme/shared';
 import { createApp } from '../app.js';
 import type { Config } from '../config.js';
-import { buildContainer, type AppContainer } from '../container.js';
+import { buildServices, type AppServices } from '../services.js';
 import { createDb, type Db } from '../db/database.js';
 import { seedDatabase } from '../db/seed/seed.js';
 import type { LlmClient } from '../modules/ai/llm.js';
@@ -42,7 +42,7 @@ export class EvalHarness {
 
   private constructor(
     private owner: Db,
-    private container: AppContainer,
+    private services: AppServices,
     private app: Express,
     readonly facts: SeedFacts,
     private scopes: Record<EvalUser, string[]>,
@@ -85,19 +85,14 @@ export class EvalHarness {
     const lines: string[] = [];
     const log = (level: string) => (message: string, meta?: Record<string, unknown>) =>
       lines.push(JSON.stringify({ level, message, ...meta }));
-    let container = buildContainer(config).override('logger', () => ({
-      error: log('error'),
-      info: log('info'),
-      warn: log('warn'),
-    }));
-    if (options.llm) {
-      const llm = options.llm;
-      container = container.override('llmClient', () => llm);
-    }
-    const app = createApp({ container });
+    const services = buildServices(config, {
+      logger: { error: log('error'), info: log('info'), warn: log('warn') },
+      ...(options.llm ? { llmClient: options.llm } : {}),
+    });
+    const app = createApp({ services });
     const harness = new EvalHarness(
       owner,
-      container,
+      services,
       app,
       facts,
       { global: countryRows.map((r) => r.code), india: ['IN'], ukus: ['GB', 'US'] },
@@ -189,12 +184,12 @@ export class EvalHarness {
 
   /** Token use and model calls so far, from the in-process metrics. */
   metrics() {
-    return this.container.resolve('aiMetrics').snapshot();
+    return this.services.aiMetrics.snapshot();
   }
 
   async close(): Promise<void> {
-    await this.container.resolve('db').$client.end();
-    await this.container.resolve('aiPool')?.end();
+    await this.services.db.$client.end();
+    await this.services.aiPool?.end();
     await this.restoreReader();
     await this.owner.$client.end();
   }

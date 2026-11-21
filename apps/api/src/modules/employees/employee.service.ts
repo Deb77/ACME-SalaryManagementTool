@@ -8,15 +8,16 @@ import type {
   TerminateEmployeeRequest,
   UpdateEmployeeRequest,
 } from '@acme/shared';
-import { canUseCountry, type Actor } from '../../auth/actor.js';
+import { assertCountryInScope, type Actor } from '../../auth/actor.js';
 import type { Clock } from '../../lib/clock.js';
 import type { ScopedDb, Tx } from '../../db/scope.js';
-import { conflict, forbidden, invalid, notFound, staleVersion } from '../../lib/errors.js';
+import { conflict, invalid, notFound, staleVersion } from '../../lib/errors.js';
 import { diff, type AuditService } from '../audit/audit.service.js';
 import type { CatalogueService } from '../meta/catalogue.service.js';
 import type { SalaryService } from '../salary/salary.service.js';
 import { toEmployeeCsv } from './employee.csv.js';
 import { toEmployee, type EmployeeRepository, type EmployeeRow } from './employee.repository.js';
+import { checkHireDate, checkNotInFuture } from './employee.rules.js';
 
 const label = (e: Pick<EmployeeRow, 'employeeCode' | 'firstName' | 'lastName'>) =>
   `${e.employeeCode} ${e.firstName} ${e.lastName}`;
@@ -55,23 +56,13 @@ export class EmployeeService {
     for (const id of query.jobTitle ?? []) catalogue.assertKnown('jobTitleId', id);
   }
 
-  /** v1 has no future-dated events: "current" salary and status are plain columns (api.md, open questions). */
-  private notInFuture(field: string, date: string, what: string) {
-    if (date > this.clock.today()) throw invalid(field, `${what} cannot be in the future yet`);
-  }
-
   async create(actor: Actor, input: CreateEmployeeRequest): Promise<Employee> {
-    this.notInFuture('hireDate', input.hireDate, 'The hire date');
+    checkHireDate({ hireDate: input.hireDate, today: this.clock.today() });
     const catalogue = await this.catalogue.get();
     catalogue.assertKnown('country', input.country);
     catalogue.assertKnown('jobTitleId', input.jobTitleId);
     catalogue.assertKnown('departmentId', input.departmentId);
-    // The country is the user's own input, so a wrong one is 403, not 404 (docs/api.md).
-    if (!canUseCountry(actor, input.country)) {
-      throw forbidden(`${input.country} is outside your countries`, [
-        { path: 'country', message: 'Outside your countries' },
-      ]);
-    }
+    assertCountryInScope(actor, input.country);
     return this.scoped.run(actor, async (tx) => {
       const row = await this.repo.insert(tx, {
         employeeCode: input.employeeCode ?? (await this.repo.nextCode(tx)),
@@ -127,13 +118,11 @@ export class EmployeeService {
         hireDate: input.hireDate,
       };
       if (patch.hireDate) {
-        this.notInFuture('hireDate', patch.hireDate, 'The hire date');
-        if (patch.hireDate > before.salaryEffectiveDate) {
-          throw invalid(
-            'hireDate',
-            `Must be on or before the current salary's effective date (${before.salaryEffectiveDate})`,
-          );
-        }
+        checkHireDate({
+          hireDate: patch.hireDate,
+          today: this.clock.today(),
+          salaryEffectiveDate: before.salaryEffectiveDate,
+        });
       }
       const changes = diff(before as unknown as Record<string, unknown>, patch);
       if (!changes) return toEmployee(await this.found(tx, id));
@@ -156,7 +145,12 @@ export class EmployeeService {
       const { employee: before } = await this.found(tx, id, true);
       if (before.version !== input.version) throw staleVersion();
       if (before.status === 'terminated') throw conflict('This employee has already left');
-      this.notInFuture('terminationDate', input.terminationDate, 'The termination date');
+      checkNotInFuture(
+        'terminationDate',
+        input.terminationDate,
+        this.clock.today(),
+        'The termination date',
+      );
       if (input.terminationDate < before.hireDate) {
         throw invalid('terminationDate', `Must be on or after the hire date (${before.hireDate})`);
       }

@@ -145,6 +145,18 @@ export class EmployeeRepository {
     return rows[0]!.code;
   }
 
+  async nextCodes(tx: Tx, n: number): Promise<string[]> {
+    if (n <= 0) return [];
+    const { rows } = await tx.execute<{ code: string }>(
+      sql`select app_private.next_employee_code() as code from generate_series(1, ${n}::int)`,
+    );
+    return rows.map((r) => r.code);
+  }
+
+  async insertMany(tx: Tx, values: NewEmployeeRow[]): Promise<EmployeeRow[]> {
+    return tx.insert(employees).values(values).returning();
+  }
+
   async insert(tx: Tx, values: NewEmployeeRow): Promise<EmployeeRow> {
     const [row] = await tx.insert(employees).values(values).returning();
     return row!;

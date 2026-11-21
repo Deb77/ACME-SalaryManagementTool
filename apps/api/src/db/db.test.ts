@@ -13,28 +13,22 @@ import {
   users,
 } from './schema/index.js';
 import { SEED_USER_EMAIL, seedDatabase } from './seed/seed.js';
+import { resetSchema } from '../evals/test-db.js';
+import { testDatabaseUrl } from '../test/database.js';
 
 /**
- * Runs the migrations and the seed against a real, throwaway Postgres. Skipped unless
- * TEST_DATABASE_URL is set. The test drops and recreates the public schema, so never point it
- * at a database you care about.
+ * Runs the migrations and the seed against a real, throwaway Postgres. The test drops and
+ * recreates the public schema, so never point TEST_DATABASE_URL at a database you care about.
  */
-const url = process.env.TEST_DATABASE_URL;
+const url = testDatabaseUrl();
 const quiet = () => {};
 
-async function resetDatabase(db: Db) {
-  await db.execute(sql`drop schema if exists drizzle cascade`);
-  await db.execute(sql`drop schema if exists app_private cascade`);
-  await db.execute(sql`drop schema public cascade`);
-  await db.execute(sql`create schema public`);
-}
-
-describe.skipIf(!url)('database migrations and seed', () => {
+describe('database migrations and seed', () => {
   let db: Db;
 
   beforeAll(async () => {
-    db = createDb(url!, { max: 2 });
-    await resetDatabase(db);
+    db = createDb(url, { max: 2 });
+    await resetSchema(db);
     await migrateToLatest(db);
   }, 60_000);
 

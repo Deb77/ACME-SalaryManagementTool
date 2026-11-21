@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import express, { Router, type Express } from 'express';
 import type { HealthResponse } from '@acme/shared';
 import { authRoutes, loadSession } from './auth/auth.routes.js';
-import type { AppContainer } from './container.js';
+import type { AppServices } from './services.js';
 import { notFound } from './lib/errors.js';
 import { errorHandler, noStore, originCheck, securityHeaders, consoleLogger } from './lib/http.js';
 import { accessRoutes } from './modules/access/access.routes.js';
@@ -16,30 +16,30 @@ import { metaRoutes } from './modules/meta/meta.routes.js';
 export interface AppOptions {
   /** Folder with the built web app. When set, the API also serves the UI from the same origin. */
   webDist?: string;
-  /** Resolves every service. Without one, only health, 404s and the UI are served (tests). */
-  container?: AppContainer;
+  /** Every service. Without them, only health, 404s and the UI are served (tests). */
+  services?: AppServices;
 }
 
-/** Routes that need the database, built from the container (decision #31). */
-function apiRoutes(c: AppContainer): Router {
-  const config = c.resolve('config');
+/** Routes that need the database, built from the services (decision #31). */
+function apiRoutes(c: AppServices): Router {
+  const config = c.config;
   const router = Router();
   router.use(originCheck(config.allowedOrigins));
-  router.use(loadSession(c.resolve('authService'), config));
-  router.use('/auth', authRoutes(c.resolve('authService'), config));
+  router.use(loadSession(c.authService, config));
+  router.use('/auth', authRoutes(c.authService, config));
   router.use(
-    metaRoutes(c.resolve('catalogueService')),
-    employeeRoutes(c.resolve('employeeService'), c.resolve('clock')),
-    insightsRoutes(c.resolve('insightsService')),
-    importRoutes(c.resolve('importService')),
-    auditRoutes(c.resolve('scopedDb'), c.resolve('auditService')),
-    accessRoutes(c.resolve('userService'), c.resolve('roleService')),
-    aiRoutes(c.resolve('askAiService'), c.resolve('aiMetrics'), c.resolve('aiSettings')),
+    metaRoutes(c.catalogueService),
+    employeeRoutes(c.employeeService, c.clock),
+    insightsRoutes(c.insightsService),
+    importRoutes(c.importService),
+    auditRoutes(c.scopedDb, c.auditService),
+    accessRoutes(c.userService, c.roleService),
+    aiRoutes(c.askAiService, c.aiMetrics, c.aiSettings),
   );
   return router;
 }
 
-export function createApp({ webDist, container }: AppOptions = {}): Express {
+export function createApp({ webDist, services }: AppOptions = {}): Express {
   const app = express();
   app.disable('x-powered-by');
   // Render terminates TLS in front of us: trust one proxy hop for the client IP and https.
@@ -49,25 +49,22 @@ export function createApp({ webDist, container }: AppOptions = {}): Express {
 
   app.get('/api/health', async (_req, res) => {
     // Ask AI readiness without secrets: is a key set, does the reader pool connect.
-    const body: HealthResponse = container
-      ? { status: 'ok', ai: await container.resolve('askAiService').health() }
+    const body: HealthResponse = services
+      ? { status: 'ok', ai: await services.askAiService.health() }
       : { status: 'ok' };
     res.json(body);
   });
 
-  if (container) {
-    app.get(
-      '/metrics',
-      prometheusRoute(container.resolve('aiMetrics'), container.resolve('config').metricsToken),
-    );
+  if (services) {
+    app.get('/metrics', prometheusRoute(services.aiMetrics, services.config.metricsToken));
   }
 
-  if (container) app.use('/api', apiRoutes(container));
+  if (services) app.use('/api', apiRoutes(services));
 
   app.use('/api', () => {
     throw notFound('Route not found');
   });
-  app.use('/api', errorHandler(container?.resolve('logger') ?? consoleLogger));
+  app.use('/api', errorHandler(services?.logger ?? consoleLogger));
 
   if (webDist) {
     app.use(express.static(webDist, { index: false, maxAge: '1h' }));
