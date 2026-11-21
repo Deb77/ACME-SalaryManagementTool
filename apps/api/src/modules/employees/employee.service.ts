@@ -11,13 +11,13 @@ import type {
 import { assertCountryInScope, type Actor } from '../../auth/actor.js';
 import type { Clock } from '../../lib/clock.js';
 import type { ScopedDb, Tx } from '../../db/scope.js';
-import { conflict, invalid, notFound, staleVersion } from '../../lib/errors.js';
+import { assertNoViolation, conflict, notFound, staleVersion } from '../../lib/errors.js';
 import { diff, type AuditService } from '../audit/audit.service.js';
 import type { CatalogueService } from '../meta/catalogue.service.js';
 import type { SalaryService } from '../salary/salary.service.js';
 import { toEmployeeCsv } from './employee.csv.js';
 import { toEmployee, type EmployeeRepository, type EmployeeRow } from './employee.repository.js';
-import { checkHireDate, checkNotInFuture } from './employee.rules.js';
+import { checkHireDate, checkTerminationDate } from './employee.rules.js';
 
 const label = (e: Pick<EmployeeRow, 'employeeCode' | 'firstName' | 'lastName'>) =>
   `${e.employeeCode} ${e.firstName} ${e.lastName}`;
@@ -57,7 +57,7 @@ export class EmployeeService {
   }
 
   async create(actor: Actor, input: CreateEmployeeRequest): Promise<Employee> {
-    checkHireDate({ hireDate: input.hireDate, today: this.clock.today() });
+    assertNoViolation(checkHireDate({ hireDate: input.hireDate, today: this.clock.today() }));
     const catalogue = await this.catalogue.get();
     catalogue.assertKnown('country', input.country);
     catalogue.assertKnown('jobTitleId', input.jobTitleId);
@@ -118,11 +118,13 @@ export class EmployeeService {
         hireDate: input.hireDate,
       };
       if (patch.hireDate) {
-        checkHireDate({
-          hireDate: patch.hireDate,
-          today: this.clock.today(),
-          salaryEffectiveDate: before.salaryEffectiveDate,
-        });
+        assertNoViolation(
+          checkHireDate({
+            hireDate: patch.hireDate,
+            today: this.clock.today(),
+            salaryEffectiveDate: before.salaryEffectiveDate,
+          }),
+        );
       }
       const changes = diff(before as unknown as Record<string, unknown>, patch);
       if (!changes) return toEmployee(await this.found(tx, id));
@@ -145,15 +147,13 @@ export class EmployeeService {
       const { employee: before } = await this.found(tx, id, true);
       if (before.version !== input.version) throw staleVersion();
       if (before.status === 'terminated') throw conflict('This employee has already left');
-      checkNotInFuture(
-        'terminationDate',
-        input.terminationDate,
-        this.clock.today(),
-        'The termination date',
+      assertNoViolation(
+        checkTerminationDate({
+          terminationDate: input.terminationDate,
+          hireDate: before.hireDate,
+          today: this.clock.today(),
+        }),
       );
-      if (input.terminationDate < before.hireDate) {
-        throw invalid('terminationDate', `Must be on or after the hire date (${before.hireDate})`);
-      }
       await this.repo.update(tx, id, {
         status: 'terminated',
         terminationDate: input.terminationDate,
