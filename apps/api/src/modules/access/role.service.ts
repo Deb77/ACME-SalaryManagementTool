@@ -1,4 +1,3 @@
-import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import {
   missingRequirements,
   permissionKeys,
@@ -12,9 +11,9 @@ import {
 import type { Actor } from '../../auth/actor.js';
 import type { Db } from '../../db/database.js';
 import type { ScopedDb, Tx } from '../../db/scope.js';
-import { permissions, rolePermissions, roles, users } from '../../db/schema/index.js';
 import { AppError, conflict, forbidden, notFound, staleVersion } from '../../lib/errors.js';
 import { diff, type AuditService } from '../audit/audit.service.js';
+import type { RoleRepository } from './role.repository.js';
 
 const GLOBAL_HR = 'global_hr';
 
@@ -63,11 +62,12 @@ export class RoleService {
     private readonly db: Db,
     private readonly scoped: ScopedDb,
     private readonly audit: AuditService,
+    private readonly roles: RoleRepository,
   ) {}
 
   /** The server refuses to start when the permissions table and the code disagree. */
   async assertCatalogueMatchesCode(): Promise<void> {
-    const rows = await this.db.select({ key: permissions.key }).from(permissions);
+    const rows = await this.roles.permissions(this.db);
     const inDb = new Set(rows.map((r) => r.key));
     const inCode = new Set<string>(permissionKeys);
     const missing = [...inCode].filter((k) => !inDb.has(k));
@@ -80,7 +80,7 @@ export class RoleService {
   }
 
   async catalogue(): Promise<PermissionInfo[]> {
-    const rows = await this.db.select().from(permissions);
+    const rows = await this.roles.permissions(this.db);
     const description = new Map(rows.map((r) => [r.key, r.description]));
     return permissionKeys.map((key) => ({
       key,
@@ -90,7 +90,7 @@ export class RoleService {
   }
 
   async list(): Promise<Role[]> {
-    return this.loadRoles(this.db);
+    return this.roles.load(this.db);
   }
 
   async create(actor: Actor, input: CreateRoleRequest): Promise<Role> {
@@ -102,29 +102,24 @@ export class RoleService {
     }
     return this.scoped.run(actor, async (tx) => {
       let key = keyFrom(input.name);
-      const [clash] = await tx.select({ id: roles.id }).from(roles).where(eq(roles.key, key));
-      if (clash) key = `${key.slice(0, 33)}_${Math.random().toString(36).slice(2, 7)}`;
-      const [role] = await tx
-        .insert(roles)
-        .values({
-          key,
-          name: input.name,
-          description: input.description || null,
-          countryScope: input.countryScope,
-          createdBy: actor.userId,
-        })
-        .returning();
-      await tx
-        .insert(rolePermissions)
-        .values(granted.map((permissionKey) => ({ roleId: role!.id, permissionKey })));
+      if (await this.roles.keyTaken(tx, key))
+        key = `${key.slice(0, 33)}_${Math.random().toString(36).slice(2, 7)}`;
+      const id = await this.roles.insert(tx, {
+        key,
+        name: input.name,
+        description: input.description || null,
+        countryScope: input.countryScope,
+        createdBy: actor.userId,
+      });
+      await this.roles.setPermissions(tx, id, granted);
       await this.audit.record(tx, actor, {
         action: 'role.created',
         entityType: 'role',
-        entityId: role!.id,
-        entityLabel: role!.name,
-        after: { name: role!.name, countryScope: role!.countryScope, permissions: granted },
+        entityId: id,
+        entityLabel: input.name,
+        after: { name: input.name, countryScope: input.countryScope, permissions: granted },
       });
-      return this.one(tx, role!.id);
+      return this.one(tx, id);
     });
   }
 
@@ -162,21 +157,11 @@ export class RoleService {
       );
       if (!changes) return before;
 
-      await tx
-        .update(roles)
-        .set({
-          ...(input.name !== undefined ? { name: input.name } : {}),
-          ...(input.description !== undefined ? { description: input.description || null } : {}),
-          version: sql`${roles.version} + 1`,
-          updatedAt: sql`now()`,
-        })
-        .where(eq(roles.id, id));
-      if (granted) {
-        await tx.delete(rolePermissions).where(eq(rolePermissions.roleId, id));
-        await tx
-          .insert(rolePermissions)
-          .values(granted.map((permissionKey) => ({ roleId: id, permissionKey })));
-      }
+      await this.roles.update(tx, id, {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.description !== undefined ? { description: input.description || null } : {}),
+      });
+      if (granted) await this.roles.setPermissions(tx, id, granted);
       await this.audit.record(tx, actor, {
         action: 'role.updated',
         entityType: 'role',
@@ -195,7 +180,7 @@ export class RoleService {
       if (role.isSystem) throw conflict('System roles cannot be deleted');
       if (role.userCount > 0) throw conflict('Move this role’s users to another role first');
       assertHolds(actor, role.permissions);
-      await tx.delete(roles).where(eq(roles.id, id));
+      await this.roles.delete(tx, id);
       await this.audit.record(tx, actor, {
         action: 'role.deleted',
         entityType: 'role',
@@ -208,44 +193,9 @@ export class RoleService {
 
   /** One role with permissions and holder count; 404 when it does not exist. */
   async one(tx: Db | Tx, id: string, lock = false): Promise<Role> {
-    if (lock) await tx.select({ id: roles.id }).from(roles).where(eq(roles.id, id)).for('update');
-    const [role] = await this.loadRoles(tx, id);
+    if (lock) await this.roles.lock(tx, id);
+    const [role] = await this.roles.load(tx, id);
     if (!role) throw notFound('Role not found');
     return role;
-  }
-
-  private async loadRoles(db: Db | Tx, id?: string): Promise<Role[]> {
-    const rows = await db
-      .select()
-      .from(roles)
-      .where(id ? eq(roles.id, id) : undefined)
-      .orderBy(asc(roles.isSystem), asc(roles.name));
-    if (rows.length === 0) return [];
-    const ids = rows.map((r) => r.id);
-    const [grants, holders] = await Promise.all([
-      db.select().from(rolePermissions).where(inArray(rolePermissions.roleId, ids)),
-      db
-        .select({ roleId: users.roleId, n: count() })
-        .from(users)
-        .where(and(inArray(users.roleId, ids), sql`${users.status} <> 'deactivated'`))
-        .groupBy(users.roleId),
-    ]);
-    const order = new Map(permissionKeys.map((k, i) => [k, i]));
-    return rows
-      .sort((a, b) => Number(b.isSystem) - Number(a.isSystem) || a.name.localeCompare(b.name))
-      .map((r) => ({
-        id: r.id,
-        key: r.key,
-        name: r.name,
-        description: r.description,
-        countryScope: r.countryScope,
-        isSystem: r.isSystem,
-        permissions: grants
-          .filter((g) => g.roleId === r.id)
-          .map((g) => g.permissionKey as Permission)
-          .sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)),
-        userCount: holders.find((h) => h.roleId === r.id)?.n ?? 0,
-        version: r.version,
-      }));
   }
 }

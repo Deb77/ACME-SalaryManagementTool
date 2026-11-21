@@ -6,6 +6,7 @@ import { createDb, type Db } from './db/database.js';
 import { ScopedDb } from './db/scope.js';
 import { systemClock, type Clock } from './lib/clock.js';
 import { consoleLogger, type Logger } from './lib/http.js';
+import { RoleRepository } from './modules/access/role.repository.js';
 import { RoleService } from './modules/access/role.service.js';
 import { AiMetrics } from './modules/ai/ai.metrics.js';
 import { AiRepository } from './modules/ai/ai.repository.js';
@@ -68,7 +69,7 @@ export function buildServices(config: Config, overrides: ServiceOverrides = {}) 
     clock,
   );
   const insightsService = new InsightsService(scopedDb, catalogueService);
-  const roleService = new RoleService(db, scopedDb, auditService);
+  const roleService = new RoleService(db, scopedDb, auditService, new RoleRepository());
   const userService = new UserService(
     db,
     scopedDb,
