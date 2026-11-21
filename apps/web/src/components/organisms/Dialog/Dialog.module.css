@@ -5,9 +5,16 @@
   padding: 0;
 }
 
+/*
+ * Title and actions stay put and only the white panel scrolls, so a long form never slides
+ * under the title or hides the buttons. Mantine's content would scroll as one piece.
+ */
 .content {
+  display: flex;
   flex: 0 0 100%;
+  flex-direction: column;
   max-height: 92dvh;
+  overflow: hidden;
   padding: 4px;
   background: var(--acme-color-grey50);
   border: 1px solid var(--acme-color-grey200);
@@ -16,6 +23,8 @@
 }
 
 .header {
+  position: static;
+  flex: none;
   padding: 10px 8px 8px 16px;
   background: transparent;
 }
@@ -36,10 +45,18 @@
 }
 
 .body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
   padding: 0;
 }
 
 .panel {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 20px;
   background: var(--acme-color-white);
   border: 1px solid var(--acme-color-grey150);
@@ -47,12 +64,9 @@
   box-shadow: var(--acme-shadow-panel);
 }
 
-/* On phones the sheet scrolls, so the actions stick to its bottom edge. */
 .footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
   display: flex;
+  flex: none;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
@@ -92,10 +106,6 @@
   .close {
     width: 28px;
     height: 28px;
-  }
-
-  .footer {
-    position: static;
   }
 
   .actions {

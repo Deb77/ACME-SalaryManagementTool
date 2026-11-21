@@ -147,8 +147,10 @@ export function EmployeesView({
     },
   ];
 
-  // Known only once the current search and filters have loaded.
-  const exportCount = status === 'success' && !counting ? total : undefined;
+  // Known once the current search and filters have loaded; another page or sort of the same
+  // results (refreshing, not counting) keeps it, so the subtitle and Export don't flicker.
+  const countKnown = (status === 'success' || refreshing) && !counting;
+  const exportCount = countKnown ? total : undefined;
   const setFilter = (patch: Partial<EmployeeFilters>) => onFiltersChange({ ...filters, ...patch });
 
   return (
@@ -159,7 +161,7 @@ export function EmployeesView({
           counting ? (
             // The previous total would read as the new one: a placeholder until the results land.
             <Skeleton inline width={140} height={13} />
-          ) : status === 'success' ? (
+          ) : countKnown ? (
             `${formatCount(total)} ${filtered ? 'matching' : 'active'} ${total === 1 ? 'person' : 'people'}${exportHref ? ' · Export uses the current search and filters' : ''}`
           ) : (
             'Everyone you can see, in their own currency'

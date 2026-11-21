@@ -73,10 +73,15 @@
   background: linear-gradient(to bottom, rgba(255, 255, 255, 0), var(--acme-color-white) 24px);
 }
 
+/*
+ * Desktop: <main> scrolls, so the box pins to its bottom edge. The negative offset and matching
+ * padding cover main's bottom padding, so answers never show through below the hint.
+ */
 @media (min-width: 1024px) {
   .composer {
-    bottom: 0;
-    padding-bottom: 8px;
+    bottom: calc(-1 * var(--acme-main-padding-bottom, 0px));
+    margin-bottom: calc(-1 * var(--acme-main-padding-bottom, 0px));
+    padding-bottom: calc(8px + var(--acme-main-padding-bottom, 0px));
   }
 }
 

@@ -1,8 +1,17 @@
+/*
+ * The form fills the page: full width, and at least the height left under the header, so its
+ * button bar (the last child) sits at the bottom of the screen even when the form is short.
+ * The bar is sticky (form.module.css), so on a long form it stays in view while scrolling.
+ */
 .form {
   display: flex;
+  flex: 1 0 auto;
   flex-direction: column;
   gap: 16px;
-  max-width: 880px;
+}
+
+.form > :last-child {
+  margin-top: auto;
 }
 
 .benchmark {

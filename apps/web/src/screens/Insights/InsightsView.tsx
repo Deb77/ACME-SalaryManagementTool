@@ -297,6 +297,7 @@ export function InsightsView({
       <div className={`${shared.twoColumns} ${styles.evenColumns}`}>
         <TrayCard
           title={`Salary spread · ${countryName(selectedCountry)}`}
+          className={styles.spread}
           footer="Annual salary bands · the darker bar holds the median"
         >
           <ResourceState
@@ -394,6 +395,7 @@ function SpreadChart({
       summary={`${formatCount(stats.headcount)} ${countryName} salaries in ${bins.length} bands; the most common band is ${label(largest.fromMinor)} to ${label(largest.toMinor)}.`}
       bins={bins}
       highlightIndex={medianIndex >= 0 ? medianIndex : undefined}
+      height="fill"
     />
   );
 }

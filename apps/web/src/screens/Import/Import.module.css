@@ -57,12 +57,6 @@
   gap: 8px;
 }
 
-.mappingGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-}
-
 .outcomes {
   max-width: 100%;
   overflow-x: auto;
@@ -151,17 +145,7 @@
   padding-left: 18px;
 }
 
-@media (min-width: 768px) {
-  .mappingGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (min-width: 1024px) {
-  .mappingGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .reviewGrid {
     grid-template-columns: minmax(0, 1fr) 320px;
     align-items: start;

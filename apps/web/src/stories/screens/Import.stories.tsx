@@ -1,5 +1,5 @@
 import type { Story } from '@ladle/react';
-import type { ImportMapping, ImportOutcome } from '@acme/shared';
+import type { ImportOutcome } from '@acme/shared';
 import { useState } from 'react';
 import type { ImportStep } from '../../screens/Import/Import.utils';
 import { ImportView, type ImportViewProps } from '../../screens/Import/ImportView';
@@ -26,11 +26,6 @@ const record = {
 
 function Import({ step: initial, ...overrides }: Partial<ImportViewProps> & { step: ImportStep }) {
   const [step, setStep] = useState(initial);
-  const [mapping, setMapping] = useState<ImportMapping>(sampleUpload.suggestedMapping);
-  const [defaults, setDefaults] = useState<ImportViewProps['defaults']>({
-    country: 'IN',
-    salaryEffectiveDate: '2026-12-01',
-  });
   const [outcome, setOutcome] = useState<ImportOutcome>('error');
   const [skip, setSkip] = useState(true);
   const items =
@@ -38,15 +33,10 @@ function Import({ step: initial, ...overrides }: Partial<ImportViewProps> & { st
   return (
     <ImportView
       step={step}
-      onFileSelected={() => setStep('match')}
+      onFileSelected={() => setStep('review')}
       onFileRejected={() => {}}
       upload={sampleUpload}
-      mapping={mapping}
-      onMappingChange={setMapping}
-      defaults={defaults}
-      onDefaultsChange={setDefaults}
-      countries={sampleMeta.countries}
-      onRunDryRun={() => setStep('review')}
+      mapping={sampleUpload.suggestedMapping}
       record={step === 'done' ? { ...record, status: 'committed' } : record}
       outcome={outcome}
       onOutcomeChange={setOutcome}
@@ -55,7 +45,6 @@ function Import({ step: initial, ...overrides }: Partial<ImportViewProps> & { st
       skipInvalidRows={skip}
       onSkipInvalidRowsChange={setSkip}
       onCommit={() => setStep('done')}
-      onEditMatching={() => setStep('match')}
       onStartOver={() => setStep('upload')}
       onUndo={() => {}}
       changeContext={{
@@ -75,13 +64,6 @@ export const Upload: Story = () => (
   </ScreenFrame>
 );
 Upload.meta = { fullscreen: true };
-
-export const MatchColumns: Story = () => (
-  <ScreenFrame me={sampleMeGlobal} path="/employees">
-    <Import step="match" />
-  </ScreenFrame>
-);
-MatchColumns.meta = { fullscreen: true };
 
 export const Review: Story = () => (
   <ScreenFrame me={sampleMeGlobal} path="/employees">

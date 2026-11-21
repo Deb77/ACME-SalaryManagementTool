@@ -24,11 +24,6 @@ const props = (overrides: Partial<ImportViewProps> = {}): ImportViewProps => ({
   onFileRejected: vi.fn(),
   upload: sampleUpload,
   mapping: sampleUpload.suggestedMapping,
-  onMappingChange: vi.fn(),
-  defaults: {},
-  onDefaultsChange: vi.fn(),
-  countries: sampleMeta.countries,
-  onRunDryRun: vi.fn(),
   record,
   outcome: 'error',
   onOutcomeChange: vi.fn(),
@@ -37,7 +32,6 @@ const props = (overrides: Partial<ImportViewProps> = {}): ImportViewProps => ({
   skipInvalidRows: true,
   onSkipInvalidRowsChange: vi.fn(),
   onCommit: vi.fn(),
-  onEditMatching: vi.fn(),
   onStartOver: vi.fn(),
   onUndo: vi.fn(),
   changeContext: {
@@ -58,15 +52,20 @@ describe('ImportView', () => {
     expect(screen.queryByRole('link', { name: /template/i })).not.toBeInTheDocument();
   });
 
-  it('matches columns and runs the dry run', async () => {
-    const onMappingChange = vi.fn();
-    const onRunDryRun = vi.fn();
-    render(<ImportView {...props({ step: 'match', onMappingChange, onRunDryRun })} />);
+  it('goes from upload straight to review, with the file preview there and no matching step', () => {
+    render(<ImportView {...props({ step: 'review' })} />);
 
-    await userEvent.selectOptions(screen.getAllByLabelText(/Country/)[0]!, 'Role');
-    expect(onMappingChange).toHaveBeenCalledWith(expect.objectContaining({ country: 'Role' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Check rows' }));
-    expect(onRunDryRun).toHaveBeenCalled();
+    expect(screen.getByRole('list', { name: 'Import progress' })).not.toHaveTextContent(
+      /Match columns/,
+    );
+    expect(screen.getByRole('region', { name: 'Sheet preview' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit matching' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Replace file' })).toBeInTheDocument();
+  });
+
+  it('drops the preview once the import is done', () => {
+    render(<ImportView {...props({ step: 'done', record: { ...record, status: 'committed' } })} />);
+    expect(screen.queryByRole('region', { name: 'Sheet preview' })).not.toBeInTheDocument();
   });
 
   it('reviews the rows that need fixing and imports the rest', async () => {

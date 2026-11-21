@@ -67,9 +67,31 @@
   line-height: var(--acme-leading-md);
 }
 
+.option[data-reverse] {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Keyboard or pointer position in the list. */
 .option[data-combobox-selected] {
   color: var(--acme-color-grey900);
+  background: var(--acme-color-grey100);
+}
+
+/* The chosen value: tinted like the active pill, with the tick in the accent colour. */
+.option[data-checked] {
+  font-weight: 500;
+  color: var(--acme-color-accent-strong);
+  background: var(--acme-color-green50);
+}
+
+.option[data-checked][data-combobox-selected] {
   background: var(--acme-color-green100);
+}
+
+.option svg {
+  flex: none;
+  color: var(--acme-color-accent);
 }
 
 @media (min-width: 768px) {

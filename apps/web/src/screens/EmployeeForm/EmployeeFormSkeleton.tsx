@@ -11,27 +11,29 @@ import form from '../shared/form.module.css';
 import styles from './EmployeeForm.module.css';
 
 /**
- * A real labelled field. In edit mode its value is still loading (a placeholder bar); in add
- * mode the form starts empty, so the control is empty too.
+ * A real labelled control, disabled and empty until the form arrives: only the values appear
+ * then, so the form itself never changes. Selects keep their arrow, like the real ones.
  */
 function Field({
   label,
-  width,
   hint,
-  editing,
+  kind = 'text',
 }: {
   label: string;
-  width: string;
   hint?: string;
-  editing: boolean;
+  kind?: 'text' | 'select';
 }) {
   return (
     <FormField label={label} required hint={hint}>
-      {() => (
-        <div className={form.control} style={{ display: 'grid', alignContent: 'center' }}>
-          {editing && <Skeleton inline width={width} height={12} />}
-        </div>
-      )}
+      {(control) =>
+        kind === 'select' ? (
+          <select {...control} className={form.control} disabled value="">
+            <option value="" />
+          </select>
+        ) : (
+          <input {...control} className={form.control} disabled value="" readOnly />
+        )
+      }
     </FormField>
   );
 }
@@ -49,13 +51,13 @@ export interface EmployeeFormSkeletonProps {
 /**
  * EmployeeFormView while its code or the employee loads. Titles, labels, hints, card footers
  * and buttons are the real ones for each mode, so nothing moves when the form replaces it;
- * only the edit form's values are placeholders.
+ * the controls are disabled and empty, and Save is off, until the values arrive.
  */
 export function EmployeeFormSkeleton({ mode, oneCountry = false }: EmployeeFormSkeletonProps) {
   const { id } = useParams();
   const editing = (mode ?? (id ? 'edit' : 'add')) === 'edit';
   return (
-    <PageSkeleton label={editing ? 'Loading employee…' : 'Loading form…'}>
+    <PageSkeleton label={editing ? 'Loading employee…' : 'Loading form…'} delayMs={0}>
       <PageHeader
         title={
           editing ? (
@@ -76,40 +78,38 @@ export function EmployeeFormSkeleton({ mode, oneCountry = false }: EmployeeFormS
         <TrayCard title="Person" footer={editing ? undefined : 'Employee code is assigned on save'}>
           <div className={form.fieldset}>
             <div className={form.row}>
-              <Field label="First name" width="40%" editing={editing} />
-              <Field label="Last name" width="45%" editing={editing} />
+              <Field label="First name" />
+              <Field label="Last name" />
             </div>
-            <Field label="Work email" width="50%" editing={editing} />
+            <Field label="Work email" />
           </div>
         </TrayCard>
         <TrayCard title="Role">
           <div className={form.fieldset}>
             <div className={form.row}>
-              <Field label="Department" width="45%" editing={editing} />
-              <Field label="Job title" width="60%" editing={editing} />
+              <Field label="Department" kind="select" />
+              <Field label="Job title" kind="select" />
             </div>
           </div>
         </TrayCard>
         <TrayCard title="Location and pay" footer="Currency is set by the country">
           <div className={form.fieldset}>
             <div className={form.row}>
-              <Field label="Country" width="35%" editing={editing} />
-              <Field label="Hire date" width="40%" hint="Today or earlier" editing={editing} />
+              <Field label="Country" kind="select" />
+              <Field label="Hire date" hint="Today or earlier" />
             </div>
             {!editing && (
               <Field
                 label="Annual base salary"
-                width="0"
                 hint={oneCountry ? undefined : 'Choose the country first'}
-                editing={false}
               />
             )}
           </div>
         </TrayCard>
         <div className={form.actions}>
           <PillButton href={editing && id ? `/employees/${id}` : '/employees'}>Cancel</PillButton>
-          {/* A new form starts empty, so its Save starts off, as in the real form. */}
-          <PillButton tone="primary" disabled={!editing}>
+          {/* Nothing can be saved until the form has loaded. */}
+          <PillButton tone="primary" disabled>
             {editing ? 'Save changes' : 'Save employee'}
           </PillButton>
         </div>

@@ -121,10 +121,21 @@ describe('EmployeesView', () => {
 
   it('keeps the count while another page or sort of the same results loads', () => {
     render(
-      <EmployeesView {...props({ total: 42, refreshing: true, counting: false, search: 'pri' })} />,
+      <EmployeesView
+        {...props({
+          // As the screen passes it while the next page loads.
+          status: 'loading',
+          total: 42,
+          refreshing: true,
+          counting: false,
+          search: 'pri',
+          exportHref: '/api/employees/export',
+        })}
+      />,
     );
 
     expect(screen.getByText(/^42 matching people/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Export 42/ })).toBeInTheDocument();
   });
 
   it('shows the count once the results have loaded', () => {

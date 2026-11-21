@@ -1,5 +1,5 @@
 import type { Role, User } from '@acme/shared';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { describeError } from '../../api/client';
 import {
   createRole,
@@ -24,6 +24,7 @@ import { EditAccessDialog } from './EditAccessDialog';
 import { InviteDialog } from './InviteDialog';
 import { RoleEditorDialog } from './RoleEditorDialog';
 import { AccessSkeleton } from './AccessSkeleton';
+import { rememberAccessLayout } from './accessLayout';
 
 type Open =
   | { kind: 'invite'; inviteUrl?: string; invitee?: string }
@@ -51,6 +52,17 @@ export function AccessScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
   const [shown, setShown] = useState(false);
+  // The next visit's skeleton draws the same page: role cards, member rows and changes.
+  useEffect(() => {
+    if (roles.data) {
+      rememberAccessLayout(
+        me,
+        roles.data.items,
+        users.data?.items.length ?? 0,
+        changes.data?.items.length ?? 0,
+      );
+    }
+  }, [me, roles.data, users.data, changes.data]);
 
   const failed = [roles, users].find((r) => r.status === 'error');
   if (failed) {

@@ -40,10 +40,20 @@
   min-width: 160px;
 }
 
-/* The payroll table needs about half the width, so this row splits evenly on desktop. */
+/*
+ * The payroll table needs about half the width, so this row splits evenly on desktop. The
+ * spread card stretches to the table's height and its chart grows with it, so no blank space
+ * sits under the chart beside a long country list.
+ */
 @media (min-width: 1024px) {
   .evenColumns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .spread > :nth-child(2) {
+    display: flex;
+    flex-direction: column;
   }
 }
 

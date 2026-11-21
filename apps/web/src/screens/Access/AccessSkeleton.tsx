@@ -2,6 +2,7 @@ import { permissionKeys } from '@acme/shared';
 import { IconPlus, IconUserPlus } from '@tabler/icons-react';
 import {
   DataTable,
+  EmptyState,
   PageHeader,
   PageSkeleton,
   PersonCellSkeleton,
@@ -15,6 +16,7 @@ import { permissionLabels } from '../../lib/format';
 import { useOptionalSession } from '../../session/SessionContext';
 import shared from '../shared/screen.module.css';
 import styles from './Access.module.css';
+import { accessLayoutFor } from './accessLayout';
 
 const memberColumns: DataTableColumn<never>[] = [
   {
@@ -63,7 +65,9 @@ const permissionLabelList = permissionKeys.map((key) => permissionLabels[key]);
  */
 export function AccessSkeleton() {
   // Before the session loads (first page load), assume everything is visible.
-  const can = useOptionalSession()?.can ?? (() => true);
+  const session = useOptionalSession();
+  const allowed = session?.can ?? (() => true);
+  const layout = accessLayoutFor(session?.me);
   return (
     <PageSkeleton label="Loading access…">
       <PageHeader
@@ -74,7 +78,7 @@ export function AccessSkeleton() {
           </>
         }
         actions={
-          can('users:manage') && (
+          allowed('users:manage') && (
             <PillButton tone="primary" icon={<IconUserPlus size={16} />}>
               Invite person
             </PillButton>
@@ -84,7 +88,7 @@ export function AccessSkeleton() {
       <TrayCard
         title="Roles"
         extra={
-          can('roles:manage') && (
+          allowed('roles:manage') && (
             <PillButton size="small" icon={<IconPlus size={14} />}>
               New role
             </PillButton>
@@ -93,13 +97,13 @@ export function AccessSkeleton() {
         footer="A role is a set of permissions plus a country scope. Every person has one role."
       >
         <div className={styles.roleGrid}>
-          {[0, 1, 2].map((index) => (
+          {layout.roles.map((slot, index) => (
             <RoleCardSkeleton
               key={index}
               permissions={permissionLabelList}
+              hero={slot.hero}
               actions={
-                index > 0 &&
-                can('roles:manage') && (
+                slot.editable && (
                   <PillButton size="small" tabIndex={-1}>
                     Edit
                   </PillButton>
@@ -109,7 +113,7 @@ export function AccessSkeleton() {
           ))}
         </div>
       </TrayCard>
-      {can('users:manage') && (
+      {allowed('users:manage') && (
         <TrayCard
           title="Team members"
           flush
@@ -128,7 +132,7 @@ export function AccessSkeleton() {
             total={0}
             query={{ page: 1, pageSize: 5 }}
             onQueryChange={() => {}}
-            skeletonRows={5}
+            skeletonRows={layout.members}
             skeletonPager={false}
             renderCard={() => null}
             skeletonCard={
@@ -149,18 +153,25 @@ export function AccessSkeleton() {
           />
         </TrayCard>
       )}
-      {can('audit:read') && (
+      {allowed('audit:read') && (
         <TrayCard title="Recent access changes">
-          <ul className={styles.log} aria-hidden="true">
-            {LOG_WIDTHS.map((width, index) => (
-              <li key={index} className={styles.logItem}>
-                <Skeleton inline width={width} height={12} />
-                <span className={`${shared.small} ${shared.muted}`}>
-                  <Skeleton inline width={70} height={11} />
-                </span>
-              </li>
-            ))}
-          </ul>
+          {layout.changes === 0 ? (
+            <EmptyState title="No access changes yet" />
+          ) : (
+            <ul className={styles.log} aria-hidden="true">
+              {Array.from({ length: layout.changes }, (_, index) => (
+                <li key={index} className={styles.logItem}>
+                  {/* In a text span, so the row is a text line's height like the real one. */}
+                  <span>
+                    <Skeleton inline width={LOG_WIDTHS[index % LOG_WIDTHS.length]} height={12} />
+                  </span>
+                  <span className={`${shared.small} ${shared.muted}`}>
+                    <Skeleton inline width={70} height={11} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </TrayCard>
       )}
     </PageSkeleton>

@@ -60,14 +60,20 @@ export function RoleCard({
 export function RoleCardSkeleton({
   permissions,
   actions,
+  hero = false,
 }: {
   /** The labels of every permission, in the order the cards list them. */
   permissions: readonly string[];
+  /** The Global HR card's dark style, so it doesn't change colour when the data arrives. */
+  hero?: boolean;
   /** The role's buttons, so the footer keeps their height (44px touch targets on phones). */
   actions?: ReactNode;
 }) {
   return (
-    <div className={styles.card} aria-hidden="true">
+    <div
+      className={[styles.card, hero && styles.hero].filter(Boolean).join(' ')}
+      aria-hidden="true"
+    >
       <div className={styles.head}>
         <div className={styles.titles}>
           <div className={styles.name}>
@@ -81,7 +87,7 @@ export function RoleCardSkeleton({
           <Skeleton inline width={60} height={10} />
         </span>
       </div>
-      <ul className={checkStyles.list}>
+      <ul className={[checkStyles.list, hero && checkStyles.inverted].filter(Boolean).join(' ')}>
         {permissions.map((label) => (
           <li key={label} className={checkStyles.item} data-allowed="false">
             <span className={checkStyles.mark} />
