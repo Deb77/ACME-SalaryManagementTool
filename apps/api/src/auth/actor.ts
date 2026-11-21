@@ -14,7 +14,9 @@ export interface Actor {
   sessionId: Buffer;
 }
 
-export const canUseCountry = (actor: Actor, country: string) => actor.countries.includes(country);
+/** Whether a user (or an import's planning context) may see and change people in `country`. */
+export const canUseCountry = (scope: Pick<Actor, 'countries'>, country: string) =>
+  scope.countries.includes(country);
 
 /**
  * A country the user named themselves (a form field, a filter, a role's countries) must be one
