@@ -9,6 +9,7 @@ import {
   cursorPageSchema,
   employeeSchema,
   importRowSchema,
+  inviteInfoSchema,
   importSchema,
   importUploadResponseSchema,
   insightsByTitleSchema,
@@ -25,6 +26,7 @@ import {
   titleComparisonSchema,
   userSchema,
   usersResponseSchema,
+  type AcceptInviteRequest,
   type CommitImportRequest,
   type CreateEmployeeRequest,
   type CreateRoleRequest,
@@ -32,6 +34,7 @@ import {
   type ImportMappingRequest,
   type ImportOutcome,
   type InviteUserRequest,
+  type SignInRequest,
   type TerminateEmployeeRequest,
   type UpdateEmployeeRequest,
   type UpdateRoleRequest,
@@ -44,6 +47,17 @@ type Signal = { signal?: AbortSignal };
 // ---- Session and catalogue ----
 
 export const getMe = ({ signal }: Signal = {}) => request('/auth/me', meSchema, { signal });
+
+export const signIn = (body: SignInRequest) =>
+  request('/auth/sign-in', meSchema, { method: 'POST', body });
+
+export const signOut = () => request('/auth/sign-out', null, { method: 'POST' });
+
+export const getInviteInfo = (token: string, { signal }: Signal = {}) =>
+  request(`/auth/invites/${encodeURIComponent(token)}`, inviteInfoSchema, { signal });
+
+export const acceptInvite = (body: AcceptInviteRequest) =>
+  request('/auth/accept-invite', meSchema, { method: 'POST', body });
 
 export const getMeta = ({ signal }: Signal = {}) => request('/meta', metaSchema, { signal });
 
@@ -176,6 +190,12 @@ export const updateUser = (id: string, body: UpdateUserRequest) =>
 
 export const deactivateUser = (id: string) =>
   request(`/users/${encodeURIComponent(id)}/deactivate`, userSchema, { method: 'POST' });
+
+export const reactivateUser = (id: string) =>
+  request(`/users/${encodeURIComponent(id)}/reactivate`, userSchema, { method: 'POST' });
+
+export const reissueInvite = (id: string) =>
+  request(`/users/${encodeURIComponent(id)}/invite`, inviteUserResponseSchema, { method: 'POST' });
 
 export const listRoles = ({ signal }: Signal = {}) =>
   request('/roles', rolesResponseSchema, { signal });

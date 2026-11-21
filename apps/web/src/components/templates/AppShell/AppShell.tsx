@@ -29,6 +29,8 @@ export interface AppShellProps {
   topBarStart?: ReactNode;
   /** Right side of the top bar: global actions. */
   topBarEnd?: ReactNode;
+  /** Account action next to the user (e.g. a sign-out IconButton): nav on desktop, top bar on phones. */
+  userAction?: ReactNode;
   children: ReactNode;
 }
 
@@ -47,6 +49,7 @@ export function AppShell({
   user,
   topBarStart,
   topBarEnd,
+  userAction,
   children,
 }: AppShellProps) {
   const logoMark = logo && (
@@ -112,6 +115,7 @@ export function AppShell({
               {user ? user.role : <Skeleton inline width={64} height={11} />}
             </div>
           </div>
+          {userAction && <div className={styles.userAction}>{userAction}</div>}
         </div>
       </nav>
       <div className={styles.panel}>
@@ -124,6 +128,7 @@ export function AppShell({
           <div className={styles.topBarStart}>{topBarStart}</div>
           <div className={styles.topBarEnd}>
             {topBarEnd}
+            {userAction && <span className={styles.phoneOnly}>{userAction}</span>}
             {user ? (
               <span
                 role="img"
