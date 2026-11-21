@@ -4,19 +4,19 @@ import type { Actor } from '../../auth/actor.js';
 import type { Tx } from '../../db/scope.js';
 import { salaryChanges, users } from '../../db/schema/index.js';
 import type { Clock } from '../../lib/clock.js';
-import { AppError, conflict, invalid, notFound, staleVersion } from '../../lib/errors.js';
+import { AppError, invalid, notFound } from '../../lib/errors.js';
 import type { AiRepository } from '../ai/ai.repository.js';
 import type { AuditService } from '../audit/audit.service.js';
 import type { EmployeeRepository, EmployeeRow } from '../employees/employee.repository.js';
+import { checkSalaryChange, type SalaryChangeReason } from './salary.rules.js';
 
-type Reason = (typeof salaryChanges.reason.enumValues)[number];
 type SalaryChangeRow = typeof salaryChanges.$inferSelect;
 
 export interface SalaryChangeInput {
   employeeId: string;
   amountMinor: number;
   effectiveDate: string;
-  reason: Reason;
+  reason: SalaryChangeReason;
   note?: string | null;
   /** The version the user saw; omitted by import, which locks and re-reads instead. */
   version?: number;
@@ -102,29 +102,7 @@ export class SalaryService {
     if (!current) throw notFound('Employee not found');
     const before = current.employee;
     if (input.aiDraftId) await this.useDraft(tx, input.aiDraftId, before);
-    if (input.version !== undefined && input.version !== before.version) throw staleVersion();
-    if (before.status !== 'active')
-      throw conflict('This employee has left; their pay cannot change');
-    if (input.effectiveDate < before.salaryEffectiveDate) {
-      throw invalid(
-        'effectiveDate',
-        `Must be on or after the latest salary entry (${before.salaryEffectiveDate}). Fix a past amount with a correction.`,
-      );
-    }
-    if (
-      input.reason !== 'import' &&
-      input.reason !== 'import_undo' &&
-      input.effectiveDate > this.clock.today()
-    ) {
-      throw invalid('effectiveDate', 'Future-dated changes are not supported yet');
-    }
-    if (
-      input.amountMinor === before.salaryAmountMinor &&
-      input.reason !== 'correction' &&
-      !input.importId
-    ) {
-      throw invalid('amountMinor', 'The new salary is the same as the current one');
-    }
+    checkSalaryChange({ current: before, input, today: this.clock.today() });
 
     const [row] = await tx
       .insert(salaryChanges)
