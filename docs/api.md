@@ -15,7 +15,7 @@ See [ADR 0001](adr/0001-api-style.md) for the API style. Authentication and sess
 | Cross-currency | The API never sums, averages or sorts across currencies. The only org-wide figures are USD totals from a fixed rate table, labelled `indicative`, with `ratesAsOf`. |
 | Dates | Calendar dates (hire, termination, effective) are `YYYY-MM-DD` with no time zone. Instants (`createdAt`, `occurredAt`) are ISO 8601 UTC. |
 | Concurrency | Employees carry `version`. Every write to an employee (PATCH, salary change, terminate) sends the `version` the user saw. A mismatch returns `409 stale_version`, so two HR users never silently overwrite each other. This also makes a double-clicked submit harmless. |
-| Scope | Scope comes from the session (`req.user`), never from the request. Each request runs in a transaction with `SET LOCAL app.user_id / app.user_role / app.countries`, and Postgres row-level security filters `employees`, `salary_changes`, `audit_events` and imports by country. Country HR therefore never sees out-of-scope rows, even when a query has a bug. |
+| Scope | Scope comes from the session (`req.user`), never from the request. The auth layer checks the route's permission against the user's role ([auth.md](auth.md#roles-and-permissions-rbac)). Each request then runs in a transaction with `SET LOCAL app.user_id / app.countries`, and Postgres row-level security filters `employees`, `salary_changes`, `audit_events` and imports by country. Country HR therefore never sees out-of-scope rows, even when a query has a bug. |
 | Out of scope = 404 | When Country HR requests an employee outside their countries, the API returns `404 not_found`, not 403, so it never confirms that the record exists. Creating an employee in a non-assigned country returns `403 forbidden`, because the country is the user's own input. |
 
 ### Pagination, filtering, sorting
@@ -33,7 +33,7 @@ GET /api/employees?q=rao&country=IN,GB&department=analytics&jobTitle=data-analys
 - `pageSize` defaults to 25, with a maximum of 100. `page` starts at 1.
 - Multi-value filters accept either `country=IN&country=GB` or `country=IN,GB`. Filters combine with AND; values within a filter combine with OR.
 - `status` is `active` (default), `terminated` or `all`.
-- `q` does a case-insensitive prefix/contains match on name, email and employee code (Postgres `pg_trgm` index).
+- `q` does a case-insensitive contains match on full name, email and employee code. It filters the rows in scope (no trigram index: `ILIKE` is not leakproof, so an index could not be used under RLS; database.md, E2).
 - `sort` takes one allow-listed field: `name`, `employeeCode`, `country`, `jobTitle`, `department`, `hireDate` or `salary`. A `-` prefix sorts descending. `id` is always appended as the tiebreaker, so pages are stable.
 - `sort=salary` requires exactly one `country` filter, because ordering INR against GBP amounts means nothing. Otherwise the API returns 400.
 
@@ -57,13 +57,13 @@ Every error has the same envelope (`apiErrorBodySchema`). The existing unknown-r
 | --- | --- | --- |
 | `validation_error` | 400 | The Zod schema failed (`details` lists each field), or a domain rule failed, e.g. an effective date before the latest salary entry |
 | `unauthenticated` | 401 | No valid session |
-| `forbidden` | 403 | Role not allowed (Country HR calling `/api/users`), or writing to a country the user doesn't hold |
+| `forbidden` | 403 | The user's role lacks the route's permission (`details.permission` names it), or writing to a country the user doesn't hold |
 | `not_found` | 404 | Unknown route, unknown id, or a row hidden by RLS |
 | `conflict` | 409 | Duplicate email or employee code, terminating someone already terminated, committing an import twice, undo blocked |
 | `stale_version` | 409 | The `version` in the request doesn't match the current one; the client reloads and retries |
 | `payload_too_large` | 413 | Import file over 5 MB |
 | `rate_limited` | 429 | Ask AI limit reached; includes a `Retry-After` header |
-| `ai_unavailable` | 503 | The LLM provider is down. Only Ask AI is affected |
+| `ai_unavailable` | 503 | Both the primary and the fallback model failed. Only Ask AI is affected |
 | `internal_error` | 500 | Anything unexpected. The message is generic; details go to logs only |
 
 Services throw typed domain errors (`NotFoundError`, `ConflictError`, …). A single error middleware maps them using `apiErrorStatus` from `@acme/shared`. Routes never build error responses themselves.
@@ -73,53 +73,65 @@ Services throw typed domain errors (`NotFoundError`, `ConflictError`, …). A si
 - There is no `Idempotency-Key` header. The writes that matter are already protected: employee writes require `version`, and import commit/undo are state transitions on the import resource, so repeating one returns `409`.
 - Ask AI: 20 messages per minute and 200 per day per user (in-memory limiter, which is fine for one Render instance), plus a per-conversation token budget. Other endpoints have no limit beyond the session.
 
-## 2. Roles
+## 2. Roles and permissions
+
+Access is role-based. Each user has one role, and a role is a set of permissions plus a country scope (all countries, or the user's assigned countries). Roles live in the database, so Global HR can add or edit them through `/api/roles` without a deploy. The permission catalogue and the rules that stop privilege escalation are in [auth.md](auth.md#roles-and-permissions-rbac). The two seeded roles:
 
 | | Global HR | Country HR |
 | --- | --- | --- |
-| Employees, salary changes, terminate | All countries | Assigned countries only |
-| Insights, export, import, Ask AI | All countries; indicative USD org totals | Assigned countries only; USD total covers only those countries |
-| Audit log | Everything | Events for employees in assigned countries, plus their own imports and exports |
-| Access management (`/api/users`) | Yes | No (403) |
+| Country scope | All countries; indicative USD org totals | Assigned countries only; USD total covers only those countries |
+| `employees:read`, `employees:write`, `employees:terminate`, `salary:change` | Yes | Yes, in scope |
+| `insights:read`, `employees:export`, `imports:run`, `ai:ask` | Yes | Yes, in scope |
+| `audit:read` | Everything | Events for employees in assigned countries, plus their own imports and exports |
+| `users:manage`, `roles:manage` | Yes | No (403) |
 
-Route middleware checks the role (`requireRole('global_hr')`). Postgres RLS enforces country scope. Tests cover both layers, including a Country HR request for an out-of-scope id returning 404.
+The auth layer checks each route's permission (`requirePermission`), and Postgres RLS enforces country scope. Tests cover both layers, including a role without the permission getting 403 and a Country HR request for an out-of-scope id returning 404.
 
 ## 3. Resources
 
-| Method | Path | Purpose | Roles |
+| Method | Path | Purpose | Permission |
 | --- | --- | --- | --- |
 | GET | `/api/health` | Liveness | public |
-| * | `/api/auth/*` | Sign-in, sign-out, `GET /api/auth/me` (see [auth.md](auth.md)) | — |
-| GET | `/api/meta` | Countries (with currency), departments, job titles, reasons, FX table | both |
-| GET | `/api/employees` | Search, filter, sort, page | both (scoped) |
-| GET | `/api/employees/export.csv` | CSV of the current filtered list (same params, no paging) | both (scoped) |
-| POST | `/api/employees` | Add a new joiner, writing the first salary entry (`hire`) | both (scoped) |
-| GET | `/api/employees/:id` | Employee detail | both (scoped) |
-| PATCH | `/api/employees/:id` | Edit details (not pay, country or status) | both (scoped) |
-| POST | `/api/employees/:id/terminate` | Record a leaver (soft) | both (scoped) |
-| GET | `/api/employees/:id/salary-changes` | Salary history, newest first | both (scoped) |
-| POST | `/api/employees/:id/salary-changes` | The only way to change pay | both (scoped) |
-| GET | `/api/insights/overview` | Per country: headcount, pay stats, payroll; indicative USD total | both (scoped) |
-| GET | `/api/insights/by-title?country=IN` | Per job title within one country | both (scoped) |
-| GET | `/api/insights/titles/:jobTitleId` | One title compared across countries | both (scoped) |
-| GET | `/api/insights/distribution?country=IN[&jobTitle=…]` | Salary histogram | both (scoped) |
-| GET | `/api/imports/template.xlsx` | Downloadable template (`.csv` also available) | both |
-| POST | `/api/imports` | Upload a file; returns detected columns and a suggested mapping | both |
-| GET | `/api/imports` | Recent imports | both (scoped) |
-| GET | `/api/imports/:id` | Import status and summary | both (scoped) |
-| PUT | `/api/imports/:id/mapping` | Set the column mapping and run the dry run | both (scoped) |
-| GET | `/api/imports/:id/rows?outcome=error` | Row-level preview and errors (paged) | both (scoped) |
-| POST | `/api/imports/:id/commit` | Apply in one transaction | both (scoped) |
-| POST | `/api/imports/:id/undo` | Revert the batch | both (scoped) |
-| POST | `/api/ai/messages` | Ask a question; streams the answer (SSE) | both (scoped) |
-| GET | `/api/ai/conversations/:id` | Reload a conversation (own only) | both |
-| GET | `/api/audit-events` | Who changed what, when, before and after | both (scoped) |
-| GET | `/api/users` | HR users with role and countries | Global HR |
-| POST | `/api/users` | Invite an HR user | Global HR |
-| PATCH | `/api/users/:id` | Change role or countries | Global HR |
-| POST | `/api/users/:id/deactivate` | Revoke access (no delete) | Global HR |
-| POST | `/api/users/:id/reactivate` | Restore access | Global HR |
-| POST | `/api/users/:id/invite` | Issue a new invite or password-reset link (see auth.md) | Global HR |
+| POST | `/api/auth/sign-in` | `{ email, password }` → `200` Me, sets the session cookie; every failure is `401` (see [auth.md](auth.md)) | public, rate limited |
+| POST | `/api/auth/sign-out` | Ends the current session → `204` | — |
+| GET | `/api/auth/me` | The signed-in user, role, permissions and resolved countries | signed in |
+| GET | `/api/auth/invites/:token` | Who an invite or reset link is for → `{ email, name, isReset }` | public, rate limited |
+| POST | `/api/auth/accept-invite` | `{ token, password }` → `200` Me; sets the password and signs in | public, rate limited |
+| GET | `/api/meta` | Countries (with currency), departments, job titles, reasons, FX table | signed in |
+| GET | `/api/employees` | Search, filter, sort, page | `employees:read` (scoped) |
+| GET | `/api/employees/export.csv` | CSV of the current filtered list (same params, no paging) | `employees:export` (scoped) |
+| POST | `/api/employees` | Add a new joiner, writing the first salary entry (`hire`) | `employees:write` (scoped) |
+| GET | `/api/employees/:id` | Employee detail | `employees:read` (scoped) |
+| PATCH | `/api/employees/:id` | Edit details (not pay, country or status) | `employees:write` (scoped) |
+| POST | `/api/employees/:id/terminate` | Record a leaver (soft) | `employees:terminate` (scoped) |
+| GET | `/api/employees/:id/salary-changes` | Salary history, newest first | `employees:read` (scoped) |
+| POST | `/api/employees/:id/salary-changes` | The only way to change pay | `salary:change` (scoped) |
+| GET | `/api/insights/overview` | Per country: headcount, pay stats, payroll; indicative USD total | `insights:read` (scoped) |
+| GET | `/api/insights/by-title?country=IN` | Per job title within one country | `insights:read` (scoped) |
+| GET | `/api/insights/titles/:jobTitleId` | One title compared across countries | `insights:read` (scoped) |
+| GET | `/api/insights/distribution?country=IN[&jobTitle=…]` | Salary histogram | `insights:read` (scoped) |
+| GET | `/api/imports/template.xlsx` | Downloadable template (`template.csv` also available) | `imports:run` |
+| POST | `/api/imports` | Upload a file; returns detected columns and a suggested mapping | `imports:run` |
+| GET | `/api/imports` | Recent imports | `imports:run` (scoped) |
+| GET | `/api/imports/:id` | Import status and summary | `imports:run` (scoped) |
+| PUT | `/api/imports/:id/mapping` | Set the column mapping and run the dry run | `imports:run` (scoped) |
+| GET | `/api/imports/:id/rows?outcome=error` | Row-level preview and errors (paged) | `imports:run` (scoped) |
+| POST | `/api/imports/:id/commit` | Apply in one transaction | `imports:run` (scoped) |
+| POST | `/api/imports/:id/undo` | Revert the batch | `imports:run` (scoped) |
+| POST | `/api/ai/messages` | Ask a question; streams the answer (SSE) | `ai:ask` (scoped) |
+| GET | `/api/ai/conversations/:id` | Reload a conversation (own only) | `ai:ask` |
+| GET | `/api/audit-events` | Who changed what, when, before and after | `audit:read` (scoped) |
+| GET | `/api/users` | HR users with role and countries | `users:manage` |
+| POST | `/api/users` | Invite an HR user | `users:manage` |
+| PATCH | `/api/users/:id` | Change role or countries | `users:manage` |
+| POST | `/api/users/:id/deactivate` | Revoke access (no delete) | `users:manage` |
+| POST | `/api/users/:id/reactivate` | Restore access | `users:manage` |
+| GET | `/api/permissions` | Permission catalogue with dependencies | `roles:manage` |
+| GET | `/api/roles` | Roles with permissions, country scope and user count | `users:manage` or `roles:manage` |
+| POST | `/api/roles` | Create a role | `roles:manage` |
+| PATCH | `/api/roles/:id` | Rename a role or change its permissions | `roles:manage` |
+| DELETE | `/api/roles/:id` | Delete a non-system role that nobody holds | `roles:manage` |
+| POST | `/api/users/:id/invite` | Issue a new invite or password-reset link (see auth.md) | `users:manage` |
 
 There is no `DELETE` route anywhere. Leavers are terminated, salary history is append-only, users are deactivated, and imports are undone by compensating writes.
 
@@ -244,7 +256,7 @@ Each insights endpoint is one aggregate query over the indexed `(country, job_ti
 `GET /api/employees/export.csv?<same filters and sort as the list>` → `200 text/csv; charset=utf-8`, `Content-Disposition: attachment; filename="employees-2026-11-18.csv"`.
 
 - Columns: code, first name, last name, email, country, department, job title, hire date, status, salary, currency, salary effective date. Salary is written in major units as a plain decimal (`1800000.00`; `0` decimals for JPY-style currencies), because the file goes to Excel users.
-- It is streamed from a cursor (at most about 10k rows) and contains only rows RLS allows.
+- It is built in one query (at most about 10k rows, about 1 MB) and contains only rows RLS allows. A cursor stream is the next step if exports grow.
 - To prevent CSV injection, cells starting with `= + - @` are prefixed with `'`.
 - Each export writes an `export.created` audit event with the filters used, since copies of pay data spreading by email is the problem we're replacing.
 
@@ -270,7 +282,7 @@ The import is a resource with a status: `uploaded → validated → committed �
 4. **Commit**: `POST /api/imports/:id/commit` with `{ "skipInvalidRows": true }` (required if `error > 0`). The server re-validates inside one transaction. Valid rows are created or updated, and pay changes go through `SalaryService` (`reason: "import"`). If the data changed since the dry run so that the outcome differs, the whole commit rolls back with `409` and the user re-runs step 2. It returns `200` with the final summary. Committing twice returns `409`.
 5. **Undo**: `POST /api/imports/:id/undo` → `200`. This is allowed only while the import is still the latest change to every employee it touched. Otherwise it returns `409` and lists the blocking employees. Updated employees get their previous values back, with compensating `import_undo` salary entries (history stays append-only). Employees the batch created are removed together with their import-only history rows. This is the single, audited exception to "nothing is deleted", and it runs in a `SECURITY DEFINER` function restricted to that batch id.
 
-Matching key: `employeeCode`, falling back to `email`. Rows for countries outside the user's scope are row errors ("You don't have access to GB"), not silent skips. Every row ends up created, updated, unchanged or listed with a reason, which is the "every row imported or explained" success measure.
+Matching key: `employeeCode`, falling back to `email`. Country HR imports only their assigned countries. A row for any other country is a row error ("GB is outside your countries. Ask Global HR to make this change.") and is never applied, rather than silently skipped. Every row ends up created, updated, unchanged or listed with a reason, which is the "every row imported or explained" success measure.
 
 ### Ask AI
 
@@ -289,7 +301,8 @@ data: {"type":"done"}
 - The server keeps the conversation (owned by the user). The client never sends history or tool results, so it cannot inject fake data into the model's context.
 - Tools are read-only, typed functions over our repositories. They run inside the same RLS-scoped transaction as the user, so the assistant can never see more than the user can. `tool_call.summary` and `args` are what the UI shows as "the queries behind each number".
 - Drafts are only data. The UI opens the normal salary-change dialog prefilled. Submitting it is an ordinary `POST /salary-changes` with `aiDraftId`, so the audit log shows that the change started as an AI suggestion and that a named person confirmed it.
-- Errors before the stream starts use the normal envelope (`429`, `503 ai_unavailable`). Errors mid-stream arrive as an `error` event followed by the end of the stream.
+- Fallback model: if the primary model errors or times out before any `text` event has been sent, the server retries the turn once on a second model and the client sees one normal stream. Once text has streamed, it does not switch models, because the answer would repeat or contradict itself.
+- Errors before the stream starts use the normal envelope (`429`, `503 ai_unavailable` when both models fail). Errors mid-stream arrive as an `error` event followed by the end of the stream.
 
 ### Audit log
 
@@ -313,15 +326,19 @@ data: {"type":"done"}
 }
 ```
 
-Actions: `employee.created`, `employee.updated`, `employee.terminated`, `salary.changed`, `import.committed`, `import.undone`, `export.created`, `user.invited`, `user.updated`, `user.deactivated`. `before` and `after` contain only the fields that changed. Audit rows are written in the same transaction as the change and are insert-only, like salary history. The employee page reads its timeline with `?entityType=employee&entityId=…`.
+Actions: `employee.created`, `employee.updated`, `employee.terminated`, `salary.changed`, `import.committed`, `import.undone`, `export.created`, `user.invited`, `user.updated`, `user.deactivated`, `role.created`, `role.updated`, `role.deleted`. `before` and `after` contain only the fields that changed. Audit rows are written in the same transaction as the change and are insert-only, like salary history. The employee page reads its timeline with `?entityType=employee&entityId=…`.
 
-### Access management (Global HR)
+### Access management (`users:manage`, `roles:manage`)
 
-`GET /api/users` → `{ items: [{ id, name, email, role, countries, status: "active" | "invited" | "deactivated", lastSignInAt, version }] }` (about 20 users, no paging).
+`GET /api/users` → `{ items: [{ id, name, email, role: { id, key, name }, countries, status: "active" | "invited" | "deactivated", lastSignInAt, version }] }` (about 20 users, no paging).
 
-`POST /api/users` `{ name, email, role: "global_hr" | "country_hr", countries: ["IN"] }` → `201`. Country HR needs at least one country; Global HR's `countries` is ignored. How invitations are delivered is covered in auth.md.
+`POST /api/users` `{ name, email, roleId, countries: ["IN"] }` → `201`. A role with `countryScope: "assigned"` needs at least one country; for an `all` role `countries` is ignored. You can only assign a role whose permissions you hold (otherwise `403`). How invitations are delivered is covered in auth.md.
 
-`PATCH /api/users/:id` `{ role?, countries?, version }` → `200`. `POST /api/users/:id/deactivate` → `200`. Changes take effect on the user's next request, because scope is read from the database for each session lookup and is not baked into a token. Demoting or deactivating the last active Global HR, or yourself, returns `409`.
+`PATCH /api/users/:id` `{ roleId?, countries?, version }` → `200`. `POST /api/users/:id/deactivate` → `200`. Changes take effect on the user's next request, because scope is read from the database for each session lookup and is not baked into a token. Changing your own role, deactivating yourself, or demoting or deactivating the last active Global HR returns `409`.
+
+`GET /api/roles` → `{ items: [{ id, key, name, description, countryScope: "all" | "assigned", isSystem, permissions: ["employees:read", …], userCount, version }] }`. `GET /api/permissions` → `{ items: [{ key, description, requires: ["employees:read"] }] }`.
+
+`POST /api/roles` `{ name, description?, countryScope, permissions }` → `201`. `PATCH /api/roles/:id` `{ name?, description?, permissions?, version }` → `200`; `countryScope` cannot change. `DELETE /api/roles/:id` → `204`. A missing dependency returns `400`; granting a permission you don't hold, or editing your own role, returns `403`; editing `global_hr`, or deleting a system role or one somebody holds, returns `409`. Changes apply to every holder on their next request.
 
 ## 5. Decisions and trade-offs
 
@@ -332,6 +349,7 @@ Actions: `employee.created`, `employee.updated`, `employee.terminated`, `salary.
 - **Currency is derived, never accepted.** Clients send `amountMinor` only. A wrong-currency salary is impossible to submit, and the strict schemas return 400 if anyone tries.
 - **No cross-currency maths.** Sorting by salary needs a single country. Insights are per country. Org totals are explicitly indicative and carry the rate date.
 - **Out of scope = 404.** The API never confirms that an employee exists in a country the user can't see.
+- **Roles in the database, permissions in code.** Global HR can define roles without a deploy, but only from a fixed catalogue that the routes reference, so the database can never hold a permission that no route checks.
 - **Optimistic concurrency via a `version` body field rather than `If-Match`.** It has the same semantics, is easier to send from forms and Zod, and shows up clearly in the schemas.
 - **No API versioning yet.** The API and the UI deploy together. Versioning now would be ceremony without a consumer.
 
@@ -340,5 +358,4 @@ Actions: `employee.created`, `employee.updated`, `employee.terminated`, `salary.
 1. **Future-dated salary changes** (e.g. a raise effective 1 January, entered in November). v1 limits `effectiveDate` to today or earlier, so "current salary" is a simple column. Supporting future dates would need "current" to be derived as of today, plus a daily job or a view.
 2. **Country moves** (relocations change the currency). v1 rejects `country` in PATCH. Should a move become a dedicated command that also records a salary change in the new currency?
 3. **Undo window**: is "until anyone touches an affected employee" enough, or do we also want a time limit (e.g. 24 h)?
-4. **Can Country HR import?** The brief says yes. Rows outside their countries become row errors. Confirm that this is the desired behaviour rather than rejecting the whole file.
-5. **Reinstating** a terminated employee (a mistaken termination) is not in v1. For now it would be a new hire record.
+4. **Reinstating** a terminated employee (a mistaken termination) is not in v1. For now it would be a new hire record.

@@ -2,11 +2,12 @@
 
 - Status: Proposed
 - Date: 2026-11-18
+- Updated: 2026-11-20 (RBAC with roles in the database, decision #23)
 - Details: [docs/auth.md](../auth.md)
 
 ## Context
 
-Only ACME HR staff use the app, in two roles: Global HR (all 8 countries, manages access) and Country HR (assigned countries only). Salary data is need-to-know, and the requirements say Country HR must never see other countries, enforced on the server and covered by tests. That includes Ask AI, where SQL is written by a model.
+Only ACME HR staff use the app. Two roles exist today: Global HR (all 8 countries, manages access) and Country HR (assigned countries only). Global HR should be able to add more without a deploy. Salary data is need-to-know, and the requirements say Country HR must never see other countries, enforced on the server and covered by tests. That includes Ask AI, where SQL is written by a model.
 
 The React app is served by the Express API from the same origin, on a single Render web service with Render Postgres. Writes need an actor for the audit log. Reviewers need easy demo sign-in for both roles, and the code should be readable in one sitting.
 
@@ -26,6 +27,8 @@ The React app is served by the Express API from the same origin, on a single Ren
 
 **Credentials**: argon2id passwords (with invite links to set them), magic links (need email delivery on every sign-in), or SSO (needs ACME's identity provider).
 
+**Authorization model**: a fixed role enum checked with `requireRole`; roles mapped to permissions in code; or roles and their permissions in the database (RBAC that Global HR can edit).
+
 **Scope enforcement**: in application code only (`where country_code in ...` in every repository), or in Postgres RLS fed by transaction-local settings.
 
 ## Decision
@@ -35,12 +38,12 @@ The React app is served by the Express API from the same origin, on a single Ren
 - Email and password hashed with argon2id (OWASP parameters). Accounts exist only through Global HR invites; the same single-use, 72h link resets a password. No email delivery in v1: the link is shown to Global HR once.
 - CSRF: `SameSite=Lax` plus an `Origin` check on all unsafe methods. No tokens.
 - Sign-in: per-IP rate limit, temporary per-account lock after 5 failures, identical response for every failure, dummy hash for unknown emails.
-- Authorization in two layers: `requireAuth` / `requireRole` middleware for route access, and **Postgres RLS** for country scope. Every request's queries run in a transaction that sets `app.user_id`, `app.user_role` and `app.countries` with `set_config(..., true)`. Missing settings mean no rows.
+- Authorization in two layers. **RBAC** for actions: `roles`, `permissions` and `role_permissions` are database tables, each user has one role, and `requirePermission` checks the route's permission in the auth layer on every request. The permission catalogue is defined in code and seeded; Global HR and Country HR are seeded system roles. **Postgres RLS** for country scope: every request's queries run in a transaction that sets `app.user_id` and `app.countries` (resolved from the role's country scope) with `set_config(..., true)`. Missing settings mean no rows.
 - Three DB roles: `acme_owner` (migrations, owns tables), `acme_app` (server; not owner, `NOBYPASSRLS`, no DDL or deletes on history), `acme_ai_reader` (Ask AI; separate login, read-only, salary tables only). Because any role can call `set_config`, the AI role reads its scope from a table it cannot write, keyed by its connection's backend PID.
 - Demo users are created by the seed script only when explicitly enabled, with the password from an environment variable.
 
 ## Consequences
 
 - Positive: revocation and role or country changes take effect on the next request. A missed filter in code, or a prompt-injected AI query, cannot cross countries, and tests can prove this directly against the database. All auth code is small and reviewable; no third-party identity vendor.
-- Negative: we own the security of the auth code, so it needs focused tests (listed in auth.md). One extra DB read per request for the session (indexed, cheap at this scale). Running migrations and the server as different roles needs three connection strings and a roles setup step, which depends on Render Postgres allowing role creation. The PID-keyed AI scope relies on direct connections (no transaction-mode PgBouncer).
+- Negative: editable roles need rules against privilege escalation (grant only what you hold, never edit your own role, `global_hr` fixed) and tests for them. We own the security of the auth code, so it needs focused tests (listed in auth.md). One extra DB read per request for the session (indexed, cheap at this scale). Running migrations and the server as different roles needs three connection strings and a roles setup step, which depends on Render Postgres allowing role creation. The PID-keyed AI scope relies on direct connections (no transaction-mode PgBouncer).
 - Follow-ups: MFA (TOTP) first; SSO with ACME's identity provider would replace only the password step; an email provider for invites; a shared rate-limit store if the API ever runs on more than one instance.

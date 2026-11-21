@@ -8,7 +8,7 @@ Nov 18, 2026 · @Deborah
 
 **Problem.** Salary data lives in spreadsheets. Finding a person means Ctrl+F across files, a pay change overwrites the old number with no reason or date, every pay question needs a manual pivot, and copies of sensitive files spread by email.
 
-**User.** HR staff in two roles: Global HR (all countries) and Country HR (assigned countries only). Comfortable with Excel, not technical. Their three jobs:
+**User.** HR staff, each with one role. Two roles are seeded: Global HR (all countries) and Country HR (assigned countries only); Global HR can add more. Comfortable with Excel, not technical. Their three jobs:
 
 1. Find a person and update their details or pay.
 2. Add new joiners and record leavers.
@@ -33,7 +33,7 @@ Nov 18, 2026 · @Deborah
 | Pay insights | Per country and job title: headcount, min, median, average, max, salary spread; payroll per country | Must | The "how do we pay people" questions |
 | Ask AI | Plain-English questions over salary data; shows the queries behind each number; can suggest changes only as drafts for approval | Should | Answers questions the fixed screens don't cover |
 | CSV export | Export the current filtered list | Should | HR will still share data in Excel |
-| Sign-in with two roles | Global HR sees everything and manages access; Country HR sees and edits only assigned countries in lists, insights, exports and Ask AI | Should | Pay data is need-to-know; scope is enforced on the server, not just hidden in the UI |
+| Sign-in with role-based access (RBAC) | Each user has one role: a set of permissions (view, edit, terminate, change pay, export, import, insights, Ask AI, audit log, manage users, manage roles) plus a country scope (all, or assigned countries). Global HR and Country HR are seeded, and Global HR can add or edit roles without a deploy. The auth layer checks the permission on every request; Country HR sees and edits only assigned countries in lists, insights, exports, import and Ask AI | Should | Pay data is need-to-know; access is enforced on the server, not just hidden in the UI, and a new HR role doesn't need a release |
 | Seed data | Reproducible script creating 10,000 realistic employees | Must | Required to demo and test at real scale |
 | Excel and CSV import | Upload .xlsx or .csv, match columns, preview row-level errors, then add new and update existing employees in one step; downloadable template | Must | HR lives in Excel today; adoption needs an easy way in, and repeat imports while teams switch over |
 
@@ -41,15 +41,12 @@ Nov 18, 2026 · @Deborah
 
 | Left out | Why |
 | --- | --- |
-| Roles for managers, finance and employees | Not needed by HR today; they would reuse the same server-side country scoping as Country HR. |
+| Features for managers, finance and employees | Not needed by HR today. Global HR could create such roles from the existing permissions, but v1 builds no screens for them (team views, self-service). |
 | AI that edits data directly | Pay changes need a human decision and an audit trail; the assistant only reads and drafts. |
 | Payroll, tax, payslips | A different product with country-specific legal rules; the ask is managing and understanding salaries. |
 | Bonus, equity, benefits | Base pay answers the stated questions; total compensation multiplies the data model. |
-| Live exchange rates | Stats stay in each country's currency; fixed, dated rates are enough for indicative totals and keep results reproducible. |
 | Live two-way sync with Excel or other HR systems | Import covers the switch-over; ongoing sync needs rules for which system wins a conflict. |
-| Pay bands and compa-ratio | Needs ACME's own band data; first follow-up once bands exist. |
 | Approval workflows, notifications | Needs more than one user first. |
-| Employee self-service, mobile app, translations | Not this persona's needs. |
 
 ## Assumptions
 
@@ -57,4 +54,7 @@ Nov 18, 2026 · @Deborah
 - One currency per country; an employee's currency follows their country.
 - Job titles and departments come from a fixed catalogue, so insights group correctly.
 - All data is synthetic; no real personal data is used.
-- If the AI service is unavailable, every other feature still works.
+- Ask AI has a fallback model: if the primary model errors or times out, the request is retried once on a second model. If both are unavailable, only Ask AI is affected and every other feature still works.
+- Country HR imports only their assigned countries' employees. Rows for any other country are rejected as row errors that tell them to ask Global HR to make the change; those rows are never applied.
+- Invite links are copied by hand in v1: Global HR sees a new link once and passes it on. No email is sent.
+- Money is formatted in the currency's own locale (₹32,40,000 for INR, £92,000 for GBP), whatever the viewer's locale.
