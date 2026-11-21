@@ -22,6 +22,7 @@ describe('EditAccessDialog', () => {
         onSave={vi.fn()}
         onRemoveAccess={vi.fn()}
         onRestoreAccess={vi.fn()}
+        onSendNewLink={vi.fn()}
         onCancel={vi.fn()}
       />,
     );
@@ -47,6 +48,7 @@ describe('EditAccessDialog', () => {
         onSave={onSave}
         onRemoveAccess={vi.fn()}
         onRestoreAccess={onRestoreAccess}
+        onSendNewLink={vi.fn()}
         onCancel={vi.fn()}
       />,
     );
