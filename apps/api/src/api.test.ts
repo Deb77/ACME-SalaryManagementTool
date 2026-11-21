@@ -71,6 +71,30 @@ describe('HTTP API', () => {
     body?: object,
   ) => agent[method](path).set('Origin', ORIGIN).send(body);
 
+  let hires = 0;
+
+  /** A valid create request for a new Indian data analyst; each call gets a fresh email. */
+  function anEmployee(overrides: Record<string, unknown> = {}) {
+    hires += 1;
+    return {
+      firstName: 'Asha',
+      lastName: 'Rao',
+      email: `Asha.Rao.${hires}@acme.test`,
+      country: 'IN',
+      jobTitleId: 'data-analyst',
+      departmentId: 'data',
+      hireDate: '2026-11-02',
+      salaryAmountMinor: 180_000_000,
+      ...overrides,
+    };
+  }
+
+  async function hire(overrides: Record<string, unknown> = {}) {
+    const res = await send(indiaHr, 'post', '/api/employees', anEmployee(overrides));
+    expect(res.status, res.text).toBe(201);
+    return employeeSchema.parse(res.body);
+  }
+
   async function employeeIn(country: string): Promise<{ id: string; version: number }> {
     const { rows } = await owner.execute<{ id: string; version: number }>(
       sql`select id, version from employees where country_code = ${country} and status = 'active' order by employee_code limit 1`,
@@ -295,120 +319,8 @@ describe('HTTP API', () => {
       expect(res.status).toBe(400);
     });
 
-    it('creates, edits, changes pay and terminates with optimistic concurrency and an audit trail', async () => {
-      const created = await send(indiaHr, 'post', '/api/employees', {
-        firstName: 'Asha',
-        lastName: 'Rao',
-        email: 'Asha.Rao.Test@acme.test',
-        country: 'IN',
-        jobTitleId: 'data-analyst',
-        departmentId: 'data',
-        hireDate: '2026-11-02',
-        salaryAmountMinor: 180_000_000,
-      });
-      expect(created.status, created.text).toBe(201);
-      const employee = employeeSchema.parse(created.body);
-      expect(employee.email).toBe('asha.rao.test@acme.test');
-      expect(employee.salary).toEqual({ amountMinor: 180_000_000, currency: 'INR' });
-      expect(employee.employeeCode).toMatch(/^ACM-\d{6}$/);
-      expect(created.headers.location).toBe(`/api/employees/${employee.id}`);
-
-      const dupe = await send(indiaHr, 'post', '/api/employees', {
-        firstName: 'Asha',
-        lastName: 'Rao',
-        email: 'asha.rao.test@acme.test',
-        country: 'IN',
-        jobTitleId: 'data-analyst',
-        departmentId: 'data',
-        hireDate: '2026-11-02',
-        salaryAmountMinor: 1,
-      });
-      expect(dupe.status).toBe(409);
-
-      const edited = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
-        jobTitleId: 'software-engineer',
-        version: 1,
-      });
-      expect(employeeSchema.parse(edited.body).version).toBe(2);
-      const stale = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
-        lastName: 'R',
-        version: 1,
-      });
-      expect(stale.status).toBe(409);
-      expect(stale.body.error.code).toBe('stale_version');
-      const payViaPatch = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
-        salaryAmountMinor: 1,
-        version: 2,
-      });
-      expect(payViaPatch.status).toBe(400);
-
-      const tooEarly = await send(indiaHr, 'post', `/api/employees/${employee.id}/salary-changes`, {
-        amountMinor: 190_000_000,
-        effectiveDate: '2026-10-01',
-        reason: 'annual_review',
-        version: 2,
-      });
-      expect(tooEarly.status).toBe(400);
-      const future = await send(indiaHr, 'post', `/api/employees/${employee.id}/salary-changes`, {
-        amountMinor: 190_000_000,
-        effectiveDate: '2026-12-01',
-        reason: 'annual_review',
-        version: 2,
-      });
-      expect(future.status).toBe(400);
-      const changed = await send(indiaHr, 'post', `/api/employees/${employee.id}/salary-changes`, {
-        amountMinor: 198_000_000,
-        effectiveDate: '2026-11-15',
-        reason: 'market_adjustment',
-        note: 'Benchmark',
-        version: 2,
-      });
-      expect(changed.status, changed.text).toBe(201);
-      const result = createSalaryChangeResponseSchema.parse(changed.body);
-      expect(result.salaryChange.previousAmount).toEqual({
-        amountMinor: 180_000_000,
-        currency: 'INR',
-      });
-      expect(result.employee.salary.amountMinor).toBe(198_000_000);
-      expect(result.employee.version).toBe(3);
-
-      const history = salaryHistoryResponseSchema.parse(
-        (await indiaHr.get(`/api/employees/${employee.id}/salary-changes`)).body,
-      );
-      expect(history.items.map((h) => h.reason)).toEqual(['market_adjustment', 'hire']);
-
-      const left = await send(indiaHr, 'post', `/api/employees/${employee.id}/terminate`, {
-        terminationDate: '2026-11-20',
-        reason: 'resignation',
-        version: 3,
-      });
-      expect(employeeSchema.parse(left.body).status).toBe('terminated');
-      const twice = await send(indiaHr, 'post', `/api/employees/${employee.id}/terminate`, {
-        terminationDate: '2026-11-20',
-        reason: 'resignation',
-        version: 4,
-      });
-      expect(twice.status).toBe(409);
-      const editLeaver = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
-        lastName: 'R',
-        version: 4,
-      });
-      expect(editLeaver.status).toBe(409);
-
-      const audit = cursorPageSchema(auditEventSchema).parse(
-        (await indiaHr.get(`/api/audit-events?entityType=employee&entityId=${employee.id}`)).body,
-      );
-      expect(audit.items.map((a) => a.action)).toEqual([
-        'employee.terminated',
-        'salary.changed',
-        'employee.updated',
-        'employee.created',
-      ]);
-      expect(audit.items[2]!.before).toEqual({ jobTitleId: 'data-analyst' });
-      expect(audit.items[2]!.after).toEqual({ jobTitleId: 'software-engineer' });
-    });
-
     it('pages the audit log with a cursor and no duplicates', async () => {
+      for (let i = 0; i < 5; i += 1) await hire();
       const seen = new Set<string>();
       let cursor: string | null = null;
       let pages = 0;
@@ -446,6 +358,148 @@ describe('HTTP API', () => {
         (await globalHr.get('/api/audit-events?action=export.created&limit=1')).body,
       );
       expect(audit.items[0]?.action).toBe('export.created');
+    });
+  });
+
+  describe('employee lifecycle', () => {
+    const changePay = (id: string, body: object) =>
+      send(indiaHr, 'post', `/api/employees/${id}/salary-changes`, {
+        reason: 'annual_review',
+        ...body,
+      });
+
+    it('creates an employee with a lower-cased email, the country currency and a new code', async () => {
+      const res = await send(indiaHr, 'post', '/api/employees', anEmployee());
+      expect(res.status, res.text).toBe(201);
+      const employee = employeeSchema.parse(res.body);
+      expect(employee.email).toMatch(/^asha\.rao\.\d+@acme\.test$/);
+      expect(employee.salary).toEqual({ amountMinor: 180_000_000, currency: 'INR' });
+      expect(employee.employeeCode).toMatch(/^ACM-\d{6}$/);
+      expect(res.headers.location).toBe(`/api/employees/${employee.id}`);
+    });
+
+    it('refuses a second employee with the same email, whatever its case', async () => {
+      const first = await hire();
+      const dupe = await send(
+        indiaHr,
+        'post',
+        '/api/employees',
+        anEmployee({ email: first.email.toUpperCase() }),
+      );
+      expect(dupe.status).toBe(409);
+    });
+
+    it('bumps the version on edit and refuses an edit made from a stale version', async () => {
+      const employee = await hire();
+      const edited = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
+        jobTitleId: 'software-engineer',
+        version: 1,
+      });
+      expect(employeeSchema.parse(edited.body).version).toBe(2);
+
+      const stale = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
+        lastName: 'R',
+        version: 1,
+      });
+      expect(stale.status).toBe(409);
+      expect(stale.body.error.code).toBe('stale_version');
+    });
+
+    it('only changes pay through a salary change, not an edit', async () => {
+      const employee = await hire();
+      const res = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
+        salaryAmountMinor: 1,
+        version: 1,
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('refuses a pay change dated before the current pay or in the future', async () => {
+      const employee = await hire();
+      const before = await changePay(employee.id, {
+        amountMinor: 190_000_000,
+        effectiveDate: '2026-10-01',
+        version: 1,
+      });
+      expect(before.status).toBe(400);
+      const future = await changePay(employee.id, {
+        amountMinor: 190_000_000,
+        effectiveDate: '2026-12-01',
+        version: 1,
+      });
+      expect(future.status).toBe(400);
+    });
+
+    it('records a pay change with the previous amount, newest first in the history', async () => {
+      const employee = await hire();
+      const res = await changePay(employee.id, {
+        amountMinor: 198_000_000,
+        effectiveDate: '2026-11-15',
+        reason: 'market_adjustment',
+        note: 'Benchmark',
+        version: 1,
+      });
+      expect(res.status, res.text).toBe(201);
+      const result = createSalaryChangeResponseSchema.parse(res.body);
+      expect(result.salaryChange.previousAmount).toEqual({
+        amountMinor: 180_000_000,
+        currency: 'INR',
+      });
+      expect(result.employee.salary.amountMinor).toBe(198_000_000);
+      expect(result.employee.version).toBe(2);
+
+      const history = salaryHistoryResponseSchema.parse(
+        (await indiaHr.get(`/api/employees/${employee.id}/salary-changes`)).body,
+      );
+      expect(history.items.map((h) => h.reason)).toEqual(['market_adjustment', 'hire']);
+    });
+
+    it('terminates once, and a leaver can no longer be edited', async () => {
+      const employee = await hire();
+      const terminate = (version: number) =>
+        send(indiaHr, 'post', `/api/employees/${employee.id}/terminate`, {
+          terminationDate: '2026-11-20',
+          reason: 'resignation',
+          version,
+        });
+      expect(employeeSchema.parse((await terminate(1)).body).status).toBe('terminated');
+      expect((await terminate(2)).status).toBe(409);
+
+      const edit = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
+        lastName: 'R',
+        version: 2,
+      });
+      expect(edit.status).toBe(409);
+    });
+
+    it('writes an audit row for each step, with what changed', async () => {
+      const employee = await hire();
+      await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
+        jobTitleId: 'software-engineer',
+        version: 1,
+      });
+      await changePay(employee.id, {
+        amountMinor: 198_000_000,
+        effectiveDate: '2026-11-15',
+        version: 2,
+      });
+      await send(indiaHr, 'post', `/api/employees/${employee.id}/terminate`, {
+        terminationDate: '2026-11-20',
+        reason: 'resignation',
+        version: 3,
+      });
+
+      const audit = cursorPageSchema(auditEventSchema).parse(
+        (await indiaHr.get(`/api/audit-events?entityType=employee&entityId=${employee.id}`)).body,
+      );
+      expect(audit.items.map((a) => a.action)).toEqual([
+        'employee.terminated',
+        'salary.changed',
+        'employee.updated',
+        'employee.created',
+      ]);
+      expect(audit.items[2]!.before).toEqual({ jobTitleId: 'data-analyst' });
+      expect(audit.items[2]!.after).toEqual({ jobTitleId: 'software-engineer' });
     });
   });
 
