@@ -7,5 +7,6 @@ export default defineProject({
       '@acme/shared': fileURLToPath(new URL('../../packages/shared/src/index.ts', import.meta.url)),
     },
   },
-  test: { name: 'api', environment: 'node' },
+  // The database suites reset the same test database, so files run one at a time.
+  test: { name: 'api', environment: 'node', fileParallelism: false },
 });
