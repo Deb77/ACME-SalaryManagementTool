@@ -37,3 +37,6 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/acme_test
       - run: npm run build
+      # Browser smoke test over the built app on a throwaway Postgres (e2e/).
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
