@@ -31,7 +31,7 @@ Nov 18, 2026 · @Deborah
 | Add, edit, terminate | Create and update people; terminate instead of delete | Must | Core spreadsheet work; payroll records must not vanish |
 | Salary changes with history | New amount, effective date, reason; history is permanent | Must | Spreadsheets lose the old number and the why |
 | Pay insights | Per country and job title: headcount, min, median, average, max, salary spread; payroll per country | Must | The "how do we pay people" questions |
-| Ask AI | Plain-English questions over salary data; shows the queries behind each number; can suggest changes only as drafts for approval | Should | Answers questions the fixed screens don't cover |
+| Ask AI | Plain-English questions over salary data; shows the steps behind each answer in plain English (SQL only in the audit log); can suggest changes only as drafts for approval | Should | Answers questions the fixed screens don't cover |
 | CSV export | Export the current filtered list | Should | HR will still share data in Excel |
 | Sign-in with role-based access (RBAC) | Each user has one role: a set of permissions (view, edit, terminate, change pay, export, import, insights, Ask AI, audit log, manage users, manage roles) plus a country scope (all, or assigned countries). Global HR and Country HR are seeded, and Global HR can add or edit roles without a deploy. The auth layer checks the permission on every request; Country HR sees and edits only assigned countries in lists, insights, exports, import and Ask AI | Should | Pay data is need-to-know; access is enforced on the server, not just hidden in the UI, and a new HR role doesn't need a release |
 | Seed data | Reproducible script creating 10,000 realistic employees | Must | Required to demo and test at real scale |
