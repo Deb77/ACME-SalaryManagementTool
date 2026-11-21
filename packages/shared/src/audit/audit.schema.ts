@@ -33,3 +33,19 @@ export const auditEventSchema = z.object({
 });
 
 export type AuditEvent = z.infer<typeof auditEventSchema>;
+
+export const auditEntityTypes = ['employee', 'import', 'export', 'user', 'role'] as const;
+
+/** `GET /api/audit-events`: filters combine with AND; `to` is inclusive (whole day). */
+export const listAuditEventsQuerySchema = z.object({
+  entityType: z.enum(auditEntityTypes).optional(),
+  entityId: z.uuid().optional(),
+  actorId: z.uuid().optional(),
+  action: z.enum(auditActions).optional(),
+  from: z.iso.date().optional(),
+  to: z.iso.date().optional(),
+  cursor: z.string().min(1).max(200).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export type ListAuditEventsQuery = z.infer<typeof listAuditEventsQuerySchema>;
