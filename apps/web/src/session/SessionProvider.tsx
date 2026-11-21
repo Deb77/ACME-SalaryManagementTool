@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { ApiError, describeError } from '../api/client';
 import { getMe, getMeta, signOut } from '../api/endpoints';
@@ -8,6 +8,7 @@ import { BootSkeleton } from '../app/BootSkeleton';
 import { ErrorState } from '../components';
 import { createSession, SessionContext } from './SessionContext';
 import styles from './SessionProvider.module.css';
+import { rememberSignedIn } from './signedIn';
 
 /**
  * Loads who is signed in (`/auth/me`) and the catalogue (`/meta`) once, before any screen
@@ -19,6 +20,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     Promise.all([getMe({ signal }), getMeta({ signal })]),
   );
   const endSession = useCallback(async () => {
+    rememberSignedIn(false);
     try {
       await signOut();
     } finally {
@@ -31,9 +33,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [resource.data, endSession],
   );
 
+  const signedOut =
+    resource.status === 'error' &&
+    resource.error instanceof ApiError &&
+    resource.error.code === 'unauthenticated';
+  useEffect(() => {
+    if (session) rememberSignedIn(true);
+    else if (signedOut) rememberSignedIn(false);
+  }, [session, signedOut]);
+
   if (resource.status === 'error') {
-    const signedOut =
-      resource.error instanceof ApiError && resource.error.code === 'unauthenticated';
     if (signedOut) {
       const next = `${location.pathname}${location.search}`;
       return (
