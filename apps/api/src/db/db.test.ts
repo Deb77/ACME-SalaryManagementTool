@@ -50,7 +50,7 @@ describe.skipIf(!url)('database migrations and seed', () => {
       select count(*)::int as count from information_schema.tables where table_schema = 'public'`,
       )
       .then((result) => result.rows);
-    expect(row!.count).toBe(16);
+    expect(row!.count).toBe(20);
   });
 
   it('seeds the permission catalogue to match the code, and the two system roles', async () => {
