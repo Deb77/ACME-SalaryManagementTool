@@ -7,7 +7,7 @@ afterEach(() => {
 });
 
 describe('App', () => {
-  it('asks the user to sign in when the session is missing', async () => {
+  it('sends a signed-out user to the sign-in page', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
@@ -18,8 +18,11 @@ describe('App', () => {
       ),
     );
 
+    window.history.pushState(null, '', '/insights');
     render(<App />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('You are signed out');
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/sign-in');
+    expect(window.location.search).toBe('?next=%2Finsights');
   });
 });

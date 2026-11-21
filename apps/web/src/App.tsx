@@ -1,9 +1,18 @@
-import { BrowserRouter } from 'react-router';
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Route, Routes } from 'react-router';
+import { BootSkeleton } from './app/BootSkeleton';
 import { RouterLink } from './app/RouterLink';
 import { AppRoutes } from './app/Routes';
 import { ErrorBoundary, LinkProvider } from './components';
 import { SessionProvider } from './session/SessionProvider';
 import { ThemeProvider } from './theme';
+
+const SignInScreen = lazy(() =>
+  import('./screens/SignIn/SignInScreen').then((m) => ({ default: m.SignInScreen })),
+);
+const AcceptInviteScreen = lazy(() =>
+  import('./screens/SignIn/AcceptInviteScreen').then((m) => ({ default: m.AcceptInviteScreen })),
+);
 
 export function App() {
   return (
@@ -11,9 +20,21 @@ export function App() {
       <ErrorBoundary>
         <BrowserRouter>
           <LinkProvider component={RouterLink}>
-            <SessionProvider>
-              <AppRoutes />
-            </SessionProvider>
+            <Suspense fallback={<BootSkeleton />}>
+              <Routes>
+                {/* Public pages: no session yet. */}
+                <Route path="sign-in" element={<SignInScreen />} />
+                <Route path="accept-invite" element={<AcceptInviteScreen />} />
+                <Route
+                  path="*"
+                  element={
+                    <SessionProvider>
+                      <AppRoutes />
+                    </SessionProvider>
+                  }
+                />
+              </Routes>
+            </Suspense>
           </LinkProvider>
         </BrowserRouter>
       </ErrorBoundary>

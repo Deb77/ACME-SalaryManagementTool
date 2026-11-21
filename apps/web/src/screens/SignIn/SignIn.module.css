@@ -1,0 +1,79 @@
+/* Sign-in and invite pages: one white card centred on the app's grey frame, mobile first. */
+
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  background: var(--acme-color-frame);
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  padding: 28px 20px;
+  box-sizing: border-box;
+  background: var(--acme-color-white);
+  border-radius: var(--acme-radius-xxl);
+  box-shadow: var(--acme-shadow-frame);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+  font-size: var(--acme-text-lg);
+  line-height: var(--acme-leading-lg);
+  font-weight: 600;
+}
+
+.logo {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--acme-color-white);
+  background: var(--acme-color-accent);
+  border-radius: var(--acme-radius-sm);
+}
+
+.title {
+  margin: 0 0 4px;
+  font-size: var(--acme-text-xxl);
+  line-height: var(--acme-leading-xxl);
+  font-weight: 600;
+}
+
+.lead {
+  margin: 0 0 24px;
+  color: var(--acme-color-grey500);
+}
+
+.error {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--acme-color-dangerText);
+  background: var(--acme-color-dangerBg);
+  border-radius: var(--acme-radius-md);
+}
+
+.submit {
+  width: 100%;
+}
+
+.footnote {
+  margin: 20px 0 0;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
+  color: var(--acme-color-grey500);
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: 36px 32px;
+  }
+}

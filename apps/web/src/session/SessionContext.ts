@@ -7,6 +7,8 @@ export interface Session {
   can: (permission: Permission) => boolean;
   country: (code: string) => CountryInfo | undefined;
   countryName: (code: string) => string;
+  /** Ends the session on the server and returns to the sign-in page. */
+  signOut: () => Promise<void>;
 }
 
 export const SessionContext = createContext<Session | null>(null);
@@ -26,7 +28,11 @@ export function useOptionalSession(): Session | null {
   return useContext(SessionContext);
 }
 
-export function createSession(me: Me, meta: Meta): Session {
+export function createSession(
+  me: Me,
+  meta: Meta,
+  signOut: () => Promise<void> = async () => {},
+): Session {
   const byCode = new Map(meta.countries.map((country) => [country.code, country]));
   return {
     me,
@@ -34,5 +40,6 @@ export function createSession(me: Me, meta: Meta): Session {
     can: (permission) => me.permissions.includes(permission),
     country: (code) => byCode.get(code),
     countryName: (code) => byCode.get(code)?.name ?? code,
+    signOut,
   };
 }

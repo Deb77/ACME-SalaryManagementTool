@@ -134,6 +134,10 @@
   line-height: var(--acme-leading-sm);
 }
 
+.userAction {
+  margin-left: auto;
+}
+
 .userName {
   font-weight: 500;
 }
