@@ -5,6 +5,7 @@ import {
   type ImportMappingRequest,
   type ImportOutcome,
 } from '@acme/shared';
+import { canUseCountry } from '../../auth/actor.js';
 import type { Catalogue } from '../meta/catalogue.service.js';
 import type { EmployeeRow } from '../employees/employee.repository.js';
 
@@ -139,7 +140,7 @@ export function planRows(
       const byName = ctx.catalogue.countries.find((c) => c.name.toUpperCase() === countryText);
       const country = ctx.catalogue.countryByCode.has(countryText) ? countryText : byName?.code;
       if (!country) fail('country', `Unknown country "${countryText}"`);
-      else if (!ctx.countries.includes(country)) {
+      else if (!canUseCountry(ctx, country)) {
         fail('country', `${country} is outside your countries. Ask Global HR to make this change.`);
       } else v.countryCode = country;
     }

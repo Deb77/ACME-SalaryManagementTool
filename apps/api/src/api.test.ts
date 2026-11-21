@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Express } from 'express';
 import {
+  type Employee,
   auditEventSchema,
   createSalaryChangeResponseSchema,
   cursorPageSchema,
@@ -27,17 +28,18 @@ import {
 } from '@acme/shared';
 import { createApp } from './app.js';
 import type { Config } from './config.js';
-import { buildContainer, type AppContainer } from './container.js';
+import { buildServices, type AppServices } from './services.js';
 import { createDb, type Db } from './db/database.js';
-import { migrateToLatest } from './db/migrate.js';
 import { seedDatabase } from './db/seed/seed.js';
 import type { Clock } from './lib/clock.js';
+import { resetAndMigrate } from './evals/test-db.js';
+import { testDatabaseUrl } from './test/database.js';
 
 /**
- * The HTTP API against a real Postgres with row-level security on, through the same container
- * the server uses. Skipped unless TEST_DATABASE_URL is set; it drops and recreates the schema.
+ * The HTTP API against a real Postgres with row-level security on, through the same services
+ * the server uses. It drops and recreates the schema.
  */
-const url = process.env.TEST_DATABASE_URL;
+const url = testDatabaseUrl();
 const ORIGIN = 'http://localhost:5173';
 const PASSWORD = 'integration-test-password';
 const GLOBAL = 'global.hr@demo.acme.test';
@@ -46,9 +48,9 @@ const fixedClock: Clock = { now: () => new Date(), today: () => '2026-11-20' };
 
 type Agent = ReturnType<typeof request.agent>;
 
-describe.skipIf(!url)('HTTP API', () => {
+describe('HTTP API', () => {
   let owner: Db;
-  let container: AppContainer;
+  let services: AppServices;
   let app: Express;
   let globalHr: Agent;
   let indiaHr: Agent;
@@ -70,6 +72,30 @@ describe.skipIf(!url)('HTTP API', () => {
     body?: object,
   ) => agent[method](path).set('Origin', ORIGIN).send(body);
 
+  let hires = 0;
+
+  /** A valid create request for a new Indian data analyst; each call gets a fresh email. */
+  function anEmployee(overrides: Record<string, unknown> = {}) {
+    hires += 1;
+    return {
+      firstName: 'Asha',
+      lastName: 'Rao',
+      email: `Asha.Rao.${hires}@acme.test`,
+      country: 'IN',
+      jobTitleId: 'data-analyst',
+      departmentId: 'data',
+      hireDate: '2026-11-02',
+      salaryAmountMinor: 180_000_000,
+      ...overrides,
+    };
+  }
+
+  async function hire(overrides: Record<string, unknown> = {}) {
+    const res = await send(indiaHr, 'post', '/api/employees', anEmployee(overrides));
+    expect(res.status, res.text).toBe(201);
+    return employeeSchema.parse(res.body);
+  }
+
   async function employeeIn(country: string): Promise<{ id: string; version: number }> {
     const { rows } = await owner.execute<{ id: string; version: number }>(
       sql`select id, version from employees where country_code = ${country} and status = 'active' order by employee_code limit 1`,
@@ -78,12 +104,8 @@ describe.skipIf(!url)('HTTP API', () => {
   }
 
   beforeAll(async () => {
-    owner = createDb(url!, { max: 2 });
-    await owner.execute(sql`drop schema if exists drizzle cascade`);
-    await owner.execute(sql`drop schema if exists app_private cascade`);
-    await owner.execute(sql`drop schema public cascade`);
-    await owner.execute(sql`create schema public`);
-    await migrateToLatest(owner);
+    owner = createDb(url, { max: 2 });
+    await resetAndMigrate(owner);
     await seedDatabase(owner, {
       employees: 400,
       seed: 11,
@@ -94,22 +116,24 @@ describe.skipIf(!url)('HTTP API', () => {
       log: () => {},
     });
     const config: Config = {
-      databaseUrl: url!,
+      databaseUrl: url,
       allowedOrigins: [ORIGIN],
       appUrl: ORIGIN,
       secureCookies: false,
       dbPoolSize: 4,
       authRateLimit: 1000,
     };
-    container = buildContainer(config).override('clock', () => fixedClock);
-    container.override('logger', () => ({ error: () => {}, info: () => {} }));
-    app = createApp({ container });
+    services = buildServices(config, {
+      clock: fixedClock,
+      logger: { error: () => {}, info: () => {} },
+    });
+    app = createApp({ services });
     globalHr = await signIn(GLOBAL);
     indiaHr = await signIn(INDIA);
   }, 120_000);
 
   afterAll(async () => {
-    await container?.resolve('db').$client.end();
+    await services?.db.$client.end();
     await owner?.$client.end();
   });
 
@@ -298,120 +322,8 @@ describe.skipIf(!url)('HTTP API', () => {
       expect(res.status).toBe(400);
     });
 
-    it('creates, edits, changes pay and terminates with optimistic concurrency and an audit trail', async () => {
-      const created = await send(indiaHr, 'post', '/api/employees', {
-        firstName: 'Asha',
-        lastName: 'Rao',
-        email: 'Asha.Rao.Test@acme.test',
-        country: 'IN',
-        jobTitleId: 'data-analyst',
-        departmentId: 'data',
-        hireDate: '2026-11-02',
-        salaryAmountMinor: 180_000_000,
-      });
-      expect(created.status, created.text).toBe(201);
-      const employee = employeeSchema.parse(created.body);
-      expect(employee.email).toBe('asha.rao.test@acme.test');
-      expect(employee.salary).toEqual({ amountMinor: 180_000_000, currency: 'INR' });
-      expect(employee.employeeCode).toMatch(/^ACM-\d{6}$/);
-      expect(created.headers.location).toBe(`/api/employees/${employee.id}`);
-
-      const dupe = await send(indiaHr, 'post', '/api/employees', {
-        firstName: 'Asha',
-        lastName: 'Rao',
-        email: 'asha.rao.test@acme.test',
-        country: 'IN',
-        jobTitleId: 'data-analyst',
-        departmentId: 'data',
-        hireDate: '2026-11-02',
-        salaryAmountMinor: 1,
-      });
-      expect(dupe.status).toBe(409);
-
-      const edited = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
-        jobTitleId: 'software-engineer',
-        version: 1,
-      });
-      expect(employeeSchema.parse(edited.body).version).toBe(2);
-      const stale = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
-        lastName: 'R',
-        version: 1,
-      });
-      expect(stale.status).toBe(409);
-      expect(stale.body.error.code).toBe('stale_version');
-      const payViaPatch = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
-        salaryAmountMinor: 1,
-        version: 2,
-      });
-      expect(payViaPatch.status).toBe(400);
-
-      const tooEarly = await send(indiaHr, 'post', `/api/employees/${employee.id}/salary-changes`, {
-        amountMinor: 190_000_000,
-        effectiveDate: '2026-10-01',
-        reason: 'annual_review',
-        version: 2,
-      });
-      expect(tooEarly.status).toBe(400);
-      const future = await send(indiaHr, 'post', `/api/employees/${employee.id}/salary-changes`, {
-        amountMinor: 190_000_000,
-        effectiveDate: '2026-12-01',
-        reason: 'annual_review',
-        version: 2,
-      });
-      expect(future.status).toBe(400);
-      const changed = await send(indiaHr, 'post', `/api/employees/${employee.id}/salary-changes`, {
-        amountMinor: 198_000_000,
-        effectiveDate: '2026-11-15',
-        reason: 'market_adjustment',
-        note: 'Benchmark',
-        version: 2,
-      });
-      expect(changed.status, changed.text).toBe(201);
-      const result = createSalaryChangeResponseSchema.parse(changed.body);
-      expect(result.salaryChange.previousAmount).toEqual({
-        amountMinor: 180_000_000,
-        currency: 'INR',
-      });
-      expect(result.employee.salary.amountMinor).toBe(198_000_000);
-      expect(result.employee.version).toBe(3);
-
-      const history = salaryHistoryResponseSchema.parse(
-        (await indiaHr.get(`/api/employees/${employee.id}/salary-changes`)).body,
-      );
-      expect(history.items.map((h) => h.reason)).toEqual(['market_adjustment', 'hire']);
-
-      const left = await send(indiaHr, 'post', `/api/employees/${employee.id}/terminate`, {
-        terminationDate: '2026-11-20',
-        reason: 'resignation',
-        version: 3,
-      });
-      expect(employeeSchema.parse(left.body).status).toBe('terminated');
-      const twice = await send(indiaHr, 'post', `/api/employees/${employee.id}/terminate`, {
-        terminationDate: '2026-11-20',
-        reason: 'resignation',
-        version: 4,
-      });
-      expect(twice.status).toBe(409);
-      const editLeaver = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
-        lastName: 'R',
-        version: 4,
-      });
-      expect(editLeaver.status).toBe(409);
-
-      const audit = cursorPageSchema(auditEventSchema).parse(
-        (await indiaHr.get(`/api/audit-events?entityType=employee&entityId=${employee.id}`)).body,
-      );
-      expect(audit.items.map((a) => a.action)).toEqual([
-        'employee.terminated',
-        'salary.changed',
-        'employee.updated',
-        'employee.created',
-      ]);
-      expect(audit.items[2]!.before).toEqual({ jobTitleId: 'data-analyst' });
-      expect(audit.items[2]!.after).toEqual({ jobTitleId: 'software-engineer' });
-    });
-
     it('pages the audit log with a cursor and no duplicates', async () => {
+      for (let i = 0; i < 5; i += 1) await hire();
       const seen = new Set<string>();
       let cursor: string | null = null;
       let pages = 0;
@@ -449,6 +361,148 @@ describe.skipIf(!url)('HTTP API', () => {
         (await globalHr.get('/api/audit-events?action=export.created&limit=1')).body,
       );
       expect(audit.items[0]?.action).toBe('export.created');
+    });
+  });
+
+  describe('employee lifecycle', () => {
+    const changePay = (id: string, body: object) =>
+      send(indiaHr, 'post', `/api/employees/${id}/salary-changes`, {
+        reason: 'annual_review',
+        ...body,
+      });
+
+    it('creates an employee with a lower-cased email, the country currency and a new code', async () => {
+      const res = await send(indiaHr, 'post', '/api/employees', anEmployee());
+      expect(res.status, res.text).toBe(201);
+      const employee = employeeSchema.parse(res.body);
+      expect(employee.email).toMatch(/^asha\.rao\.\d+@acme\.test$/);
+      expect(employee.salary).toEqual({ amountMinor: 180_000_000, currency: 'INR' });
+      expect(employee.employeeCode).toMatch(/^ACM-\d{6}$/);
+      expect(res.headers.location).toBe(`/api/employees/${employee.id}`);
+    });
+
+    it('refuses a second employee with the same email, whatever its case', async () => {
+      const first = await hire();
+      const dupe = await send(
+        indiaHr,
+        'post',
+        '/api/employees',
+        anEmployee({ email: first.email.toUpperCase() }),
+      );
+      expect(dupe.status).toBe(409);
+    });
+
+    it('bumps the version on edit and refuses an edit made from a stale version', async () => {
+      const employee = await hire();
+      const edited = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
+        jobTitleId: 'software-engineer',
+        version: 1,
+      });
+      expect(employeeSchema.parse(edited.body).version).toBe(2);
+
+      const stale = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
+        lastName: 'R',
+        version: 1,
+      });
+      expect(stale.status).toBe(409);
+      expect(stale.body.error.code).toBe('stale_version');
+    });
+
+    it('only changes pay through a salary change, not an edit', async () => {
+      const employee = await hire();
+      const res = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
+        salaryAmountMinor: 1,
+        version: 1,
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it('refuses a pay change dated before the current pay or in the future', async () => {
+      const employee = await hire();
+      const before = await changePay(employee.id, {
+        amountMinor: 190_000_000,
+        effectiveDate: '2026-10-01',
+        version: 1,
+      });
+      expect(before.status).toBe(400);
+      const future = await changePay(employee.id, {
+        amountMinor: 190_000_000,
+        effectiveDate: '2026-12-01',
+        version: 1,
+      });
+      expect(future.status).toBe(400);
+    });
+
+    it('records a pay change with the previous amount, newest first in the history', async () => {
+      const employee = await hire();
+      const res = await changePay(employee.id, {
+        amountMinor: 198_000_000,
+        effectiveDate: '2026-11-15',
+        reason: 'market_adjustment',
+        note: 'Benchmark',
+        version: 1,
+      });
+      expect(res.status, res.text).toBe(201);
+      const result = createSalaryChangeResponseSchema.parse(res.body);
+      expect(result.salaryChange.previousAmount).toEqual({
+        amountMinor: 180_000_000,
+        currency: 'INR',
+      });
+      expect(result.employee.salary.amountMinor).toBe(198_000_000);
+      expect(result.employee.version).toBe(2);
+
+      const history = salaryHistoryResponseSchema.parse(
+        (await indiaHr.get(`/api/employees/${employee.id}/salary-changes`)).body,
+      );
+      expect(history.items.map((h) => h.reason)).toEqual(['market_adjustment', 'hire']);
+    });
+
+    it('terminates once, and a leaver can no longer be edited', async () => {
+      const employee = await hire();
+      const terminate = (version: number) =>
+        send(indiaHr, 'post', `/api/employees/${employee.id}/terminate`, {
+          terminationDate: '2026-11-20',
+          reason: 'resignation',
+          version,
+        });
+      expect(employeeSchema.parse((await terminate(1)).body).status).toBe('terminated');
+      expect((await terminate(2)).status).toBe(409);
+
+      const edit = await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
+        lastName: 'R',
+        version: 2,
+      });
+      expect(edit.status).toBe(409);
+    });
+
+    it('writes an audit row for each step, with what changed', async () => {
+      const employee = await hire();
+      await send(indiaHr, 'patch', `/api/employees/${employee.id}`, {
+        jobTitleId: 'software-engineer',
+        version: 1,
+      });
+      await changePay(employee.id, {
+        amountMinor: 198_000_000,
+        effectiveDate: '2026-11-15',
+        version: 2,
+      });
+      await send(indiaHr, 'post', `/api/employees/${employee.id}/terminate`, {
+        terminationDate: '2026-11-20',
+        reason: 'resignation',
+        version: 3,
+      });
+
+      const audit = cursorPageSchema(auditEventSchema).parse(
+        (await indiaHr.get(`/api/audit-events?entityType=employee&entityId=${employee.id}`)).body,
+      );
+      expect(audit.items.map((a) => a.action)).toEqual([
+        'employee.terminated',
+        'salary.changed',
+        'employee.updated',
+        'employee.created',
+      ]);
+      expect(audit.items[2]!.before).toEqual({ jobTitleId: 'data-analyst' });
+      expect(audit.items[2]!.after).toEqual({ jobTitleId: 'software-engineer' });
     });
   });
 
@@ -492,116 +546,147 @@ describe.skipIf(!url)('HTTP API', () => {
   });
 
   describe('imports', () => {
-    it('uploads, dry-runs, commits and undoes a CSV', async () => {
-      const existing = employeeSchema.parse(
-        (await globalHr.get(`/api/employees/${(await employeeIn('IN')).id}`)).body,
-      );
+    let sheets = 0;
+
+    /**
+     * A four-row sheet in someone's own layout: an update to `existing` (new title and pay), a
+     * new hire, a row full of mistakes and a row for a country outside India HR's scope.
+     */
+    function aSheet(existing: Employee) {
+      sheets += 1;
+      const newHire = `neha.kapoor.import${sheets}@acme.test`;
       const csv = [
         'Emp ID,Name,Surname,E-mail,Role,Dept,Annual CTC,DOJ,Country',
         `${existing.employeeCode},${existing.firstName},${existing.lastName},${existing.email},Engineering Manager,${existing.department.name},"99,00,000",${existing.hireDate},IN`,
-        ',Neha,Kapoor,neha.kapoor.import@acme.test,Data Analyst,Data,1600000,2026-11-03,IN',
+        `,Neha,Kapoor,${newHire},Data Analyst,Data,1600000,2026-11-03,IN`,
         ',Bad,Row,not-an-email,Nope,Data,abc,2026-13-01,IN',
-        ',Tom,Smith,tom.smith.import@acme.test,Data Analyst,Data,50000,2026-11-03,GB',
+        `,Tom,Smith,tom.smith.import${sheets}@acme.test,Data Analyst,Data,50000,2026-11-03,GB`,
       ].join('\n');
-      const uploaded = await indiaHr
+      return { csv, newHire };
+    }
+
+    async function upload(csv: string) {
+      const res = await indiaHr
         .post('/api/imports')
         .set('Origin', ORIGIN)
         .attach('file', Buffer.from(csv), { filename: 'india.csv', contentType: 'text/csv' });
-      expect(uploaded.status, uploaded.text).toBe(201);
-      const upload = importUploadResponseSchema.parse(uploaded.body);
-      // The preview: every data row (fewer than 20 here), as text in file order.
-      expect(upload.rowCount).toBe(4);
-      expect(upload.sampleRows).toHaveLength(4);
-      expect(upload.sampleRows[1]?.slice(0, 3)).toEqual(['', 'Neha', 'Kapoor']);
-      expect(upload.suggestedMapping).toMatchObject({
+      expect(res.status, res.text).toBe(201);
+      return importUploadResponseSchema.parse(res.body);
+    }
+
+    /** Hires someone to update, uploads a sheet and maps every column: a dry run to review. */
+    async function dryRun() {
+      const existing = await hire();
+      const sheet = aSheet(existing);
+      const uploaded = await upload(sheet.csv);
+      const mapped = await send(indiaHr, 'put', `/api/imports/${uploaded.id}/mapping`, {
+        mapping: {
+          ...uploaded.suggestedMapping,
+          jobTitle: 'Role',
+          department: 'Dept',
+          email: 'E-mail',
+          country: 'Country',
+        },
+        defaults: { salaryEffectiveDate: '2026-11-03' },
+      });
+      expect(mapped.status, mapped.text).toBe(200);
+      return {
+        id: uploaded.id,
+        existing,
+        newHire: sheet.newHire,
+        mapped: importSchema.parse(mapped.body),
+      };
+    }
+
+    const commit = (id: string, skipInvalidRows = true) =>
+      send(indiaHr, 'post', `/api/imports/${id}/commit`, { skipInvalidRows });
+    const rows = async (id: string, outcome: string) =>
+      pageSchema(importRowSchema).parse(
+        (await indiaHr.get(`/api/imports/${id}/rows?outcome=${outcome}`)).body,
+      ).items;
+    const employee = async (id: string) =>
+      employeeSchema.parse((await globalHr.get(`/api/employees/${id}`)).body);
+    const peopleWithEmail = async (email: string) =>
+      pageSchema(employeeSchema).parse((await globalHr.get(`/api/employees?q=${email}`)).body)
+        .total;
+
+    it('previews every row of an upload and suggests a mapping from the headers', async () => {
+      const uploaded = await upload(aSheet(await hire()).csv);
+      expect(uploaded.rowCount).toBe(4);
+      expect(uploaded.sampleRows).toHaveLength(4);
+      expect(uploaded.sampleRows[1]?.slice(0, 3)).toEqual(['', 'Neha', 'Kapoor']);
+      expect(uploaded.suggestedMapping).toMatchObject({
         employeeCode: 'Emp ID',
         firstName: 'Name',
         lastName: 'Surname',
         salaryAmount: 'Annual CTC',
         hireDate: 'DOJ',
       });
+    });
 
-      const mapped = await send(indiaHr, 'put', `/api/imports/${upload.id}/mapping`, {
-        mapping: {
-          ...upload.suggestedMapping,
-          jobTitle: 'Role',
-          department: 'Dept',
-          email: 'E-mail',
-          country: 'Country',
-        },
-        defaults: { salaryEffectiveDate: '2026-11-01' },
-      });
-      expect(mapped.status, mapped.text).toBe(200);
-      expect(importSchema.parse(mapped.body).summary).toEqual({
-        rows: 4,
-        create: 1,
-        update: 1,
-        unchanged: 0,
-        error: 2,
-      });
+    it('sorts a dry run into creates, updates and errors without changing anyone', async () => {
+      const { mapped, existing } = await dryRun();
+      expect(mapped.summary).toEqual({ rows: 4, create: 1, update: 1, unchanged: 0, error: 2 });
+      expect((await employee(existing.id)).jobTitle.id).toBe(existing.jobTitle.id);
+    });
 
-      const errors = pageSchema(importRowSchema).parse(
-        (await indiaHr.get(`/api/imports/${upload.id}/rows?outcome=error`)).body,
-      );
-      expect(errors.items.map((r) => r.rowNumber)).toEqual([4, 5]);
-      // Rows carry the person's name (the file's for new rows) and country for the review.
-      expect(errors.items.map((r) => r.employeeName)).toEqual(['Bad Row', 'Tom Smith']);
-      const updates = pageSchema(importRowSchema).parse(
-        (await indiaHr.get(`/api/imports/${upload.id}/rows?outcome=update`)).body,
-      );
-      expect(updates.items[0]).toMatchObject({
+    it('names each reviewed row, and explains rows outside the uploader’s countries', async () => {
+      const { id, existing } = await dryRun();
+      const errors = await rows(id, 'error');
+      expect(errors.map((r) => r.rowNumber)).toEqual([4, 5]);
+      expect(errors.map((r) => r.employeeName)).toEqual(['Bad Row', 'Tom Smith']);
+      expect(errors[1]!.errors[0]!.message).toMatch(/outside your countries/);
+      expect((await rows(id, 'update'))[0]).toMatchObject({
         employeeCode: existing.employeeCode,
         employeeName: `${existing.firstName} ${existing.lastName}`,
         countryCode: 'IN',
       });
-      expect(errors.items[1]!.errors[0]!.message).toMatch(/outside your countries/);
-      // Problems are reviewed in the app; there is no CSV error report to download.
-      expect((await indiaHr.get(`/api/imports/${upload.id}/rows.csv?outcome=error`)).status).toBe(
-        404,
-      );
+    });
 
-      expect(
-        (
-          await send(indiaHr, 'post', `/api/imports/${upload.id}/commit`, {
-            skipInvalidRows: false,
-          })
-        ).status,
-      ).toBe(400);
-      const committed = await send(indiaHr, 'post', `/api/imports/${upload.id}/commit`, {
-        skipInvalidRows: true,
-      });
+    it('has no CSV error report: problems are reviewed in the app', async () => {
+      const { id } = await dryRun();
+      expect((await indiaHr.get(`/api/imports/${id}/rows.csv?outcome=error`)).status).toBe(404);
+    });
+
+    it('commits only once the invalid rows are confirmed as skipped', async () => {
+      const { id } = await dryRun();
+      expect((await commit(id, false)).status).toBe(400);
+      const committed = await commit(id, true);
       expect(committed.status, committed.text).toBe(200);
       expect(importSchema.parse(committed.body).status).toBe('committed');
-      expect(
-        (await send(indiaHr, 'post', `/api/imports/${upload.id}/commit`, { skipInvalidRows: true }))
-          .status,
-      ).toBe(409);
+    });
 
-      const after = employeeSchema.parse(
-        (await globalHr.get(`/api/employees/${existing.id}`)).body,
-      );
-      expect(after.jobTitle.id).toBe('engineering-manager');
-      expect(after.salary.amountMinor).toBe(990_000_000);
-      const neha = pageSchema(employeeSchema).parse(
-        (await globalHr.get('/api/employees?q=neha.kapoor.import')).body,
-      );
-      expect(neha.total).toBe(1);
+    it('commits an import once', async () => {
+      const { id } = await dryRun();
+      await commit(id);
+      expect((await commit(id)).status).toBe(409);
+    });
 
-      // Only the uploader can change an import; RLS hides it from anyone else's writes (404).
-      expect((await send(globalHr, 'post', `/api/imports/${upload.id}/undo`)).status).toBe(404);
+    it('applies updates and creates new employees on commit', async () => {
+      const { id, existing, newHire } = await dryRun();
+      await commit(id);
+      const updated = await employee(existing.id);
+      expect(updated.jobTitle.id).toBe('engineering-manager');
+      expect(updated.salary.amountMinor).toBe(990_000_000);
+      expect(await peopleWithEmail(newHire)).toBe(1);
+    });
 
-      const undone = await send(indiaHr, 'post', `/api/imports/${upload.id}/undo`);
+    it('lets only the uploader undo; to anyone else the import is not there', async () => {
+      const { id } = await dryRun();
+      await commit(id);
+      expect((await send(globalHr, 'post', `/api/imports/${id}/undo`)).status).toBe(404);
+    });
+
+    it('undo restores updated employees and removes the ones it created', async () => {
+      const { id, existing, newHire } = await dryRun();
+      await commit(id);
+      const undone = await send(indiaHr, 'post', `/api/imports/${id}/undo`);
       expect(undone.status, undone.text).toBe(200);
-      const restored = employeeSchema.parse(
-        (await globalHr.get(`/api/employees/${existing.id}`)).body,
-      );
+
+      const restored = await employee(existing.id);
       expect(restored.jobTitle.id).toBe(existing.jobTitle.id);
       expect(restored.salary.amountMinor).toBe(existing.salary.amountMinor);
-      expect(
-        pageSchema(employeeSchema).parse(
-          (await globalHr.get('/api/employees?q=neha.kapoor.import')).body,
-        ).total,
-      ).toBe(0);
+      expect(await peopleWithEmail(newHire)).toBe(0);
     });
 
     it('blocks undo once someone else changed an imported employee', async () => {

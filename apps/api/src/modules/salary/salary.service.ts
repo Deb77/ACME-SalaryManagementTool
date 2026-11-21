@@ -1,22 +1,19 @@
-import { desc, eq } from 'drizzle-orm';
 import type { SalaryChange } from '@acme/shared';
 import type { Actor } from '../../auth/actor.js';
 import type { Tx } from '../../db/scope.js';
-import { salaryChanges, users } from '../../db/schema/index.js';
 import type { Clock } from '../../lib/clock.js';
-import { AppError, conflict, invalid, notFound, staleVersion } from '../../lib/errors.js';
+import { AppError, invalid, notFound } from '../../lib/errors.js';
 import type { AiRepository } from '../ai/ai.repository.js';
 import type { AuditService } from '../audit/audit.service.js';
 import type { EmployeeRepository, EmployeeRow } from '../employees/employee.repository.js';
-
-type Reason = (typeof salaryChanges.reason.enumValues)[number];
-type SalaryChangeRow = typeof salaryChanges.$inferSelect;
+import type { SalaryChangeRepository, SalaryChangeRow } from './salary.repository.js';
+import { checkSalaryChange, type SalaryChangeReason } from './salary.rules.js';
 
 export interface SalaryChangeInput {
   employeeId: string;
   amountMinor: number;
   effectiveDate: string;
-  reason: Reason;
+  reason: SalaryChangeReason;
   note?: string | null;
   /** The version the user saw; omitted by import, which locks and re-reads instead. */
   version?: number;
@@ -58,6 +55,7 @@ export class SalaryService {
     private readonly audit: AuditService,
     private readonly clock: Clock,
     private readonly aiDrafts: AiRepository,
+    private readonly changes: SalaryChangeRepository,
   ) {}
 
   /**
@@ -84,12 +82,7 @@ export class SalaryService {
   async history(tx: Tx, employeeId: string): Promise<SalaryChange[]> {
     const employee = await this.employees.get(tx, employeeId);
     if (!employee) throw notFound('Employee not found');
-    const rows = await tx
-      .select({ change: salaryChanges, byId: users.id, byName: users.name })
-      .from(salaryChanges)
-      .innerJoin(users, eq(users.id, salaryChanges.createdBy))
-      .where(eq(salaryChanges.employeeId, employeeId))
-      .orderBy(desc(salaryChanges.effectiveDate), desc(salaryChanges.createdAt));
+    const rows = await this.changes.history(tx, employeeId);
     return rows.map((r) => toSalaryChange(r.change, { id: r.byId, name: r.byName }));
   }
 
@@ -102,46 +95,21 @@ export class SalaryService {
     if (!current) throw notFound('Employee not found');
     const before = current.employee;
     if (input.aiDraftId) await this.useDraft(tx, input.aiDraftId, before);
-    if (input.version !== undefined && input.version !== before.version) throw staleVersion();
-    if (before.status !== 'active')
-      throw conflict('This employee has left; their pay cannot change');
-    if (input.effectiveDate < before.salaryEffectiveDate) {
-      throw invalid(
-        'effectiveDate',
-        `Must be on or after the latest salary entry (${before.salaryEffectiveDate}). Fix a past amount with a correction.`,
-      );
-    }
-    if (
-      input.reason !== 'import' &&
-      input.reason !== 'import_undo' &&
-      input.effectiveDate > this.clock.today()
-    ) {
-      throw invalid('effectiveDate', 'Future-dated changes are not supported yet');
-    }
-    if (
-      input.amountMinor === before.salaryAmountMinor &&
-      input.reason !== 'correction' &&
-      !input.importId
-    ) {
-      throw invalid('amountMinor', 'The new salary is the same as the current one');
-    }
+    checkSalaryChange({ current: before, input, today: this.clock.today() });
 
-    const [row] = await tx
-      .insert(salaryChanges)
-      .values({
-        employeeId: before.id,
-        countryCode: before.countryCode,
-        amountMinor: input.amountMinor,
-        previousAmountMinor: before.salaryAmountMinor,
-        currency: before.salaryCurrency,
-        effectiveDate: input.effectiveDate,
-        reason: input.reason,
-        note: input.note ?? null,
-        importId: input.importId ?? null,
-        aiDraftId: input.aiDraftId ?? null,
-        createdBy: actor.userId,
-      })
-      .returning();
+    const row = await this.changes.insert(tx, {
+      employeeId: before.id,
+      countryCode: before.countryCode,
+      amountMinor: input.amountMinor,
+      previousAmountMinor: before.salaryAmountMinor,
+      currency: before.salaryCurrency,
+      effectiveDate: input.effectiveDate,
+      reason: input.reason,
+      note: input.note ?? null,
+      importId: input.importId ?? null,
+      aiDraftId: input.aiDraftId ?? null,
+      createdBy: actor.userId,
+    });
     if (input.aiDraftId)
       await this.aiDrafts.markDraftApplied(tx, input.aiDraftId, this.clock.now());
 
@@ -172,7 +140,7 @@ export class SalaryService {
     });
 
     return {
-      salaryChange: toSalaryChange(row!, { id: actor.userId, name: actor.name }),
+      salaryChange: toSalaryChange(row, { id: actor.userId, name: actor.name }),
       employee,
     };
   }
@@ -185,7 +153,7 @@ export class SalaryService {
     reason: 'hire' | 'import',
     importId: string | null = null,
   ): Promise<void> {
-    await tx.insert(salaryChanges).values({
+    await this.changes.insert(tx, {
       employeeId: employee.id,
       countryCode: employee.countryCode,
       amountMinor: employee.salaryAmountMinor,

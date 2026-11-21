@@ -1,4 +1,5 @@
 import type { CountryScope, Me, Permission } from '@acme/shared';
+import { forbidden } from '../lib/errors.js';
 
 /** The signed-in user for one request, re-read from the database on every request. */
 export interface Actor {
@@ -13,7 +14,21 @@ export interface Actor {
   sessionId: Buffer;
 }
 
-export const canUseCountry = (actor: Actor, country: string) => actor.countries.includes(country);
+/** Whether a user (or an import's planning context) may see and change people in `country`. */
+export const canUseCountry = (scope: Pick<Actor, 'countries'>, country: string) =>
+  scope.countries.includes(country);
+
+/**
+ * A country the user named themselves (a form field, a filter, a role's countries) must be one
+ * they can see: 403 on that field, not 404, since they chose it (docs/api.md).
+ */
+export function assertCountryInScope(actor: Actor, country: string, path = 'country'): void {
+  if (!canUseCountry(actor, country)) {
+    throw forbidden(`${country} is outside your countries`, [
+      { path, message: 'Outside your countries' },
+    ]);
+  }
+}
 
 export function toMe(actor: Actor): Me {
   return {

@@ -4,14 +4,15 @@ import { FakeLlmClient } from './fake-llm.js';
 import { close, extractNumbers, gradeCase } from './grader.js';
 import { EvalHarness } from './harness.js';
 import { carelessScript, referenceScript } from './reference-model.js';
+import { testDatabaseUrl } from '../test/database.js';
 
 /**
  * The CI-safe eval suite: every case runs through the real API, guard and reader role with a
  * scripted model instead of Claude, so it needs no API key. The reference model must pass every
- * case and a careless one must fail every case, which keeps the grader honest. Skipped without
- * TEST_DATABASE_URL. The real-model run is `npm run evals`.
+ * case and a careless one must fail every case, which keeps the grader honest. The real-model
+ * run is `npm run evals`.
  */
-const url = process.env.TEST_DATABASE_URL;
+const url = testDatabaseUrl();
 
 describe('grader helpers', () => {
   it('reads numbers the way people write them', () => {
@@ -27,13 +28,13 @@ describe('grader helpers', () => {
   });
 });
 
-describe.skipIf(!url)('Ask AI evals (scripted model)', () => {
+describe('Ask AI evals (scripted model)', () => {
   let harness: EvalHarness;
   let cases: EvalCase[];
   const fake = new FakeLlmClient(() => ({ text: 'Hello.' }));
 
   beforeAll(async () => {
-    harness = await EvalHarness.start({ databaseUrl: url!, llm: fake });
+    harness = await EvalHarness.start({ databaseUrl: url, llm: fake });
     cases = buildCases(harness.facts);
   }, 180_000);
 
