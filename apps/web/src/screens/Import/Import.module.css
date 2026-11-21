@@ -90,6 +90,15 @@
   color: var(--acme-color-grey600);
 }
 
+/* The undo confirmation: the same list at body size, since it is the dialog's whole message. */
+.undoList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding-left: 18px;
+}
+
 @media (min-width: 768px) {
   .mappingGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

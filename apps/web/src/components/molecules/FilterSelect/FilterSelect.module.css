@@ -1,4 +1,6 @@
 .root {
+  /* Mantine paints the clear button with --input-bg; match the grey pill instead of white. */
+  --input-bg: var(--acme-color-grey100);
   max-width: 100%;
 }
 
@@ -37,6 +39,7 @@
 .clear {
   width: 44px;
   height: 44px;
+  color: var(--acme-color-grey600);
 }
 
 .option[data-combobox-selected] {

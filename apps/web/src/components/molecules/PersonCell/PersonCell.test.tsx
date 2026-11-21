@@ -30,4 +30,12 @@ describe('initialsOf', () => {
     expect(initialsOf('Madonna')).toBe('MA');
     expect(initialsOf('   ')).toBe('?');
   });
+
+  it('uses letters only, skipping punctuation and parenthesised notes', () => {
+    expect(initialsOf('Global HR (demo)')).toBe('GH');
+    expect(initialsOf("Seán O'Neil-Smith")).toBe('SO');
+    expect(initialsOf('(demo)')).toBe('DE');
+    expect(initialsOf('Agent 007')).toBe('AG');
+    expect(initialsOf('123 !!')).toBe('?');
+  });
 });

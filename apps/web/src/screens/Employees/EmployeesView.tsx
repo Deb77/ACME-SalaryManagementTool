@@ -32,7 +32,7 @@ export interface EmployeesViewProps {
   /** Rows of the current page (the previous page's while the next one loads). */
   rows: readonly Employee[];
   total: number;
-  /** True while a new page or filter loads over rows already shown. */
+  /** True while a new search, filter, sort or page loads; the table shows skeleton rows. */
   refreshing?: boolean;
   query: TableQuery<EmployeeSortField>;
   onQueryChange: (query: TableQuery<EmployeeSortField>) => void;
@@ -87,7 +87,7 @@ export function EmployeesView({
     {
       key: 'name',
       title: 'Employee',
-      width: '33%',
+      width: '25%',
       sortable: true,
       render: (employee) => (
         <PersonCell
@@ -101,7 +101,7 @@ export function EmployeesView({
     {
       key: 'jobTitle',
       title: 'Job title',
-      width: '21%',
+      width: '19%',
       sortable: true,
       render: (employee) => employee.jobTitle.name,
     },
@@ -110,18 +110,20 @@ export function EmployeesView({
       title: 'Department',
       width: '12%',
       sortable: true,
+      // Tablets and small laptops: the column that matters least gives way so the rest fit.
+      wideOnly: true,
       render: (employee) => employee.department.name,
     },
     {
       key: 'country',
       title: 'Country',
-      width: '13%',
+      width: '14%',
       render: (employee) => countryName(employee.country),
     },
     {
       key: 'salary',
       title: 'Annual salary',
-      width: '11%',
+      width: '16%',
       align: 'right',
       // Salaries are in local currency, so the API sorts them only within one country.
       sortable: filters.country !== undefined,
@@ -130,7 +132,7 @@ export function EmployeesView({
     {
       key: 'status',
       title: 'Status',
-      width: '10%',
+      width: '14%',
       render: (employee) => <StatusBadge status={employee.status} />,
       skeleton: <Skeleton inline width={68} height={24} pill />,
     },
@@ -251,7 +253,10 @@ export function EmployeesView({
               total={total}
               query={query}
               onQueryChange={onQueryChange}
+              // A search, filter, sort or page change: the first-load skeleton rows (cards on
+              // phones) replace the old rows, while the search and filters stay mounted.
               loading={refreshing}
+              skeletonCard={<EmployeeCardSkeleton />}
               fill
               itemName="employees"
               renderCard={(employee) => (
@@ -313,7 +318,7 @@ function EmployeeCard({
         <span className={styles.cardDetail}>
           {employee.jobTitle.name} · {countryName(employee.country)}
         </span>
-        <span>{employee.employeeCode}</span>
+        <span className={styles.cardCode}>{employee.employeeCode}</span>
       </span>
       {employee.status === 'terminated' && <StatusBadge status="terminated" />}
     </AppLink>

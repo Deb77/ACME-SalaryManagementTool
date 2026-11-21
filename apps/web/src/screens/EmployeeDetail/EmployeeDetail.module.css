@@ -83,7 +83,16 @@
   font-size: var(--acme-text-sm);
   line-height: var(--acme-leading-sm);
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--acme-color-grey600);
+}
+
+.delta[data-direction='up'] {
   color: var(--acme-color-success-text);
+}
+
+.delta[data-direction='down'] {
+  color: var(--acme-color-danger-text);
 }
 
 .historyNote {

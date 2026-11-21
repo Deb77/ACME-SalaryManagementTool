@@ -45,6 +45,13 @@
   color: var(--acme-color-grey500);
 }
 
+/* The code never breaks at its hyphen ("ACM-" / "002778"); the detail truncates instead. */
+.cardCode {
+  flex: none;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .cardDetail {
   overflow: hidden;
   text-overflow: ellipsis;

@@ -69,6 +69,23 @@ function ReasonTag({ reason }: { reason: string }) {
   );
 }
 
+/**
+ * The percentage change of one history entry. Only a raise reads as positive (green); a cut uses
+ * the danger tone and an unchanged amount stays neutral, so a decrease never looks like a gain.
+ */
+function ChangeDelta({ change }: { change: SalaryChange }) {
+  const previous = change.previousAmount?.amountMinor;
+  const percent = previous !== undefined && percentChange(previous, change.amount.amountMinor);
+  if (!percent || previous === undefined) return <>—</>;
+  const difference = change.amount.amountMinor - previous;
+  const direction = difference > 0 ? 'up' : difference < 0 ? 'down' : 'flat';
+  return (
+    <span className={styles.delta} data-direction={direction}>
+      {percent}
+    </span>
+  );
+}
+
 const historyColumns: DataTableColumn<SalaryChange>[] = [
   {
     key: 'effectiveDate',
@@ -102,17 +119,12 @@ const historyColumns: DataTableColumn<SalaryChange>[] = [
     width: '15%',
     title: 'Change',
     align: 'right',
-    render: (c) =>
-      (c.previousAmount && percentChange(c.previousAmount.amountMinor, c.amount.amountMinor)) ??
-      '—',
+    render: (c) => <ChangeDelta change={c} />,
   },
   { key: 'note', width: '12%', title: 'Note', render: (c) => c.note ?? '' },
 ];
 
 function HistoryCard({ change }: { change: SalaryChange }) {
-  const delta =
-    change.previousAmount &&
-    percentChange(change.previousAmount.amountMinor, change.amount.amountMinor);
   return (
     <div className={styles.historyCard}>
       <div className={styles.historyLine}>
@@ -124,7 +136,7 @@ function HistoryCard({ change }: { change: SalaryChange }) {
           {change.previousAmount ? <MoneyText {...change.previousAmount} /> : '—'} →{' '}
           <MoneyText {...change.amount} strong />
         </span>
-        {delta && <span className={styles.delta}>{delta}</span>}
+        {change.previousAmount && <ChangeDelta change={change} />}
       </div>
       {change.note && <div className={styles.historyNote}>{change.note}</div>}
     </div>

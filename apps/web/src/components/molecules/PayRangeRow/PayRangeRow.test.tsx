@@ -39,4 +39,13 @@ describe('PayRangeRow', () => {
     expect(screen.getByTestId('range-marker').style.left).toBe('50%');
     expect(screen.getByRole('img').getAttribute('aria-label')).toContain('this employee ₹15L');
   });
+
+  it('keeps a detail such as the headcount whole and names it in the label', () => {
+    render(<PayRangeRow {...dataAnalyst} detail="52" detailLabel="52 people" />);
+
+    expect(screen.getByText('· 52')).toBeInTheDocument();
+    expect(
+      screen.getByRole('img', { name: 'Data Analyst (52 people): ₹7.2L to ₹21L, median ₹12.6L' }),
+    ).toBeInTheDocument();
+  });
 });

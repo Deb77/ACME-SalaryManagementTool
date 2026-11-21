@@ -60,7 +60,12 @@ function Import({ step: initial, ...overrides }: Partial<ImportViewProps> & { st
       onEditMatching={() => setStep('match')}
       onStartOver={() => setStep('upload')}
       onUndo={() => {}}
-      currency="INR"
+      changeContext={{
+        countries: sampleMeta.countries,
+        jobTitles: sampleMeta.jobTitles,
+        departments: sampleMeta.departments,
+        updateCurrency: 'INR',
+      }}
       {...overrides}
     />
   );

@@ -31,6 +31,15 @@ export function currencyFractionDigits(currency: string): number {
     .maximumFractionDigits as number;
 }
 
+/**
+ * Rounds minor units to whole major units (half up), e.g. an average of 6532145 USD cents →
+ * 6532100 ($65,321). For summary figures where cents are noise.
+ */
+export function roundToMajor(amountMinor: number, currency: string): number {
+  const unit = 10 ** currencyFractionDigits(currency);
+  return Math.round(amountMinor / unit) * unit;
+}
+
 /** 3240000 minor INR -> "32400.00"; exact string arithmetic, no division. */
 export function minorToDecimalString(amountMinor: number, fractionDigits: number): string {
   if (!Number.isSafeInteger(amountMinor)) {

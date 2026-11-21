@@ -67,4 +67,20 @@ describe('EmployeeDetailView', () => {
 
     expect(screen.getByRole('list', { name: 'Salary history' })).toBeInTheDocument();
   });
+
+  it('marks a pay cut with the danger tone, never as a gain', () => {
+    const [latest, ...rest] = sampleSalaryHistory;
+    const cut = {
+      ...latest!,
+      id: 'cut',
+      previousAmount: { ...latest!.amount, amountMinor: latest!.amount.amountMinor + 100_000_00 },
+    };
+    render(
+      <EmployeeDetailView {...props({ history: { status: 'success', items: [cut, ...rest] } })} />,
+    );
+
+    const deltas = document.querySelectorAll('[data-direction]');
+    expect(deltas[0]).toHaveAttribute('data-direction', 'down');
+    expect(deltas[0]?.textContent).toMatch(/^−/);
+  });
 });

@@ -6,7 +6,7 @@ import {
   sampleMeta,
   sampleUpload,
 } from '../../stories/screenSampleData';
-import { render, screen } from '../../test/render';
+import { render, screen, within } from '../../test/render';
 import { ImportView, type ImportViewProps } from './ImportView';
 
 const record = {
@@ -41,7 +41,12 @@ const props = (overrides: Partial<ImportViewProps> = {}): ImportViewProps => ({
   onEditMatching: vi.fn(),
   onStartOver: vi.fn(),
   onUndo: vi.fn(),
-  currency: 'INR',
+  changeContext: {
+    countries: sampleMeta.countries,
+    jobTitles: sampleMeta.jobTitles,
+    departments: sampleMeta.departments,
+    updateCurrency: 'INR',
+  },
   ...overrides,
 });
 
@@ -92,6 +97,10 @@ describe('ImportView', () => {
     );
 
     await userEvent.click(screen.getByRole('button', { name: 'Undo import' }));
+    expect(onUndo).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('dialog', { name: 'Undo this import?' });
+    expect(dialog).toHaveTextContent(/Deletes the \d+ employees it added/);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Undo import' }));
     expect(onUndo).toHaveBeenCalled();
   });
 });
