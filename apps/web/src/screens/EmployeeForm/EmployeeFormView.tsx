@@ -22,6 +22,7 @@ import form from '../shared/form.module.css';
 import { zodFieldErrors } from '../shared/formErrors';
 import shared from '../shared/screen.module.css';
 import styles from './EmployeeForm.module.css';
+import { employeeFieldMessages, futureHireDateError } from './EmployeeForm.utils';
 
 export interface RoleBenchmark {
   jobTitle: string;
@@ -106,7 +107,13 @@ export function EmployeeFormView({
     }
   };
 
+  const today = todayIso();
+
   const submit = () => {
+    const messages = employeeFieldMessages(draft);
+    const hireDateError = futureHireDateError(draft.hireDate, today);
+    const fail = (parsedErrors: Record<string, string>) =>
+      setClientErrors(hireDateError ? { hireDate: hireDateError, ...parsedErrors } : parsedErrors);
     if (editing) {
       const changed = Object.fromEntries(
         (['firstName', 'lastName', 'email', 'departmentId', 'jobTitleId', 'hireDate'] as const)
@@ -117,7 +124,8 @@ export function EmployeeFormView({
         ...changed,
         version: employee.version,
       });
-      if (!parsed.success) return setClientErrors(zodFieldErrors(parsed.error));
+      if (!parsed.success) return fail(zodFieldErrors(parsed.error, messages));
+      if (hireDateError) return fail({});
       setClientErrors({});
       return onSubmit({ mode: 'edit', body: parsed.data });
     }
@@ -125,7 +133,8 @@ export function EmployeeFormView({
       ...draft,
       salaryAmountMinor: draft.salaryAmountMinor ?? undefined,
     });
-    if (!parsed.success) return setClientErrors(zodFieldErrors(parsed.error));
+    if (!parsed.success) return fail(zodFieldErrors(parsed.error, messages));
+    if (hireDateError) return fail({});
     setClientErrors({});
     onSubmit({ mode: 'create', body: parsed.data });
   };
@@ -245,12 +254,13 @@ export function EmployeeFormView({
                 countries.map((c) => ({ value: c.code, label: c.name })),
                 editing,
               )}
-              <FormField label="Hire date" required error={errors.hireDate}>
+              <FormField label="Hire date" required hint="Today or earlier" error={errors.hireDate}>
                 {(control) => (
                   <input
                     {...control}
                     type="date"
                     className={form.control}
+                    max={today}
                     value={draft.hireDate}
                     onChange={(event) => update({ hireDate: event.currentTarget.value })}
                   />

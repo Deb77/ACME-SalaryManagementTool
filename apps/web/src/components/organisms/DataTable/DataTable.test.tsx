@@ -66,6 +66,29 @@ describe('DataTable', () => {
     });
   });
 
+  it('swaps the rows for skeleton rows while a new page loads, keeping headers and paging', () => {
+    const { container } = render(
+      <DataTable
+        label="Employees"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        total={25}
+        query={{ page: 1, pageSize: 10 }}
+        onQueryChange={vi.fn()}
+        itemName="employees"
+        loading
+      />,
+    );
+
+    expect(screen.queryByText('Priya Sharma')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('tbody [data-skeleton]').length).toBeGreaterThan(0);
+    expect(screen.getByRole('columnheader', { name: /Name/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Page 2' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading employees…');
+    expect(container.querySelector('.mantine-LoadingOverlay-root')).not.toBeInTheDocument();
+  });
+
   it('marks the sorted column for assistive technology', () => {
     renderTable({ page: 1, pageSize: 10, sort: { field: 'name', order: 'desc' } });
 

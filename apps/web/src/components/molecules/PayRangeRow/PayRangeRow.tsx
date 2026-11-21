@@ -3,8 +3,12 @@ import { MoneyText, RangeBar, Skeleton } from '../../atoms';
 import styles from './PayRangeRow.module.css';
 
 export interface PayRangeRowProps {
-  /** What the range describes, e.g. a job title. */
+  /** What the range describes, e.g. a job title. Truncates when space is short. */
   title: string;
+  /** Short text after the title that never truncates, e.g. a headcount ("· 52"). */
+  detail?: string;
+  /** Spoken form of `detail` for the range's accessible name, e.g. "52 people". */
+  detailLabel?: string;
   currency: string;
   minMinor: number;
   medianMinor: number;
@@ -22,6 +26,8 @@ export interface PayRangeRowProps {
  */
 export function PayRangeRow({
   title,
+  detail,
+  detailLabel = detail,
   currency,
   minMinor,
   medianMinor,
@@ -32,11 +38,21 @@ export function PayRangeRow({
 }: PayRangeRowProps) {
   const short = (amountMinor: number) => formatMoney({ amountMinor, currency }, { compact: true });
   const marker = markerMinor === undefined ? '' : `, this employee ${short(markerMinor)}`;
-  const label = `${title}: ${short(minMinor)} to ${short(maxMinor)}, median ${short(medianMinor)}${marker}`;
+  const named = detailLabel ? `${title} (${detailLabel})` : title;
+  const label = `${named}: ${short(minMinor)} to ${short(maxMinor)}, median ${short(medianMinor)}${marker}`;
 
   return (
     <div className={styles.row}>
-      <span className={styles.title}>{title}</span>
+      {detail ? (
+        <span className={styles.titleWithDetail}>
+          <span className={styles.title} title={title}>
+            {title}
+          </span>
+          <span className={styles.detail}>· {detail}</span>
+        </span>
+      ) : (
+        <span className={styles.title}>{title}</span>
+      )}
       <RangeBar
         label={label}
         min={minMinor}

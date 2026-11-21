@@ -22,7 +22,7 @@ import {
   TrayCard,
   type DataTableColumn,
 } from '../../components';
-import { formatMoney } from '../../lib/money';
+import { formatMoney, roundToMajor } from '../../lib/money';
 import { formatCount, formatDate } from '../../lib/format';
 import { ResourceState } from '../shared/ResourceState';
 import { PayByTitleSkeleton } from './InsightsSkeleton';
@@ -123,7 +123,7 @@ export function InsightsView({
           variant="hero"
           label="Active employees"
           value={formatCount(overview.total.headcount)}
-          note={`across ${overview.countries.length} countries`}
+          note={`across ${overview.countries.length} ${overview.countries.length === 1 ? 'country' : 'countries'}`}
           trend={overview.countries.map((c) => c.headcount)}
         />
         <StatTile
@@ -197,7 +197,9 @@ export function InsightsView({
                   .map((row, _index, rows) => (
                     <li key={row.jobTitle.id}>
                       <PayRangeRow
-                        title={`${row.jobTitle.name} · ${formatCount(row.headcount)}`}
+                        title={row.jobTitle.name}
+                        detail={formatCount(row.headcount)}
+                        detailLabel={`${formatCount(row.headcount)} ${row.headcount === 1 ? 'person' : 'people'}`}
                         currency={byTitle.data?.currency ?? ''}
                         minMinor={row.minMinor}
                         medianMinor={row.medianMinor}
@@ -221,8 +223,10 @@ export function InsightsView({
               selected.medianMinor > 0 && (
                 <span>
                   Average is{' '}
-                  {Math.round(
-                    ((selected.avgMinor - selected.medianMinor) / selected.medianMinor) * 100,
+                  {Math.abs(
+                    Math.round(
+                      ((selected.avgMinor - selected.medianMinor) / selected.medianMinor) * 100,
+                    ),
                   )}
                   % {selected.avgMinor >= selected.medianMinor ? 'above' : 'below'} the median
                 </span>
@@ -247,7 +251,13 @@ export function InsightsView({
                 },
                 {
                   label: 'Average',
-                  value: <MoneyText amountMinor={selected.avgMinor} currency={selected.currency} />,
+                  // The mean has fractions of a cent; show whole units like the other figures.
+                  value: (
+                    <MoneyText
+                      amountMinor={roundToMajor(selected.avgMinor, selected.currency)}
+                      currency={selected.currency}
+                    />
+                  ),
                 },
                 {
                   label: 'Highest',

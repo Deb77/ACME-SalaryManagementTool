@@ -62,6 +62,10 @@ ReadOnly.meta = { fullscreen: true };
 export const Loading: Story = () => <Employees status="loading" rows={[]} total={0} />;
 Loading.meta = { fullscreen: true };
 
+export const Refreshing: Story = () => <Employees status="loading" refreshing />;
+Refreshing.storyName = 'Refreshing (search, filter or page loading)';
+Refreshing.meta = { fullscreen: true };
+
 export const NoMatches: Story = () => <Employees rows={[]} total={0} search="zzz" />;
 NoMatches.storyName = 'No matches';
 NoMatches.meta = { fullscreen: true };

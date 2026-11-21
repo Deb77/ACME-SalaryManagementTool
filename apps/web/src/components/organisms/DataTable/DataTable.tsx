@@ -1,4 +1,4 @@
-import { LoadingOverlay, NativeSelect, Pagination, Table, UnstyledButton } from '@mantine/core';
+import { NativeSelect, Pagination, Table, UnstyledButton, VisuallyHidden } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import type { AriaAttributes, Key, ReactNode } from 'react';
 import { mediaQueries } from '../../../theme/tokens';
@@ -27,6 +27,11 @@ export interface DataTableColumn<T> {
   sortLabel?: string;
   /** What this cell looks like while rows load (`skeletonRows`); defaults to one text line. */
   skeleton?: ReactNode;
+  /**
+   * Only shown from the `wide` breakpoint (1280px). Below it the table drops the column and
+   * tightens cell padding, so the remaining columns fit tablets and small laptops unclipped.
+   */
+  wideOnly?: boolean;
 }
 
 export interface DataTableProps<T, F extends string = string> {
@@ -38,6 +43,11 @@ export interface DataTableProps<T, F extends string = string> {
   total: number;
   query: TableQuery<F>;
   onQueryChange: (query: TableQuery<F>) => void;
+  /**
+   * True while a new page, search, filter or sort loads over rows already shown: placeholder
+   * rows (cards on phones) replace the rows, as on first load, while the column headers, sort
+   * menu and pagination stay mounted so focus and layout hold.
+   */
   loading?: boolean;
   /** Shown instead of rows when there are none (use EmptyState). */
   empty?: ReactNode;
@@ -61,6 +71,9 @@ export interface DataTableProps<T, F extends string = string> {
   /** Phone card placeholder for `skeletonRows`; defaults to two text lines. */
   skeletonCard?: ReactNode;
 }
+
+/** Placeholder rows while `loading` when `skeletonRows` is not set. */
+const DEFAULT_LOADING_ROWS = 8;
 
 /** Varied line widths so placeholder rows don't look like a barcode. */
 const LINE_WIDTHS = ['72%', '58%', '84%', '64%'];
@@ -91,7 +104,7 @@ const ARIA_SORT: Record<SortOrder, AriaAttributes['aria-sort']> = {
  */
 export function DataTable<T, F extends string = string>({
   label,
-  columns,
+  columns: allColumns,
   rows,
   rowKey,
   total,
@@ -105,9 +118,17 @@ export function DataTable<T, F extends string = string>({
   skeletonRows,
   skeletonCard = DEFAULT_CARD_SKELETON,
 }: DataTableProps<T, F>) {
-  const placeholders = skeletonRows ? Array.from({ length: skeletonRows }, (_, i) => i) : null;
+  const placeholderCount = skeletonRows || (loading ? DEFAULT_LOADING_ROWS : 0);
+  const placeholders = placeholderCount
+    ? Array.from({ length: placeholderCount }, (_, i) => i)
+    : null;
+  // First load (or a reload with nothing to page through yet): the footer is a placeholder too.
+  const footerSkeleton = Boolean(skeletonRows) || (loading && total === 0);
   const wide = useMediaQuery(mediaQueries.tablet);
+  const roomy = useMediaQuery(mediaQueries.wide);
   const cardRenderer = wide ? undefined : renderCard;
+  const tight = !roomy && allColumns.some((column) => column.wideOnly);
+  const columns = roomy ? allColumns : allColumns.filter((column) => !column.wideOnly);
   const from = total === 0 ? 0 : (query.page - 1) * query.pageSize + 1;
   const to = Math.min(query.page * query.pageSize, total);
   const pageCount = Math.max(1, Math.ceil(total / query.pageSize));
@@ -115,7 +136,8 @@ export function DataTable<T, F extends string = string>({
   const sortBy = (field: F) =>
     onQueryChange({ ...query, page: 1, sort: nextSort(query.sort, field) });
 
-  const sortable = columns.filter((column) => column.sortable);
+  // The phone sort menu offers every sortable column, including ones the table hides.
+  const sortable = allColumns.filter((column) => column.sortable);
   const columnLabel = (column: DataTableColumn<T>) =>
     column.sortLabel ?? (typeof column.title === 'string' ? column.title : column.key);
 
@@ -175,7 +197,7 @@ export function DataTable<T, F extends string = string>({
         layout={columns.every((column) => column.width !== undefined) ? 'fixed' : undefined}
         stickyHeader={fill}
         verticalSpacing="md"
-        horizontalSpacing="md"
+        horizontalSpacing={tight ? 'sm' : 'md'}
       >
         <Table.Thead>
           <Table.Tr>
@@ -240,11 +262,17 @@ export function DataTable<T, F extends string = string>({
   );
 
   return (
-    <div className={fill ? `${styles.wrapper} ${styles.fill}` : styles.wrapper}>
+    <div
+      className={fill ? `${styles.wrapper} ${styles.fill}` : styles.wrapper}
+      aria-busy={loading || undefined}
+    >
+      {/* Always mounted, so screen readers hear the change when a reload starts. */}
+      <VisuallyHidden role="status" aria-live="polite">
+        {loading ? `Loading ${itemName}…` : ''}
+      </VisuallyHidden>
       {body}
-      <LoadingOverlay visible={loading} overlayProps={{ blur: 1 }} />
 
-      {placeholders && (
+      {footerSkeleton && (
         <div className={styles.footer} aria-hidden="true">
           <span className={styles.summary}>
             <Skeleton inline width={170} height={11} />
@@ -253,7 +281,7 @@ export function DataTable<T, F extends string = string>({
         </div>
       )}
 
-      {!placeholders && total > 0 && (
+      {!footerSkeleton && total > 0 && (
         <div className={styles.footer}>
           <span className={styles.summary}>
             {`Showing ${from.toLocaleString()}–${to.toLocaleString()} of ${total.toLocaleString()} ${itemName}`}

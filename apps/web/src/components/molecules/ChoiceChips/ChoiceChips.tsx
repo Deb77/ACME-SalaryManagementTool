@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import styles from './ChoiceChips.module.css';
 
 export interface ChoiceChip<T extends string> {
@@ -35,6 +35,7 @@ export function ChoiceChips<T extends string>({
   error,
   columns = 2,
 }: ChoiceChipsProps<T>) {
+  const id = useId();
   const selected = new Set(value);
   const toggle = (option: T, checked: boolean) =>
     onChange(
@@ -46,24 +47,37 @@ export function ChoiceChips<T extends string>({
     <fieldset className={styles.fieldset} aria-invalid={error ? true : undefined}>
       <legend className={styles.legend}>{legend}</legend>
       <div className={`${styles.grid} ${columns === 1 ? styles.one : styles.two}`}>
-        {options.map((option) => (
-          <label
-            key={option.value}
-            className={styles.chip}
-            data-checked={selected.has(option.value) || undefined}
-            data-disabled={option.disabled || undefined}
-          >
-            <input
-              type="checkbox"
-              className={styles.input}
-              checked={selected.has(option.value)}
-              disabled={option.disabled}
-              onChange={(event) => toggle(option.value, event.currentTarget.checked)}
-            />
-            <span className={styles.label}>{option.label}</span>
-            {option.detail !== undefined && <span className={styles.detail}>{option.detail}</span>}
-          </label>
-        ))}
+        {options.map((option, index) => {
+          const inputId = `${id}-${index}`;
+          return (
+            <label
+              key={option.value}
+              htmlFor={inputId}
+              className={styles.chip}
+              data-checked={selected.has(option.value) || undefined}
+              data-disabled={option.disabled || undefined}
+            >
+              {/* Named explicitly, not only by the wrapping label, so every assistive tool reads
+                "Australia" rather than the checkbox's value ("on"). */}
+              <input
+                id={inputId}
+                type="checkbox"
+                aria-label={option.label}
+                aria-describedby={option.detail !== undefined ? `${inputId}-detail` : undefined}
+                className={styles.input}
+                checked={selected.has(option.value)}
+                disabled={option.disabled}
+                onChange={(event) => toggle(option.value, event.currentTarget.checked)}
+              />
+              <span className={styles.label}>{option.label}</span>
+              {option.detail !== undefined && (
+                <span id={`${inputId}-detail`} className={styles.detail}>
+                  {option.detail}
+                </span>
+              )}
+            </label>
+          );
+        })}
       </div>
       {(error ?? hint) && <p className={error ? styles.error : styles.hint}>{error ?? hint}</p>}
     </fieldset>

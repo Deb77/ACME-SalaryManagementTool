@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatMoney, minorToDecimalString, parseMajorToMinor } from './money';
+import { formatMoney, minorToDecimalString, parseMajorToMinor, roundToMajor } from './money';
 
 describe('minorToDecimalString', () => {
   it('places the decimal point without floating-point arithmetic', () => {
@@ -52,5 +52,13 @@ describe('parseMajorToMinor', () => {
     expect(parseMajorToMinor('abc', 'USD')).toBeNull();
     expect(parseMajorToMinor('10.123', 'USD')).toBeNull();
     expect(parseMajorToMinor('10.5', 'JPY')).toBeNull();
+  });
+});
+
+describe('roundToMajor', () => {
+  it('rounds minor units to whole major units, half up', () => {
+    expect(roundToMajor(6_532_145, 'USD')).toBe(6_532_100);
+    expect(roundToMajor(6_532_150, 'USD')).toBe(6_532_200);
+    expect(roundToMajor(1_234, 'JPY')).toBe(1_234);
   });
 });

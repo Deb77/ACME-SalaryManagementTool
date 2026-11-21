@@ -82,4 +82,15 @@ describe('EmployeesView', () => {
     await userEvent.type(screen.getByLabelText('Search employees'), 'P');
     expect(onSearchChange).toHaveBeenCalledWith('P');
   });
+
+  it('shows skeleton cards, not the old rows, while a search reloads', () => {
+    const { container } = render(
+      <EmployeesView {...props({ status: 'loading', refreshing: true, search: 'pri' })} />,
+    );
+
+    expect(screen.queryByRole('list', { name: 'Employees' })).not.toBeInTheDocument();
+    expect(container.querySelectorAll('[data-skeleton]').length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Search employees')).toHaveValue('pri');
+    expect(screen.getByRole('status')).toHaveTextContent('Loading employees…');
+  });
 });

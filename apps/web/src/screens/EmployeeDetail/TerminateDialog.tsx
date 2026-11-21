@@ -38,14 +38,23 @@ export function TerminateDialog({
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const today = todayIso();
+
   const submit = () => {
+    if (terminationDate > today) {
+      return setErrors({ terminationDate: 'Choose today or an earlier date' });
+    }
     const parsed = terminateEmployeeRequestSchema.safeParse({
       terminationDate,
       reason,
       note: note.trim() || undefined,
       version,
     });
-    if (!parsed.success) return setErrors(zodFieldErrors(parsed.error));
+    if (!parsed.success) {
+      return setErrors(
+        zodFieldErrors(parsed.error, { terminationDate: () => 'Enter the last working day' }),
+      );
+    }
     setErrors({});
     onConfirm(parsed.data);
   };
@@ -70,12 +79,18 @@ export function TerminateDialog({
       }
     >
       <div className={form.form}>
-        <FormField label="Last working day" required error={errors.terminationDate}>
+        <FormField
+          label="Last working day"
+          required
+          hint="Today or earlier"
+          error={errors.terminationDate}
+        >
           {(control) => (
             <input
               {...control}
               type="date"
               className={form.control}
+              max={today}
               value={terminationDate}
               onChange={(event) => setTerminationDate(event.currentTarget.value)}
             />

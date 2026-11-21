@@ -115,9 +115,12 @@ export const chartColors = {
 export const breakpoints = {
   tablet: 768,
   desktop: 1024,
+  /** Room for every column of a wide table (DataTable's `wideOnly` columns). */
+  wide: 1280,
 } as const;
 
 export const mediaQueries = {
   tablet: `(min-width: ${breakpoints.tablet}px)`,
   desktop: `(min-width: ${breakpoints.desktop}px)`,
+  wide: `(min-width: ${breakpoints.wide}px)`,
 } as const;

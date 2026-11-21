@@ -27,7 +27,7 @@ export function FilterSelect({
   // Sized to its own text, like a chip, instead of Mantine's default input width.
   const shown = options.find((option) => option.value === value)?.label ?? allLabel;
   const prefixWidth = label.length * 7.5 + 24;
-  const width = Math.min(prefixWidth + shown.length * 8 + (value ? 64 : 40), 280);
+  const width = Math.min(prefixWidth + shown.length * 8 + (value ? 52 : 40), 280);
   return (
     <Select
       aria-label={label}
@@ -37,8 +37,11 @@ export function FilterSelect({
       leftSectionPointerEvents="none"
       placeholder={allLabel}
       clearable
-      clearButtonProps={{ className: styles.clear }}
-      rightSectionWidth={value ? 56 : 32}
+      // With a value the × replaces the chevron instead of sitting beside it, where the 44px
+      // phone target overlapped it; the whole pill still opens the list.
+      clearSectionMode="clear"
+      clearButtonProps={{ className: styles.clear, 'aria-label': `Clear ${label}` }}
+      rightSectionWidth={value ? 44 : 32}
       w={width}
       allowDeselect
       data={options.map((option) => ({ value: option.value, label: option.label }))}

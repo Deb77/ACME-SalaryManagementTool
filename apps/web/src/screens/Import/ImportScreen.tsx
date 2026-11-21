@@ -57,8 +57,14 @@ export function ImportScreen() {
   };
 
   const scoped = me.role.countryScope !== 'all';
-  const currencyCountry =
-    defaults.country ?? (me.countries.length === 1 ? me.countries[0] : undefined);
+  // Update rows carry no country. It is certain only for a one-country user, or when the file
+  // has no country column: then every matched employee must be in the default country.
+  const updateCountry =
+    me.countries.length === 1
+      ? me.countries[0]
+      : mapping.country === undefined
+        ? defaults.country
+        : undefined;
   const rowsPage = rows.data ?? rows.previous;
 
   return (
@@ -138,7 +144,12 @@ export function ImportScreen() {
           setRecord(await undoImport(record.id));
         })
       }
-      currency={currencyCountry ? country(currencyCountry)?.currency : undefined}
+      changeContext={{
+        countries: meta.countries,
+        jobTitles: meta.jobTitles,
+        departments: meta.departments,
+        updateCurrency: updateCountry ? country(updateCountry)?.currency : undefined,
+      }}
     />
   );
 }

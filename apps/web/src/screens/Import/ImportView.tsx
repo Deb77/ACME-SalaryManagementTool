@@ -9,7 +9,9 @@ import type {
 } from '@acme/shared';
 import { importFields } from '@acme/shared';
 import { IconDownload, IconFileSpreadsheet } from '@tabler/icons-react';
+import { useState } from 'react';
 import {
+  ConfirmDialog,
   DataTable,
   EmptyState,
   FileDropzone,
@@ -24,18 +26,18 @@ import {
   type DataTableColumn,
   type FileRejection,
 } from '../../components';
-import { formatMoney } from '../../lib/money';
 import { formatCount } from '../../lib/format';
 import form from '../shared/form.module.css';
 import { ResourceState } from '../shared/ResourceState';
 import shared from '../shared/screen.module.css';
 import styles from './Import.module.css';
 import {
-  changeLabel,
   IMPORT_FIELD_LABELS,
   IMPORT_STEPS,
   OUTCOME_LABELS,
+  rowDetail,
   STEP_INDEX,
+  type ChangeContext,
   type ImportStep,
 } from './Import.utils';
 
@@ -80,33 +82,11 @@ export interface ImportViewProps {
   onEditMatching: () => void;
   onStartOver: () => void;
   onUndo: () => void;
-  /** Currency for salary changes in the review, when the import is for one country. */
-  currency?: string;
+  /** Catalogue names and the update currency, to describe each row's changes in words. */
+  changeContext: ChangeContext;
 }
 
 const NOT_IN_FILE = '';
-
-function describeValue(field: string, value: string | number | null, currency?: string) {
-  if (value === null) return '—';
-  if (field === 'salaryAmountMinor' && typeof value === 'number' && currency) {
-    return formatMoney({ amountMinor: value, currency });
-  }
-  return String(value);
-}
-
-function rowDetail(row: ImportRow, currency?: string) {
-  if (row.errors.length > 0) {
-    return row.errors.map((e) => `${e.column}: ${e.message}`).join(' · ');
-  }
-  const changes = Object.entries(row.changes);
-  if (changes.length === 0) return row.outcome === 'create' ? 'New employee' : 'No changes';
-  return changes
-    .map(
-      ([field, { from, to }]) =>
-        `${changeLabel(field)}: ${describeValue(field, from, currency)} → ${describeValue(field, to, currency)}`,
-    )
-    .join(' · ');
-}
 
 /** Import from Excel: upload → match columns → review the dry run → import (and undo). */
 export function ImportView(props: ImportViewProps) {
@@ -297,8 +277,9 @@ function ReviewStep({
   onEditMatching,
   onStartOver,
   onUndo,
-  currency,
+  changeContext,
 }: ImportViewProps) {
+  const [confirmingUndo, setConfirmingUndo] = useState(false);
   const summary = record?.summary;
   if (!summary) return null;
   const done = step === 'done';
@@ -310,7 +291,7 @@ function ReviewStep({
     {
       key: 'detail',
       title: outcome === 'error' ? 'Problem' : 'Change',
-      render: (row) => rowDetail(row, currency),
+      render: (row) => rowDetail(row, changeContext),
     },
   ];
   return (
@@ -342,7 +323,7 @@ function ReviewStep({
           }
           action={
             record.status === 'committed' && (
-              <PillButton onClick={onUndo} loading={busy}>
+              <PillButton onClick={() => setConfirmingUndo(true)} loading={busy}>
                 Undo import
               </PillButton>
             )
@@ -436,7 +417,7 @@ function ReviewStep({
                     <span className={`${shared.small} ${shared.muted}`}>Row {row.rowNumber}</span>
                   </div>
                   <div className={row.errors.length ? styles.problem : shared.small}>
-                    {rowDetail(row, currency)}
+                    {rowDetail(row, changeContext)}
                   </div>
                 </div>
               )}
@@ -490,6 +471,33 @@ function ReviewStep({
           </TrayCard>
         )}
       </div>
+      <ConfirmDialog
+        open={confirmingUndo}
+        title="Undo this import?"
+        description={
+          <ul className={styles.undoList}>
+            {summary.create > 0 && (
+              <li>
+                {`Deletes the ${formatCount(summary.create)} ${summary.create === 1 ? 'employee' : 'employees'} it added, with their salary history.`}
+              </li>
+            )}
+            {summary.update > 0 && (
+              <li>
+                {`Puts the ${formatCount(summary.update)} ${summary.update === 1 ? 'employee' : 'employees'} it updated back as they were; their salary history gains an "Import undone" entry.`}
+              </li>
+            )}
+            <li>This can't be redone. To bring the rows back, import the file again.</li>
+          </ul>
+        }
+        confirmLabel="Undo import"
+        cancelLabel="Keep import"
+        danger
+        onCancel={() => setConfirmingUndo(false)}
+        onConfirm={() => {
+          setConfirmingUndo(false);
+          onUndo();
+        }}
+      />
     </>
   );
 }

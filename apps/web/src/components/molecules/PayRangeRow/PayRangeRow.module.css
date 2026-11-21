@@ -15,6 +15,25 @@
   white-space: nowrap;
 }
 
+/* Title plus a detail (headcount): only the title gives way, the detail stays whole. */
+.titleWithDetail {
+  grid-area: title;
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+
+.titleWithDetail .title {
+  min-width: 0;
+}
+
+.detail {
+  flex: none;
+  white-space: nowrap;
+  color: var(--acme-color-grey500);
+  font-variant-numeric: tabular-nums;
+}
+
 .row > [role='img'] {
   grid-area: bar;
 }
