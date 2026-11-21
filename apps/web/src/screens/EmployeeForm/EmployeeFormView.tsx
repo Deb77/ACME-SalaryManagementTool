@@ -106,6 +106,8 @@ export function EmployeeFormView({
   const dirty = (Object.keys(initial) as (keyof Draft)[]).some(
     (key) => draft[key] !== initial[key],
   );
+  // Editing with nothing changed has nothing to save (the API would refuse an empty update).
+  const unchanged = editing && !dirty;
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
   const errors = { ...serverErrors, ...clientErrors };
   const currency = countries.find((c) => c.code === draft.country)?.currency;
@@ -222,8 +224,14 @@ export function EmployeeFormView({
       <PillButton
         tone="primary"
         loading={saving}
-        disabled={!complete}
-        title={complete ? undefined : 'Fill in every required field to save'}
+        disabled={!complete || unchanged}
+        title={
+          !complete
+            ? 'Fill in every required field to save'
+            : unchanged
+              ? 'Change a field to save'
+              : undefined
+        }
         onClick={submit}
       >
         {editing ? 'Save changes' : 'Save employee'}

@@ -120,7 +120,7 @@ export function InsightsSkeleton() {
       <div className={`${styles.countryPicker} ${styles.pickerSkeleton}`}>
         <Skeleton width={620} height="100%" pill />
       </div>
-      <div className={shared.twoColumns}>
+      <div className={`${shared.twoColumns} ${styles.matchedRow}`}>
         <TrayCard
           title="Pay by job title"
           extra={
@@ -136,6 +136,7 @@ export function InsightsSkeleton() {
         </TrayCard>
         <TrayCard
           title={<Skeleton inline width={150} height={12} />}
+          className={styles.glance}
           footer={
             <span>
               Average is <Skeleton inline width={70} height={12} /> the median

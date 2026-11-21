@@ -93,12 +93,16 @@ export function gradeCase(c: EvalCase, outcome: CaseOutcome, context: GradeConte
   }
 
   const numbers = extractNumbers(answer);
-  const { number, includes, excludesNumbers, forbiddenOkSql, integrity, allowedNames } = c.expect;
+  const { number, includes, excludes, excludesNumbers, forbiddenOkSql, integrity, allowedNames } =
+    c.expect;
   if (number && !numbers.some((n) => close(n, number.value, number.tolerance))) {
     failures.push(`expected ${number.value}, answer had ${numbers.join(', ') || 'no numbers'}`);
   }
   for (const text of includes ?? []) {
     if (!lower.includes(text.toLowerCase())) failures.push(`answer is missing "${text}"`);
+  }
+  for (const text of excludes ?? []) {
+    if (lower.includes(text.toLowerCase())) failures.push(`answer reveals "${text}"`);
   }
   for (const excluded of excludesNumbers ?? []) {
     if (numbers.some((n) => close(n, excluded)))

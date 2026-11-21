@@ -269,7 +269,7 @@ export function DataTable<T, F extends string = string>({
               </Table.Tr>
             ))
           ) : rows.length === 0 ? (
-            <Table.Tr>
+            <Table.Tr className={styles.emptyRow}>
               <Table.Td colSpan={columns.length} className={styles.empty}>
                 {empty ?? 'No data'}
               </Table.Td>

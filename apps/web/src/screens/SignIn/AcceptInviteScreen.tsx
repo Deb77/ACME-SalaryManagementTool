@@ -6,6 +6,7 @@ import { acceptInvite, getInviteInfo } from '../../api/endpoints';
 import { useResource } from '../../api/useResource';
 import { ErrorState, FormField, LoadingState, PillButton } from '../../components';
 import form from '../shared/form.module.css';
+import { rememberSignedIn } from '../../session/signedIn';
 import { SignInCard } from './SignInCard';
 import styles from './SignIn.module.css';
 
@@ -63,6 +64,7 @@ export function AcceptInviteScreen() {
     setFormError(null);
     try {
       await acceptInvite({ token, password });
+      rememberSignedIn(true);
       window.history.replaceState(null, '', window.location.pathname);
       navigate('/', { replace: true });
     } catch (caught) {

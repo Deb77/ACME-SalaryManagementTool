@@ -188,7 +188,7 @@ export function InsightsView({
         </div>
       )}
 
-      <div className={shared.twoColumns}>
+      <div className={`${shared.twoColumns} ${styles.matchedRow}`}>
         <TrayCard
           title="Pay by job title"
           extra={
@@ -243,6 +243,7 @@ export function InsightsView({
         {selected && (
           <TrayCard
             title={`${countryName(selected.country)} at a glance`}
+            className={styles.glance}
             footer={
               selected.medianMinor > 0 && (
                 <span>

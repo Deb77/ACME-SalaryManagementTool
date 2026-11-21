@@ -1,5 +1,7 @@
+/* Fills <main> so the question box is always at the bottom, however short the conversation. */
 .page {
   display: flex;
+  flex: 1 0 auto;
   flex-direction: column;
   gap: 16px;
   width: 100%;
@@ -67,6 +69,7 @@
 /* The question box stays in reach: above the phone tab bar, at the bottom of the panel on desktop. */
 .composer {
   position: sticky;
+  margin-top: auto;
   bottom: calc(var(--acme-tabbar-height) + env(safe-area-inset-bottom));
   z-index: 10;
   padding-top: 8px;
@@ -74,13 +77,20 @@
 }
 
 /*
- * Desktop: <main> scrolls, so the box pins to its bottom edge. The negative offset and matching
- * padding cover main's bottom padding, so answers never show through below the hint.
+ * Desktop: <main> scrolls and the box never moves: it sits on main's bottom edge whether the
+ * conversation is empty, short or scrolled to its end. The page reaches over main's bottom
+ * padding and the 28px AppShell's bottom fade takes after the last block (main::after; its
+ * -20px margin only cancels the flex gap), so the box rests on that edge, and stuck, it pins
+ * to the same edge. It draws above the fade, and its padding covers the gap below the hint.
  */
 @media (min-width: 1024px) {
+  .page {
+    margin-bottom: calc(-1 * (var(--acme-main-padding-bottom, 0px) + 28px));
+  }
+
   .composer {
     bottom: calc(-1 * var(--acme-main-padding-bottom, 0px));
-    margin-bottom: calc(-1 * var(--acme-main-padding-bottom, 0px));
+    z-index: 21;
     padding-bottom: calc(8px + var(--acme-main-padding-bottom, 0px));
   }
 }

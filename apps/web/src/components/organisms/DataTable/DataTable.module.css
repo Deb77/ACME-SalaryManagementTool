@@ -60,6 +60,12 @@
   text-align: center;
 }
 
+/* "No employees match" is a message, not a row: no hover tint. */
+.emptyRow,
+.emptyRow:hover {
+  background: transparent;
+}
+
 .footer {
   display: flex;
   flex-wrap: wrap;

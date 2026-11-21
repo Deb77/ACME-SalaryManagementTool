@@ -43,10 +43,22 @@ describe('EmployeeFormView', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ mode: 'create' }));
   });
 
+  it('keeps Save off when editing until a field changes', async () => {
+    render(<EmployeeFormView {...props({ employee: samplePriya })} />);
+
+    const save = screen.getByRole('button', { name: 'Save changes' });
+    expect(save).toBeDisabled();
+    await userEvent.type(screen.getByLabelText(/Last name/), 'x');
+    expect(save).toBeEnabled();
+    await userEvent.type(screen.getByLabelText(/Last name/), '{Backspace}');
+    expect(save).toBeDisabled();
+  });
+
   it('turns Save off again when a required field is emptied', async () => {
     render(<EmployeeFormView {...props({ employee: samplePriya })} />);
 
     const save = screen.getByRole('button', { name: 'Save changes' });
+    await userEvent.type(screen.getByLabelText(/Last name/), 'x');
     expect(save).toBeEnabled();
     await userEvent.clear(screen.getByLabelText(/First name/));
     expect(save).toBeDisabled();
@@ -74,15 +86,6 @@ describe('EmployeeFormView', () => {
       mode: 'edit',
       body: { lastName: 'Verma', version: samplePriya.version },
     });
-  });
-
-  it('says when nothing changed', async () => {
-    const onSubmit = vi.fn();
-    render(<EmployeeFormView {...props({ employee: samplePriya, onSubmit })} />);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-    expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByRole('region', { name: 'Not saved' })).toBeInTheDocument();
   });
 
   it('shows server field errors', () => {

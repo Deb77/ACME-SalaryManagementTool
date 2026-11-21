@@ -4,6 +4,7 @@ import { AskSkeleton } from '../screens/Ask/AskSkeleton';
 import { EmployeeDetailSkeleton } from '../screens/EmployeeDetail/EmployeeDetailSkeleton';
 import { EmployeeFormSkeleton } from '../screens/EmployeeForm/EmployeeFormSkeleton';
 import { EmployeesSkeleton } from '../screens/Employees/EmployeesSkeleton';
+import { ImportSkeleton } from '../screens/Import/ImportSkeleton';
 import { InsightsSkeleton } from '../screens/Insights/InsightsSkeleton';
 import { useOptionalSession } from '../session/SessionContext';
 import { skeletonFor } from './skeletonFor';
@@ -15,6 +16,7 @@ import { skeletonFor } from './skeletonFor';
 export function RouteSkeleton({ pathname }: { pathname: string }) {
   const session = useOptionalSession();
   if (pathname === '/employees' || pathname === '/') return <EmployeesSkeleton />;
+  if (pathname === '/employees/import') return <ImportSkeleton />;
   if (pathname === '/employees/new') {
     return <EmployeeFormSkeleton mode="add" oneCountry={session?.me.countries.length === 1} />;
   }

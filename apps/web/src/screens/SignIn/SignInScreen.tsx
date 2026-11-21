@@ -4,6 +4,7 @@ import { ApiError, describeError } from '../../api/client';
 import { signIn } from '../../api/endpoints';
 import { FormField, PillButton } from '../../components';
 import form from '../shared/form.module.css';
+import { rememberSignedIn } from '../../session/signedIn';
 import { SignInCard } from './SignInCard';
 import { safeNext } from './safeNext';
 import styles from './SignIn.module.css';
@@ -27,6 +28,7 @@ export function SignInScreen() {
     setError(null);
     try {
       await signIn({ email: email.trim(), password });
+      rememberSignedIn(true);
       navigate(safeNext(params.get('next')), { replace: true });
     } catch (caught) {
       setError(

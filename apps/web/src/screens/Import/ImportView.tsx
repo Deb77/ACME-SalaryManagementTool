@@ -5,20 +5,16 @@ import type {
   ImportRow,
   ImportUploadResponse,
 } from '@acme/shared';
-import { IconAlertCircle, IconChevronLeft, IconFileSpreadsheet } from '@tabler/icons-react';
+import { IconAlertCircle, IconFileSpreadsheet } from '@tabler/icons-react';
 import { useState } from 'react';
 import {
-  AppLink,
   ConfirmDialog,
   DataTable,
   EmptyState,
-  FileDropzone,
   Notice,
-  PageHeader,
   PillButton,
   SegmentedControl,
   StatTile,
-  Stepper,
   TrayCard,
   type DataTableColumn,
   type FileRejection,
@@ -28,9 +24,9 @@ import form from '../shared/form.module.css';
 import { ResourceState } from '../shared/ResourceState';
 import shared from '../shared/screen.module.css';
 import styles from './Import.module.css';
+import { ImportHeader, UploadCard } from './ImportSkeleton';
 import { SheetPreview } from './SheetPreview';
 import {
-  IMPORT_STEPS,
   OUTCOME_LABELS,
   rowDetail,
   rowProblems,
@@ -86,19 +82,7 @@ export function ImportView(props: ImportViewProps) {
   const { step, scopeNote, error } = props;
   return (
     <>
-      <PageHeader
-        back={
-          <AppLink href="/employees" className={styles.back}>
-            <IconChevronLeft aria-hidden="true" size={18} />
-            Employees
-          </AppLink>
-        }
-        title="Import from Excel"
-        description="Bring your existing sheet in as it is. Nothing changes until you confirm."
-      />
-      <div className={styles.steps}>
-        <Stepper label="Import progress" steps={IMPORT_STEPS} current={STEP_INDEX[step]} />
-      </div>
+      <ImportHeader current={STEP_INDEX[step]} />
       {scopeNote && <Notice tone="info">{scopeNote}</Notice>}
       {error && (
         <Notice tone="warning" title="That didn't work">
@@ -138,20 +122,7 @@ function RowPerson({ row }: { row: ImportRow }) {
 }
 
 function UploadStep({ busy, onFileSelected, onFileRejected }: ImportViewProps) {
-  return (
-    <TrayCard
-      title="Upload your file"
-      footer="Up to 10,000 rows. Each row is matched by employee code, then email."
-    >
-      <FileDropzone
-        accept=".xlsx,.csv"
-        maxSizeBytes={5 * 1024 * 1024}
-        disabled={busy}
-        onFileSelected={onFileSelected}
-        onFileRejected={onFileRejected}
-      />
-    </TrayCard>
-  );
+  return <UploadCard busy={busy} onFileSelected={onFileSelected} onFileRejected={onFileRejected} />;
 }
 
 function FileSummary({
