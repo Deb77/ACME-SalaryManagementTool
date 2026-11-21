@@ -1,13 +1,10 @@
 import type {
-  CountryInfo,
   Import,
-  ImportField,
   ImportMapping,
   ImportOutcome,
   ImportRow,
   ImportUploadResponse,
 } from '@acme/shared';
-import { importFields } from '@acme/shared';
 import { IconAlertCircle, IconChevronLeft, IconFileSpreadsheet } from '@tabler/icons-react';
 import { useState } from 'react';
 import {
@@ -16,7 +13,6 @@ import {
   DataTable,
   EmptyState,
   FileDropzone,
-  FormField,
   Notice,
   PageHeader,
   PillButton,
@@ -34,7 +30,6 @@ import shared from '../shared/screen.module.css';
 import styles from './Import.module.css';
 import { SheetPreview } from './SheetPreview';
 import {
-  IMPORT_FIELD_LABELS,
   IMPORT_STEPS,
   OUTCOME_LABELS,
   rowDetail,
@@ -65,15 +60,10 @@ export interface ImportViewProps {
   // Upload
   onFileSelected: (file: File) => void;
   onFileRejected: (file: File, reason: FileRejection) => void;
-  // Match
-  upload?: ImportUploadResponse;
-  mapping: ImportMapping;
-  onMappingChange: (mapping: ImportMapping) => void;
-  defaults: { country?: string; salaryEffectiveDate?: string };
-  onDefaultsChange: (defaults: { country?: string; salaryEffectiveDate?: string }) => void;
-  countries: readonly CountryInfo[];
-  onRunDryRun: () => void;
   // Review and done
+  upload?: ImportUploadResponse;
+  /** The columns matched from the file's headers, shown on the preview. */
+  mapping: ImportMapping;
   record?: Import;
   outcome: ImportOutcome;
   onOutcomeChange: (outcome: ImportOutcome) => void;
@@ -82,16 +72,16 @@ export interface ImportViewProps {
   skipInvalidRows: boolean;
   onSkipInvalidRowsChange: (skip: boolean) => void;
   onCommit: () => void;
-  onEditMatching: () => void;
   onStartOver: () => void;
   onUndo: () => void;
   /** Catalogue names and the update currency, to describe each row's changes in words. */
   changeContext: ChangeContext;
 }
 
-const NOT_IN_FILE = '';
-
-/** Import from Excel: upload → match columns → review the dry run → import (and undo). */
+/**
+ * Import from Excel: upload (columns are matched from the headers and the rows checked at once)
+ * → review the file and the dry run → import (and undo).
+ */
 export function ImportView(props: ImportViewProps) {
   const { step, scopeNote, error } = props;
   return (
@@ -116,7 +106,6 @@ export function ImportView(props: ImportViewProps) {
         </Notice>
       )}
       {step === 'upload' && <UploadStep {...props} />}
-      {step === 'match' && <MatchStep {...props} />}
       {(step === 'review' || step === 'done') && <ReviewStep {...props} />}
     </>
   );
@@ -189,123 +178,10 @@ function FileSummary({
   );
 }
 
-function MatchStep({
-  upload,
-  mapping,
-  onMappingChange,
-  defaults,
-  onDefaultsChange,
-  countries,
-  busy,
-  onRunDryRun,
-  onStartOver,
-}: ImportViewProps) {
-  if (!upload) return null;
-  const select = (field: ImportField) => (
-    <FormField key={field} label={IMPORT_FIELD_LABELS[field]}>
-      {(control) => (
-        <select
-          {...control}
-          className={form.control}
-          value={mapping[field] ?? NOT_IN_FILE}
-          onChange={(event) => {
-            const value = event.currentTarget.value;
-            const next = { ...mapping };
-            if (value === NOT_IN_FILE) delete next[field];
-            else next[field] = value;
-            onMappingChange(next);
-          }}
-        >
-          <option value={NOT_IN_FILE}>Not in my file</option>
-          {upload.columns.map((column) => (
-            <option key={column} value={column}>
-              {column}
-            </option>
-          ))}
-        </select>
-      )}
-    </FormField>
-  );
-  return (
-    <>
-      <FileSummary
-        upload={upload}
-        actions={
-          <PillButton size="small" onClick={onStartOver}>
-            Replace file
-          </PillButton>
-        }
-      />
-      <TrayCard
-        title="Preview"
-        footer={
-          upload.rowCount > upload.sampleRows.length
-            ? `First ${upload.sampleRows.length} of ${formatCount(upload.rowCount)} rows, as they are in your file`
-            : `All ${formatCount(upload.rowCount)} ${upload.rowCount === 1 ? 'row' : 'rows'}, as they are in your file`
-        }
-      >
-        <SheetPreview upload={upload} mapping={mapping} />
-      </TrayCard>
-      <TrayCard
-        title="Match columns"
-        footer="We guessed from your headers. Check each field before the dry run."
-      >
-        <div className={styles.mappingGrid}>{importFields.map(select)}</div>
-      </TrayCard>
-      <TrayCard title="Defaults for missing values">
-        <div className={form.row}>
-          <FormField label="Country" hint="Used when the file has no country column">
-            {(control) => (
-              <select
-                {...control}
-                className={form.control}
-                value={defaults.country ?? ''}
-                onChange={(e) =>
-                  onDefaultsChange({ ...defaults, country: e.currentTarget.value || undefined })
-                }
-              >
-                <option value="">No default</option>
-                {countries.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </FormField>
-          <FormField label="Salary effective date" hint="Used for every salary change in the file">
-            {(control) => (
-              <input
-                {...control}
-                type="date"
-                className={form.control}
-                value={defaults.salaryEffectiveDate ?? ''}
-                onChange={(e) =>
-                  onDefaultsChange({
-                    ...defaults,
-                    salaryEffectiveDate: e.currentTarget.value || undefined,
-                  })
-                }
-              />
-            )}
-          </FormField>
-        </div>
-      </TrayCard>
-      <div className={form.actions}>
-        <PillButton onClick={onStartOver} disabled={busy}>
-          Cancel
-        </PillButton>
-        <PillButton tone="primary" loading={busy} onClick={onRunDryRun}>
-          Check rows
-        </PillButton>
-      </div>
-    </>
-  );
-}
-
 function ReviewStep({
   step,
   upload,
+  mapping,
   record,
   outcome,
   onOutcomeChange,
@@ -315,7 +191,6 @@ function ReviewStep({
   onSkipInvalidRowsChange,
   busy,
   onCommit,
-  onEditMatching,
   onStartOver,
   onUndo,
   changeContext,
@@ -353,17 +228,24 @@ function ReviewStep({
           upload={upload}
           actions={
             !done && (
-              <>
-                <PillButton size="small" onClick={onEditMatching}>
-                  Edit matching
-                </PillButton>
-                <PillButton size="small" onClick={onStartOver}>
-                  Replace file
-                </PillButton>
-              </>
+              <PillButton size="small" onClick={onStartOver}>
+                Replace file
+              </PillButton>
             )
           }
         />
+      )}
+      {upload && !done && (
+        <TrayCard
+          title="Preview"
+          footer={
+            upload.rowCount > upload.sampleRows.length
+              ? `First ${upload.sampleRows.length} of ${formatCount(upload.rowCount)} rows, as they are in your file`
+              : `All ${formatCount(upload.rowCount)} ${upload.rowCount === 1 ? 'row' : 'rows'}, as they are in your file`
+          }
+        >
+          <SheetPreview upload={upload} mapping={mapping} />
+        </TrayCard>
       )}
       {done && (
         <Notice

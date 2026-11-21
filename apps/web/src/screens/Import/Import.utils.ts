@@ -8,11 +8,11 @@ import type {
 import { formatDate } from '../../lib/format';
 import { formatMoney, minorToDecimalString } from '../../lib/money';
 
-export type ImportStep = 'upload' | 'match' | 'review' | 'done';
+export type ImportStep = 'upload' | 'review' | 'done';
 
-export const IMPORT_STEPS = ['Upload', 'Match columns', 'Review', 'Import'] as const;
+export const IMPORT_STEPS = ['Upload', 'Review', 'Import'] as const;
 
-export const STEP_INDEX: Record<ImportStep, number> = { upload: 0, match: 1, review: 2, done: 3 };
+export const STEP_INDEX: Record<ImportStep, number> = { upload: 0, review: 1, done: 2 };
 
 export const IMPORT_FIELD_LABELS: Record<ImportField, string> = {
   employeeCode: 'Employee code',

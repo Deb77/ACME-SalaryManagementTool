@@ -125,6 +125,23 @@ function Body({ variant }: { variant: PageSkeletonVariant }) {
 }
 
 /**
+ * One loading period often mounts several skeletons in a row: the boot frame, the route's code
+ * download, then the screen's own while its data loads. They share one delay, counted from the
+ * first, so a later one doesn't blank the page for another `delayMs` after the last was drawn.
+ */
+const HANDOFF_MS = 100;
+let mountedCount = 0;
+let chainStart = 0;
+let chainEnd = Number.NEGATIVE_INFINITY;
+
+function remainingDelay(delayMs: number) {
+  const now = Date.now();
+  const handoff = mountedCount > 0 || now - chainEnd < HANDOFF_MS;
+  if (!handoff) chainStart = now;
+  return Math.max(0, chainStart + delayMs - now);
+}
+
+/**
  * A whole screen as skeletons: page title, actions and cards in the screen's own layout.
  * Used while a screen's first data loads and while its code chunk downloads.
  */
@@ -134,12 +151,20 @@ export function PageSkeleton({
   delayMs = 150,
   children,
 }: PageSkeletonProps) {
-  const [visible, setVisible] = useState(delayMs <= 0);
+  const [wait] = useState(() => remainingDelay(delayMs));
+  const [visible, setVisible] = useState(wait <= 0);
   useEffect(() => {
-    if (delayMs <= 0) return;
-    const timer = setTimeout(() => setVisible(true), delayMs);
+    mountedCount += 1;
+    return () => {
+      mountedCount -= 1;
+      if (mountedCount === 0) chainEnd = Date.now();
+    };
+  }, []);
+  useEffect(() => {
+    if (wait <= 0) return;
+    const timer = setTimeout(() => setVisible(true), wait);
     return () => clearTimeout(timer);
-  }, [delayMs]);
+  }, [wait]);
 
   if (children) {
     return (

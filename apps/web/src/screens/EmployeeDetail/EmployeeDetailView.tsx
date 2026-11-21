@@ -1,5 +1,6 @@
 import type { Employee, SalaryChange } from '@acme/shared';
 import { IconChevronLeft, IconCash } from '@tabler/icons-react';
+import type { ReactNode } from 'react';
 import {
   AppLink,
   DataTable,
@@ -195,6 +196,21 @@ export function EmployeeDetailView({
     latest?.previousAmount &&
     percentChange(latest.previousAmount.amountMinor, latest.amount.amountMinor);
   const totalChange = first && percentChange(first.amount.amountMinor, amountMinor);
+  /** The figures behind "where does this pay sit", shown between the pay and its range. */
+  const payStats: { label: string; value: ReactNode }[] = [
+    ...(benchmark
+      ? [
+          {
+            label: 'Peer median',
+            value: <MoneyText amountMinor={benchmark.medianMinor} currency={currency} />,
+          },
+        ]
+      : []),
+    ...(benchmark && benchmark.medianMinor > 0
+      ? [{ label: 'Against median', value: percentChange(benchmark.medianMinor, amountMinor) }]
+      : []),
+    ...(lastChange ? [{ label: 'Last change', value: lastChange }] : []),
+  ];
 
   const profile = [
     { label: 'Employee code', value: employee.employeeCode },
@@ -255,62 +271,66 @@ export function EmployeeDetailView({
           )
         }
       />
-      <div className={shared.twoColumns}>
+      <div className={`${shared.twoColumns} ${styles.topRow}`}>
         <TrayCard
           title="Current pay"
+          className={styles.payCard}
           footer={
-            benchmark && benchmark.medianMinor > 0 ? (
+            benchmark && (
               <span>
-                <strong>{percentChange(benchmark.medianMinor, amountMinor)}</strong> against the
-                median
-                {lastChange && (
-                  <>
-                    {' · '}
-                    <strong>{lastChange}</strong> last change
-                  </>
-                )}
+                Compared with {formatCount(benchmark.headcount)} {employee.jobTitle.name}s in{' '}
+                {countryName}
               </span>
-            ) : undefined
+            )
           }
         >
-          <div className={styles.pay}>
-            <span className={styles.payIcon} aria-hidden="true">
-              <IconCash size={20} />
-            </span>
-            <div>
-              <div className={styles.payValue}>
-                <MoneyText {...employee.salary} />
-              </div>
-              <div className={shared.muted}>
-                per year · {currency} · effective {formatDate(employee.salaryEffectiveDate)}
+          <div className={styles.payBody}>
+            <div className={styles.pay}>
+              <span className={styles.payIcon} aria-hidden="true">
+                <IconCash size={20} />
+              </span>
+              <div>
+                <div className={styles.payValue}>
+                  <MoneyText {...employee.salary} />
+                </div>
+                <div className={shared.muted}>
+                  per year · {currency} · effective {formatDate(employee.salaryEffectiveDate)}
+                </div>
               </div>
             </div>
+            {payStats.length > 0 && (
+              <dl className={styles.stats}>
+                {payStats.map((stat) => (
+                  <div key={stat.label} className={styles.stat}>
+                    <dt>{stat.label}</dt>
+                    <dd>{stat.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            {benchmark && (
+              <div className={styles.benchmark}>
+                <PayRangeRow
+                  title="Pay range"
+                  currency={currency}
+                  minMinor={benchmark.minMinor}
+                  medianMinor={benchmark.medianMinor}
+                  maxMinor={benchmark.maxMinor}
+                  markerMinor={amountMinor}
+                  scaleMinMinor={Math.min(benchmark.minMinor, amountMinor)}
+                  scaleMaxMinor={Math.max(benchmark.maxMinor, amountMinor)}
+                />
+                <div className={`${styles.rangeLabels} ${shared.small} ${shared.muted}`}>
+                  <span>
+                    Min <MoneyText amountMinor={benchmark.minMinor} currency={currency} />
+                  </span>
+                  <span>
+                    Max <MoneyText amountMinor={benchmark.maxMinor} currency={currency} />
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
-          {benchmark && (
-            <div className={styles.benchmark}>
-              <div className={shared.small}>
-                vs {formatCount(benchmark.headcount)} {employee.jobTitle.name}s in {countryName}
-              </div>
-              <PayRangeRow
-                title="Pay range"
-                currency={currency}
-                minMinor={benchmark.minMinor}
-                medianMinor={benchmark.medianMinor}
-                maxMinor={benchmark.maxMinor}
-                markerMinor={amountMinor}
-                scaleMinMinor={Math.min(benchmark.minMinor, amountMinor)}
-                scaleMaxMinor={Math.max(benchmark.maxMinor, amountMinor)}
-              />
-              <div className={`${styles.rangeLabels} ${shared.small} ${shared.muted}`}>
-                <span>
-                  Min <MoneyText amountMinor={benchmark.minMinor} currency={currency} />
-                </span>
-                <span>
-                  Max <MoneyText amountMinor={benchmark.maxMinor} currency={currency} />
-                </span>
-              </div>
-            </div>
-          )}
         </TrayCard>
         <TrayCard title="Profile" footer="Pay currency is set by country">
           <KeyValueList items={profile} />

@@ -56,6 +56,8 @@ export function FilterSelect({
       rightSectionWidth={value ? 44 : 32}
       style={{ '--filter-width': `${width}px` } as CSSProperties}
       allowDeselect
+      // The tick sits at the end, so the chosen option's name lines up with the others.
+      checkIconPosition="right"
       data={options.map((option) => ({ value: option.value, label: option.label }))}
       value={value ?? null}
       onChange={(next) => onChange(next ?? undefined)}

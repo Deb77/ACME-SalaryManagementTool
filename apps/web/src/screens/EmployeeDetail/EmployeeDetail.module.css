@@ -46,13 +46,64 @@
   letter-spacing: -0.02em;
 }
 
+.payBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+/* Peer median, distance from it and the last change: one row of small figures. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 14px 0;
+  border-block: 1px solid var(--acme-color-grey100);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.stat dt {
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
+  color: var(--acme-color-grey500);
+}
+
+.stat dd {
+  margin: 0;
+  font-size: var(--acme-text-md);
+  line-height: var(--acme-leading-md);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .benchmark {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--acme-color-grey100);
+}
+
+/*
+ * Desktop: pay and profile are the same height; the pay card's body grows to fill it and the
+ * pay, figures and range spread evenly down it, so no blank block is left at the bottom.
+ */
+@media (min-width: 1024px) {
+  .topRow {
+    align-items: stretch;
+  }
+
+  .payCard > :nth-child(2) {
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 .rangeLabels {

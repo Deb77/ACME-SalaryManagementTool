@@ -72,37 +72,50 @@ export function EmployeeDetailSkeleton() {
           </div>
         }
       />
-      <div className={shared.twoColumns}>
+      <div className={`${shared.twoColumns} ${styles.topRow}`}>
         <TrayCard
           title="Current pay"
+          className={styles.payCard}
           footer={can('insights:read') ? <Skeleton inline width={240} height={12} /> : undefined}
         >
-          <div className={styles.pay}>
-            <span className={styles.payIcon} aria-hidden="true">
-              <IconCash size={20} />
-            </span>
-            <div>
-              <div className={styles.payValue}>
-                <Skeleton inline width={150} height={24} />
-              </div>
-              <div className={shared.muted}>
-                per year · <Skeleton inline width={26} height={12} /> · effective{' '}
-                <Skeleton inline width={70} height={12} />
+          <div className={styles.payBody}>
+            <div className={styles.pay}>
+              <span className={styles.payIcon} aria-hidden="true">
+                <IconCash size={20} />
+              </span>
+              <div>
+                <div className={styles.payValue}>
+                  <Skeleton inline width={150} height={24} />
+                </div>
+                <div className={shared.muted}>
+                  per year · <Skeleton inline width={26} height={12} /> · effective{' '}
+                  <Skeleton inline width={70} height={12} />
+                </div>
               </div>
             </div>
+            <dl className={styles.stats}>
+              {(can('insights:read')
+                ? ['Peer median', 'Against median', 'Last change']
+                : ['Last change']
+              ).map((label) => (
+                <div key={label} className={styles.stat}>
+                  <dt>{label}</dt>
+                  <dd>
+                    <Skeleton inline width={64} height={14} />
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {can('insights:read') && (
+              <div className={styles.benchmark}>
+                <PayRangeRowSkeleton title="Pay range" />
+                <div className={`${styles.rangeLabels} ${shared.small} ${shared.muted}`}>
+                  <Skeleton inline width={90} height={11} />
+                  <Skeleton inline width={90} height={11} />
+                </div>
+              </div>
+            )}
           </div>
-          {can('insights:read') && (
-            <div className={styles.benchmark}>
-              <div className={shared.small}>
-                <Skeleton inline width={190} height={11} />
-              </div>
-              <PayRangeRowSkeleton title="Pay range" />
-              <div className={`${styles.rangeLabels} ${shared.small} ${shared.muted}`}>
-                <Skeleton inline width={90} height={11} />
-                <Skeleton inline width={90} height={11} />
-              </div>
-            </div>
-          )}
         </TrayCard>
         <TrayCard title="Profile" footer="Pay currency is set by country">
           <KeyValueList

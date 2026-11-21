@@ -20,7 +20,8 @@ export interface HistogramChartProps {
   bins: readonly HistogramBin[];
   /** Bin that holds the median, drawn in the darker accent. */
   highlightIndex?: number;
-  height?: number;
+  /** A fixed height, or `'fill'` to grow with a flex-column parent (never under 240px). */
+  height?: number | 'fill';
 }
 
 const AXIS_TICK = { fill: chartColors.axis, fontSize: 12, fontFamily: fonts.sans };
@@ -33,7 +34,13 @@ export function HistogramChart({
   height = 240,
 }: HistogramChartProps) {
   return (
-    <figure role="img" aria-label={summary} style={{ margin: 0, height }}>
+    <figure
+      role="img"
+      aria-label={summary}
+      style={
+        height === 'fill' ? { margin: 0, flex: '1 1 240px', minHeight: 240 } : { margin: 0, height }
+      }
+    >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={[...bins]} margin={{ top: 20, right: 0, bottom: 0, left: 0 }}>
           <CartesianGrid vertical={false} stroke={chartColors.grid} strokeDasharray="4 4" />

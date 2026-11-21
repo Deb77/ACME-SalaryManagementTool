@@ -14,13 +14,14 @@ import { useSession } from '../../session/SessionContext';
 import type { ImportStep } from './Import.utils';
 import { ImportView } from './ImportView';
 
-/** Container for `/employees/import`: drives the upload → mapping → dry run → commit flow. */
+/** Container for `/employees/import`: drives the upload → dry run → commit flow. */
 export function ImportScreen() {
   const { me, meta, countryName, country } = useSession();
   const [step, setStep] = useState<ImportStep>('upload');
   const [upload, setUpload] = useState<ImportUploadResponse>();
   const [mapping, setMapping] = useState<ImportMapping>({});
-  const [defaults, setDefaults] = useState<{ country?: string; salaryEffectiveDate?: string }>({});
+  // Without a country column, a one-country user's rows are in their country.
+  const defaultCountry = me.countries.length === 1 ? me.countries[0] : undefined;
   const [record, setRecord] = useState<Import>();
   const [outcome, setOutcome] = useState<ImportOutcome>('error');
   const [page, setPage] = useState(1);
@@ -61,7 +62,7 @@ export function ImportScreen() {
     me.countries.length === 1
       ? me.countries[0]
       : mapping.country === undefined
-        ? defaults.country
+        ? defaultCountry
         : undefined;
   const rowsPage = rows.data ?? rows.previous;
 
@@ -77,14 +78,19 @@ export function ImportScreen() {
       busy={busy}
       onFileSelected={(file) =>
         run(async () => {
+          // Columns are matched from the headers and the rows checked straight away: the review
+          // shows the file next to what would change, so there is no separate matching step.
           const uploaded = await uploadImport(file);
+          const result = await setImportMapping(uploaded.id, {
+            mapping: uploaded.suggestedMapping,
+            defaults: { country: defaultCountry, salaryEffectiveDate: todayIso() },
+          });
           setUpload(uploaded);
           setMapping(uploaded.suggestedMapping);
-          setDefaults({
-            country: me.countries.length === 1 ? me.countries[0] : undefined,
-            salaryEffectiveDate: todayIso(),
-          });
-          setStep('match');
+          setRecord(result);
+          setOutcome(result.summary && result.summary.error > 0 ? 'error' : 'update');
+          setPage(1);
+          setStep('review');
         })
       }
       onFileRejected={(_file, reason) =>
@@ -92,20 +98,6 @@ export function ImportScreen() {
       }
       upload={upload}
       mapping={mapping}
-      onMappingChange={setMapping}
-      defaults={defaults}
-      onDefaultsChange={setDefaults}
-      countries={meta.countries.filter((c) => me.countries.includes(c.code))}
-      onRunDryRun={() =>
-        run(async () => {
-          if (!upload) return;
-          const result = await setImportMapping(upload.id, { mapping, defaults });
-          setRecord(result);
-          setOutcome(result.summary && result.summary.error > 0 ? 'error' : 'update');
-          setPage(1);
-          setStep('review');
-        })
-      }
       record={record}
       outcome={outcome}
       onOutcomeChange={(next) => {
@@ -132,7 +124,6 @@ export function ImportScreen() {
           setStep('done');
         })
       }
-      onEditMatching={() => setStep('match')}
       onStartOver={startOver}
       onUndo={() =>
         run(async () => {

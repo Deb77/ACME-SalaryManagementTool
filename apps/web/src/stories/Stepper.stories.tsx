@@ -4,13 +4,9 @@ import { Stepper } from '../components';
 export default { title: 'Molecules / Stepper' };
 
 export const ImportStepper: Story<{ current: number }> = ({ current }) => (
-  <Stepper
-    label="Import steps"
-    steps={['Upload', 'Match columns', 'Review', 'Import']}
-    current={current}
-  />
+  <Stepper label="Import steps" steps={['Upload', 'Review', 'Import']} current={current} />
 );
-ImportStepper.args = { current: 2 };
+ImportStepper.args = { current: 1 };
 ImportStepper.argTypes = {
-  current: { control: { type: 'range', min: 0, max: 3, step: 1 } },
+  current: { control: { type: 'range', min: 0, max: 2, step: 1 } },
 };

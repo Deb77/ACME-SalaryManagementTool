@@ -115,7 +115,7 @@ Routing uses `react-router` 8.5.1 (decision #28). Each screen is lazy-loaded in 
 | `/employees` | Employees list (search, filters, sort, paging, export, add, import) | `employees:read` |
 | `/employees/:id` | Employee detail, Record salary change (dialog), Terminate | `employees:read` |
 | `/employees/new`, `/employees/:id/edit` | Add employee / Edit details | `employees:write` |
-| `/employees/import` | Import from Excel (upload, match columns, review dry run, import, undo) | `imports:run` |
+| `/employees/import` | Import from Excel (upload, review the file and the dry run, import, undo) | `imports:run` |
 | `/insights` | Insights | `insights:read` |
 | `/ask` | Ask AI (single column; queries folded; drafts open the salary change dialog) | `ai:ask` |
 | `/access` | Access & roles (roles, team members, invite, edit access, role editor) | `users:manage` or `roles:manage` |
