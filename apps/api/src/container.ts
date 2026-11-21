@@ -21,6 +21,7 @@ import { ImportService } from './modules/imports/import.service.js';
 import { InsightsService } from './modules/insights/insights.service.js';
 import { CatalogueService } from './modules/meta/catalogue.service.js';
 import { SalaryService } from './modules/salary/salary.service.js';
+import { SalaryChangeRepository } from './modules/salary/salary.repository.js';
 
 /** Everything the app resolves by name. Adding a service means one line here and one below. */
 export interface Registry {
@@ -34,6 +35,7 @@ export interface Registry {
   catalogueService: CatalogueService;
   auditService: AuditService;
   employeeRepository: EmployeeRepository;
+  salaryChangeRepository: SalaryChangeRepository;
   salaryService: SalaryService;
   employeeService: EmployeeService;
   insightsService: InsightsService;
@@ -78,6 +80,7 @@ export function buildContainer(config: Config): AppContainer {
     .register('catalogueService', (c) => new CatalogueService(c.resolve('db')))
     .register('auditService', () => new AuditService())
     .register('employeeRepository', () => new EmployeeRepository())
+    .register('salaryChangeRepository', () => new SalaryChangeRepository())
     .register(
       'salaryService',
       (c) =>
@@ -86,6 +89,7 @@ export function buildContainer(config: Config): AppContainer {
           c.resolve('auditService'),
           c.resolve('clock'),
           c.resolve('aiRepository'),
+          c.resolve('salaryChangeRepository'),
         ),
     )
     .register(
