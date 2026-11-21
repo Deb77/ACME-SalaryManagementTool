@@ -62,7 +62,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 4px 0;
+  padding: 12px 16px 16px;
 }
 
 .summary {
@@ -72,32 +72,34 @@
 }
 
 .cardToolbar {
-  display: flex;
-  justify-content: flex-end;
   padding: 8px 12px 0;
 }
 
 .sortRoot {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  width: 100%;
 }
 
-.sortLabel {
+.sortPrefix {
   font-size: var(--acme-text-sm);
   line-height: var(--acme-leading-sm);
-  font-weight: 400;
   color: var(--acme-color-grey500);
 }
 
-/* Only shown on phones: 16px so iOS doesn't zoom the page when it opens. */
+/* Only shown on phones, styled like the filter pills; 16px so iOS doesn't zoom when it opens. */
 .sortInput {
   height: 44px;
   font-size: var(--acme-text-md);
   line-height: var(--acme-leading-md);
   font-weight: 500;
+  color: var(--acme-color-grey900);
+  background-color: var(--acme-color-grey100);
   border-color: transparent;
-  background-color: transparent;
+  border-radius: var(--acme-radius-pill);
+}
+
+.sortInput:focus {
+  border-color: var(--acme-color-accent);
+  box-shadow: var(--acme-shadow-focus);
 }
 
 .cards {
@@ -125,9 +127,33 @@
   padding-block: 4px;
 }
 
+/* Round, whatever the size: Mantine's radius="xl" is smaller than half a 44px control. */
 .pageControl {
   min-width: 44px;
   height: 44px;
+  border-radius: var(--acme-radius-pill);
+}
+
+/* Phones: the summary takes its own line; previous and next sit at the ends of the row below. */
+.phonePager {
+  display: flex;
+  flex: 1 0 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pageLabel {
+  /* Mantine only shows this label at 400px and below; the phone pager always wants it. */
+  display: flex;
+  min-width: 0;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+  font-weight: 500;
+  color: var(--acme-color-grey700);
+  text-align: center;
+  white-space: nowrap;
 }
 
 @media (min-width: 768px) {

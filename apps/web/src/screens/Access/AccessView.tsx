@@ -78,9 +78,31 @@ export function AccessView({
   const roleById = new Map(roles.map((role) => [role.id, role]));
   const shownUsers = (users ?? []).filter((u) => roleFilter === 'all' || u.role.id === roleFilter);
 
+  /**
+   * Who holds a role: everyone in the team list with it, invitees and people without access
+   * included, so the role card and the role filter always give the same number. Without the
+   * team list (no `users:manage`) the card falls back to the API's count.
+   */
+  const holders = (role: Role) => {
+    if (!users) return { total: role.userCount, invited: 0, noAccess: 0 };
+    const withRole = users.filter((u) => u.role.id === role.id);
+    return {
+      total: withRole.length,
+      invited: withRole.filter((u) => u.status === 'invited').length,
+      noAccess: withRole.filter((u) => u.status === 'deactivated').length,
+    };
+  };
+
   const countryChips = (user: User) => {
     const role = roleById.get(user.role.id);
     if (role?.countryScope === 'all') return [<StatusTag key="all">All countries</StatusTag>];
+    if (user.countries.length === 0) {
+      return [
+        <span key="none" className={styles.mutedTag}>
+          No countries
+        </span>,
+      ];
+    }
     return user.countries.map((code) => <StatusTag key={code}>{countryName(code)}</StatusTag>);
   };
 
@@ -88,7 +110,8 @@ export function AccessView({
     user.status === 'invited' ? (
       <StatusTag tone="warning">Invite pending</StatusTag>
     ) : user.status === 'deactivated' ? (
-      <StatusTag tone="neutral">No access</StatusTag>
+      // Not a neutral tag: those are the country chips. A dashed, muted tag reads as a state.
+      <span className={styles.mutedTag}>No access</span>
     ) : user.lastSignInAt ? (
       formatRelative(user.lastSignInAt, now)
     ) : (
@@ -193,12 +216,17 @@ export function AccessView({
                 label: permissionLabels[key],
                 allowed: role.permissions.includes(key),
               }))}
-              footer={
-                <>
-                  <strong>{role.userCount}</strong> {role.userCount === 1 ? 'person' : 'people'}
-                  {role.isSystem ? ' · System role' : ''}
-                </>
-              }
+              footer={(() => {
+                const { total, invited, noAccess } = holders(role);
+                return (
+                  <>
+                    <strong>{total}</strong> {total === 1 ? 'person' : 'people'}
+                    {invited > 0 && ` · ${invited} invited`}
+                    {noAccess > 0 && ` · ${noAccess} without access`}
+                    {role.isSystem ? ' · System role' : ''}
+                  </>
+                );
+              })()}
               actions={
                 (canEditRole(me, role) || canDeleteRole(me, role)) && (
                   <>
@@ -236,10 +264,10 @@ export function AccessView({
                 options={[
                   { value: 'all', label: `All ${users.length}` },
                   ...roles
-                    .filter((role) => role.userCount > 0)
+                    .filter((role) => holders(role).total > 0)
                     .map((role) => ({
                       value: role.id,
-                      label: `${role.name} ${users.filter((u) => u.role.id === role.id).length}`,
+                      label: `${role.name} ${holders(role).total}`,
                     })),
                 ]}
                 value={roleFilter}

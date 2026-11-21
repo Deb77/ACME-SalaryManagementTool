@@ -19,7 +19,7 @@ const DEFAULT_ACCEPT = '.xlsx,.csv';
 const MB = 1024 * 1024;
 
 /**
- * Drag-and-drop or click-to-browse file picker. It never uploads by itself:
+ * File picker: tap or click to choose, or drag a file onto it with a mouse. It never uploads by itself:
  * it hands the File to the parent, which owns parsing and the request.
  * The drop area is a button (Enter or Space opens the file picker).
  */
@@ -71,7 +71,11 @@ export function FileDropzone({
       }}
     >
       <IconFileSpreadsheet aria-hidden="true" className={styles.icon} size={36} stroke={1.5} />
-      <span className={styles.text}>Drop your Excel or CSV file here, or click to browse</span>
+      <span className={styles.text}>
+        Choose an Excel or CSV file
+        {/* Only where dragging a file is possible: a mouse or trackpad, not a touch screen. */}
+        <span className={styles.dropHint}> or drop it here</span>
+      </span>
       <span className={styles.hint}>
         {hint ?? `${accept.replaceAll(',', ', ')} up to ${Math.round(maxSizeBytes / MB)} MB`}
       </span>

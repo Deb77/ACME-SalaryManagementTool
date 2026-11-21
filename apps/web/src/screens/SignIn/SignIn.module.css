@@ -6,7 +6,8 @@
   justify-content: center;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: 24px 16px;
+  padding: calc(24px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(24px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
   box-sizing: border-box;
   background: var(--acme-color-frame);
 }
@@ -56,8 +57,8 @@
 .error {
   margin: 0;
   padding: 10px 12px;
-  color: var(--acme-color-dangerText);
-  background: var(--acme-color-dangerBg);
+  color: var(--acme-color-danger-text);
+  background: var(--acme-color-danger-bg);
   border-radius: var(--acme-radius-md);
 }
 

@@ -128,7 +128,7 @@ textarea.control {
 /* Form actions stick above the phone tab bar so Save is always reachable. */
 .actions {
   position: sticky;
-  bottom: calc(76px + env(safe-area-inset-bottom));
+  bottom: calc(var(--acme-tabbar-height) + env(safe-area-inset-bottom));
   z-index: 10;
   display: flex;
   gap: 8px;
@@ -162,4 +162,19 @@ textarea.control {
   font-size: var(--acme-text-sm);
   line-height: var(--acme-leading-sm);
   color: var(--acme-color-danger-text);
+}
+
+/*
+ * When a failed submit scrolls to the first error, keep it clear of the sticky top bar and of
+ * the sticky Save bar plus the phone tab bar (or the dialog sheet's footer).
+ */
+:global([aria-invalid='true']) {
+  scroll-margin-block: calc(96px + env(safe-area-inset-top))
+    calc(var(--acme-tabbar-height) + 96px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  :global([aria-invalid='true']) {
+    scroll-margin-block: 96px 24px;
+  }
 }

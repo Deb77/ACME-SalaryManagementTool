@@ -49,7 +49,7 @@ function formatPlain(amountMinor: number, currency: string): string {
 }
 
 /**
- * Amount input with the currency shown as a prefix ("INR ₹"). People type
+ * Amount input with the currency shown as a prefix ("INR ₹", or just "SGD"). People type
  * major units with any grouping; the parent only ever receives minor units.
  * Re-formats with the currency's grouping when the field loses focus.
  */
@@ -64,7 +64,9 @@ export function MoneyInput({
   const [text, setText] = useState(() =>
     defaultValueMinor === null ? '' : formatPlain(defaultValueMinor, currency),
   );
-  const prefix = `${currency} ${currencySymbol(currency)}`;
+  const symbol = currencySymbol(currency);
+  // Some currencies (SGD, CHF in en-US) have no symbol of their own: show the code once.
+  const prefix = symbol === currency ? currency : `${currency} ${symbol}`;
 
   return (
     <Input

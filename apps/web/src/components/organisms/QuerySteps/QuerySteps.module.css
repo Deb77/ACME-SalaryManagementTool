@@ -7,6 +7,11 @@
   list-style: none;
 }
 
+/* `display: flex` would otherwise override the hidden attribute, so "Hide steps" did nothing. */
+.list[hidden] {
+  display: none;
+}
+
 .step {
   display: flex;
   align-items: flex-start;
@@ -31,16 +36,6 @@
   font-size: var(--acme-text-sm);
   line-height: var(--acme-leading-sm);
   font-weight: 500;
-}
-
-.query {
-  display: block;
-  overflow-x: auto;
-  font-family: var(--acme-font-mono);
-  font-size: var(--acme-text-xs);
-  line-height: var(--acme-leading-xs);
-  color: var(--acme-color-grey600);
-  white-space: pre;
 }
 
 .result {

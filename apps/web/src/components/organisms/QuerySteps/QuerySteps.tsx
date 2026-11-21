@@ -4,9 +4,8 @@ import { TrayCard } from '../../molecules/TrayCard/TrayCard';
 import styles from './QuerySteps.module.css';
 
 export interface QueryStep {
+  /** What the step looked up, in plain English. */
   label: string;
-  /** The tool call or query the assistant ran, shown verbatim in monospace. */
-  query: string;
   /** Short outcome, e.g. "3 rows". */
   result: string;
 }
@@ -17,7 +16,7 @@ export interface QueryStepsProps {
   defaultExpanded?: boolean;
 }
 
-/** "Worked through 3 steps": the queries behind an AI answer, so every number can be checked. */
+/** "Worked through 3 steps": what an AI answer looked up, in plain English, with each outcome. */
 export function QuerySteps({ title, steps, defaultExpanded = true }: QueryStepsProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const listId = useId();
@@ -43,7 +42,6 @@ export function QuerySteps({ title, steps, defaultExpanded = true }: QueryStepsP
             <span className={styles.dot} aria-hidden="true" />
             <div className={styles.main}>
               <div className={styles.label}>{step.label}</div>
-              <code className={styles.query}>{step.query}</code>
             </div>
             <span className={styles.result}>{step.result}</span>
           </li>

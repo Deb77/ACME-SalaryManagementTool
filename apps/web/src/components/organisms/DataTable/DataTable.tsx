@@ -146,7 +146,10 @@ export function DataTable<T, F extends string = string>({
       {sortable.length > 0 && (
         <div className={styles.cardToolbar}>
           <NativeSelect
-            label="Sort"
+            aria-label="Sort"
+            leftSection={<span className={styles.sortPrefix}>Sort</span>}
+            leftSectionWidth={56}
+            leftSectionPointerEvents="none"
             value={sortValue(query.sort)}
             onChange={(event) =>
               onQueryChange({
@@ -162,7 +165,7 @@ export function DataTable<T, F extends string = string>({
                 { value: `${column.key}:desc`, label: `${columnLabel(column)} (descending)` },
               ]),
             ]}
-            classNames={{ root: styles.sortRoot, label: styles.sortLabel, input: styles.sortInput }}
+            classNames={{ root: styles.sortRoot, input: styles.sortInput }}
           />
         </div>
       )}
@@ -286,25 +289,49 @@ export function DataTable<T, F extends string = string>({
           <span className={styles.summary}>
             {`Showing ${from.toLocaleString()}–${to.toLocaleString()} of ${total.toLocaleString()} ${itemName}`}
           </span>
-          <Pagination
-            total={pageCount}
-            value={query.page}
-            onChange={(page) => onQueryChange({ ...query, page })}
-            radius="xl"
-            size="sm"
-            siblings={wide ? 1 : 0}
-            boundaries={1}
-            classNames={{ control: styles.pageControl }}
-            getItemProps={(page) => ({ 'aria-label': `Page ${page}` })}
-            getControlProps={(control) =>
-              control === 'previous'
-                ? { 'aria-label': 'Previous page' }
-                : control === 'next'
-                  ? { 'aria-label': 'Next page' }
-                  : {}
-            }
-            withEdges={false}
-          />
+          {/* One page has nowhere to go: the summary alone says how many there are. */}
+          {pageCount > 1 &&
+            (wide ? (
+              <Pagination
+                total={pageCount}
+                value={query.page}
+                onChange={(page) => onQueryChange({ ...query, page })}
+                radius="xl"
+                size="sm"
+                siblings={1}
+                boundaries={1}
+                classNames={{ control: styles.pageControl }}
+                getItemProps={(page) => ({ 'aria-label': `Page ${page}` })}
+                getControlProps={(control) =>
+                  control === 'previous'
+                    ? { 'aria-label': 'Previous page' }
+                    : control === 'next'
+                      ? { 'aria-label': 'Next page' }
+                      : {}
+                }
+                withEdges={false}
+              />
+            ) : (
+              // Phones: numbered pages don't fit 320px once totals reach four digits, so the
+              // pager is previous / "Page 3 of 1,189" / next on one row under the summary.
+              <Pagination.Root
+                total={pageCount}
+                value={query.page}
+                onChange={(page) => onQueryChange({ ...query, page })}
+                radius="xl"
+                size="sm"
+                className={styles.phonePager}
+                classNames={{ control: styles.pageControl, label: styles.pageLabel }}
+              >
+                <Pagination.Previous aria-label="Previous page" />
+                <Pagination.Label
+                  formatLabel={({ page, totalPages }) =>
+                    `Page ${page.toLocaleString()} of ${totalPages.toLocaleString()}`
+                  }
+                />
+                <Pagination.Next aria-label="Next page" />
+              </Pagination.Root>
+            ))}
         </div>
       )}
     </div>

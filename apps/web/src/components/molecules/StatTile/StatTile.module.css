@@ -84,9 +84,15 @@
   background: linear-gradient(to top, #6fd49a, #b8f0cc);
 }
 
+/*
+ * Flex drops the ' ' text node between the delta and the note, so the gap stands in for it
+ * (the text node stays for textContent and screen readers).
+ */
 .footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  column-gap: 0.3em;
   padding: 10px 14px 8px;
   font-size: var(--acme-text-sm);
   line-height: var(--acme-leading-sm);

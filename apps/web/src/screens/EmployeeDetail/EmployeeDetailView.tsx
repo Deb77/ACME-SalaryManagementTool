@@ -231,21 +231,28 @@ export function EmployeeDetailView({
           </span>
         }
         actions={
-          <>
-            {canTerminate && active && (
-              <PillButton tone="danger" onClick={onTerminate}>
-                Terminate
-              </PillButton>
-            )}
-            {canEdit && (
-              <PillButton href={`/employees/${employee.id}/edit`}>Edit details</PillButton>
-            )}
-            {canChangeSalary && active && (
-              <PillButton tone="primary" onClick={onRecordSalaryChange}>
-                Record salary change
-              </PillButton>
-            )}
-          </>
+          ((canTerminate && active) || canEdit || (canChangeSalary && active)) && (
+            // Phones: the primary action first and full width, Terminate last (see the CSS).
+            <div className={styles.headerActions}>
+              {canTerminate && active && (
+                <PillButton tone="danger" onClick={onTerminate} className={styles.dangerAction}>
+                  Terminate
+                </PillButton>
+              )}
+              {canEdit && (
+                <PillButton href={`/employees/${employee.id}/edit`}>Edit details</PillButton>
+              )}
+              {canChangeSalary && active && (
+                <PillButton
+                  tone="primary"
+                  onClick={onRecordSalaryChange}
+                  className={styles.primaryAction}
+                >
+                  Record salary change
+                </PillButton>
+              )}
+            </div>
+          )
         }
       />
       <div className={shared.twoColumns}>

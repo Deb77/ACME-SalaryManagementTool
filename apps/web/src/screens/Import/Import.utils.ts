@@ -84,9 +84,12 @@ function formatBareAmount(amountMinor: number, countries: readonly CountryInfo[]
   }).format(minorToDecimalString(amountMinor, fractionDigits) as Intl.StringNumericLiteral);
 }
 
-/** The row's currency: its country for new employees, else the import-wide one (if known). */
+/**
+ * The row's currency: its country (the file's for new employees, the matched employee's for
+ * updates), else the import-wide one (if known).
+ */
 export function rowCurrency(row: ImportRow, context: ChangeContext): string | undefined {
-  const code = row.changes.countryCode?.to;
+  const code = row.changes.countryCode?.to ?? row.countryCode;
   if (typeof code === 'string') return context.countries.find((c) => c.code === code)?.currency;
   return context.updateCurrency;
 }
@@ -138,10 +141,26 @@ export function describeChanges(row: ImportRow, context: ChangeContext): string[
     });
 }
 
+/** A row's title in the review: the person's name, else their code, else "New employee". */
+export function rowTitle(row: ImportRow): string {
+  return row.employeeName || row.employeeCode || 'New employee';
+}
+
+/** The code under the name, when the title is the name (else the title already says it). */
+export function rowSubtitle(row: ImportRow): string | undefined {
+  if (!row.employeeName) return undefined;
+  return row.employeeCode ?? (row.outcome === 'create' ? 'New employee' : undefined);
+}
+
+/** One line per problem: "Annual CTC: Not a positive amount". */
+export function rowProblems(row: ImportRow): string[] {
+  return row.errors.map((e) => (e.column ? `${e.column}: ${e.message}` : e.message));
+}
+
 /** The review table's detail cell: the problems for error rows, else the changes. */
 export function rowDetail(row: ImportRow, context: ChangeContext): string {
   if (row.errors.length > 0) {
-    return row.errors.map((e) => `${e.column}: ${e.message}`).join(' · ');
+    return rowProblems(row).join(' · ');
   }
   const changes = describeChanges(row, context);
   if (changes.length === 0) return row.outcome === 'create' ? 'New employee' : 'No changes';

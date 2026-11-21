@@ -9,6 +9,7 @@ import {
 } from '@acme/shared';
 import { useState } from 'react';
 import {
+  ConfirmDialog,
   FormField,
   MoneyInput,
   MoneyText,
@@ -20,6 +21,7 @@ import {
 import { formatCount, todayIso } from '../../lib/format';
 import form from '../shared/form.module.css';
 import { zodFieldErrors } from '../shared/formErrors';
+import { useFocusFirstError } from '../shared/useFocusFirstError';
 import shared from '../shared/screen.module.css';
 import styles from './EmployeeForm.module.css';
 import { employeeFieldMessages, futureHireDateError } from './EmployeeForm.utils';
@@ -63,6 +65,8 @@ export interface EmployeeFormViewProps {
   error?: string;
   serverErrors?: Record<string, string>;
   cancelHref: string;
+  /** Leaves the form after Cancel (and "Discard changes"); defaults to loading `cancelHref`. */
+  onCancel?: () => void;
   onSubmit: (submit: EmployeeFormSubmit) => void;
 }
 
@@ -91,10 +95,17 @@ export function EmployeeFormView({
   error,
   serverErrors = {},
   cancelHref,
+  onCancel = () => window.location.assign(cancelHref),
   onSubmit,
 }: EmployeeFormViewProps) {
   const editing = employee !== undefined;
-  const [draft, setDraft] = useState<Draft>(() => initialDraft(employee, countries));
+  const [initial] = useState<Draft>(() => initialDraft(employee, countries));
+  const [draft, setDraft] = useState<Draft>(initial);
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+  const { ref: formRef, focusFirstError } = useFocusFirstError<HTMLFormElement>();
+  const dirty = (Object.keys(initial) as (keyof Draft)[]).some(
+    (key) => draft[key] !== initial[key],
+  );
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
   const errors = { ...serverErrors, ...clientErrors };
   const currency = countries.find((c) => c.code === draft.country)?.currency;
@@ -112,12 +123,14 @@ export function EmployeeFormView({
   const submit = () => {
     const messages = employeeFieldMessages(draft);
     const hireDateError = futureHireDateError(draft.hireDate, today);
-    const fail = (parsedErrors: Record<string, string>) =>
+    const fail = (parsedErrors: Record<string, string>) => {
       setClientErrors(hireDateError ? { hireDate: hireDateError, ...parsedErrors } : parsedErrors);
+      focusFirstError();
+    };
     if (editing) {
       const changed = Object.fromEntries(
         (['firstName', 'lastName', 'email', 'departmentId', 'jobTitleId', 'hireDate'] as const)
-          .filter((key) => draft[key] !== initialDraft(employee, countries)[key])
+          .filter((key) => draft[key] !== initial[key])
           .map((key) => [key, draft[key]]),
       );
       const parsed = updateEmployeeRequestSchema.safeParse({
@@ -189,7 +202,11 @@ export function EmployeeFormView({
 
   const actions = (
     <>
-      <PillButton href={cancelHref}>Cancel</PillButton>
+      {dirty ? (
+        <PillButton onClick={() => setConfirmingDiscard(true)}>Cancel</PillButton>
+      ) : (
+        <PillButton href={cancelHref}>Cancel</PillButton>
+      )}
       <PillButton tone="primary" loading={saving} onClick={submit}>
         {editing ? 'Save changes' : 'Save employee'}
       </PillButton>
@@ -207,6 +224,7 @@ export function EmployeeFormView({
         }
       />
       <form
+        ref={formRef}
         className={styles.form}
         noValidate
         onSubmit={(event) => {
@@ -320,6 +338,23 @@ export function EmployeeFormView({
         )}
         <div className={form.actions}>{actions}</div>
       </form>
+      <ConfirmDialog
+        open={confirmingDiscard}
+        title="Discard changes?"
+        description={
+          editing
+            ? `Your changes to ${employee.firstName} ${employee.lastName} will not be saved.`
+            : 'This employee will not be added.'
+        }
+        confirmLabel="Discard changes"
+        cancelLabel="Keep editing"
+        danger
+        onConfirm={() => {
+          setConfirmingDiscard(false);
+          onCancel();
+        }}
+        onCancel={() => setConfirmingDiscard(false)}
+      />
     </>
   );
 }

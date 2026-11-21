@@ -113,6 +113,14 @@ export function describeError(error: unknown): string {
       return 'Someone else changed this record while you were editing. Reload and try again.';
     case 'rate_limited':
       return 'Too many questions in a short time. Wait a minute and try again.';
+    case 'ai_budget_exceeded':
+      // The server says which budget: this conversation (start a new one) or today's.
+      return error.message;
+    case 'ai_unavailable':
+      return 'Ask AI is unavailable right now. Try again in a minute; the rest of the app still works.';
+    case 'draft_stale':
+    case 'draft_applied':
+      return 'This draft is out of date — ask again.';
     default:
       return error.message;
   }

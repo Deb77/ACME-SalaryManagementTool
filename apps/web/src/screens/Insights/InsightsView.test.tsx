@@ -76,4 +76,28 @@ describe('InsightsView', () => {
 
     expect(screen.getByText('No active employees yet')).toBeInTheDocument();
   });
+
+  it('drops the country picker and leads with local currency for a one-country scope', () => {
+    const india = sampleOverview.countries.find((c) => c.country === 'IN')!;
+    const overview = {
+      ...sampleOverview,
+      countries: [india],
+      total: {
+        headcount: india.headcount,
+        payrollUsdIndicativeMinor: india.payrollUsdIndicativeMinor,
+      },
+    };
+    render(<InsightsView {...props({ overview })} />);
+
+    expect(screen.queryByRole('radiogroup', { name: 'Country' })).not.toBeInTheDocument();
+    const tile = screen.getByText('Annual payroll').parentElement!.parentElement!;
+    expect(tile).toHaveTextContent('₹');
+    expect(tile).toHaveTextContent(/≈ \$[\d.]+[KMB]? indicative/);
+  });
+
+  it('keeps the country picker and USD totals across several countries', () => {
+    render(<InsightsView {...props()} />);
+
+    expect(screen.getByRole('radiogroup', { name: 'Country' })).toBeInTheDocument();
+  });
 });

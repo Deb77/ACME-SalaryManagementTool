@@ -37,7 +37,15 @@ export function HistogramChart({
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={[...bins]} margin={{ top: 20, right: 0, bottom: 0, left: 0 }}>
           <CartesianGrid vertical={false} stroke={chartColors.grid} strokeDasharray="4 4" />
-          <XAxis dataKey="label" tick={AXIS_TICK} tickLine={false} axisLine={false} />
+          {/* Recharts' default ('preserveEnd') drops labels from the start, so a band's lowest
+              salary could go unlabelled; this keeps the first and last and thins the middle. */}
+          <XAxis
+            dataKey="label"
+            tick={AXIS_TICK}
+            tickLine={false}
+            axisLine={false}
+            interval="preserveStartEnd"
+          />
           <Bar dataKey="count" radius={[8, 8, 3, 3]} maxBarSize={44} isAnimationActive={false}>
             <LabelList dataKey="count" position="top" style={AXIS_TICK} />
             {bins.map((bin, index) => (

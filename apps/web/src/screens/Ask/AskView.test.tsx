@@ -9,7 +9,7 @@ const answered: AskTurn = {
   id: 't1',
   question: 'Who is underpaid?',
   answer: 'Nine analysts.',
-  steps: [{ callId: 'c', label: 'Looked up pay', query: 'salary_stats()', result: '3 rows' }],
+  steps: [{ callId: 'c', label: 'Looked up pay', result: '3 rows' }],
   drafts: [sampleDraft],
   status: 'done',
 };
@@ -38,12 +38,12 @@ describe('AskView', () => {
     expect(onAsk).toHaveBeenCalledWith(expect.any(String));
   });
 
-  it('shows the answer, the approval card and the folded queries', async () => {
+  it('shows the answer, the approval card and the folded steps', async () => {
     const onReviewDrafts = vi.fn();
     render(<AskView {...props({ turns: [answered], onReviewDrafts })} />);
 
     expect(screen.getByText('Nine analysts.')).toBeInTheDocument();
-    expect(screen.getByText(/How I worked this out · 1 query/)).toBeInTheDocument();
+    expect(screen.getByText(/How I worked this out · 1 step/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Review draft' }));
     expect(onReviewDrafts).toHaveBeenCalledWith('t1');
   });
@@ -70,5 +70,27 @@ describe('AskView', () => {
     expect(screen.getByRole('region', { name: 'The answer stopped' })).toHaveTextContent(
       'Down for now',
     );
+  });
+
+  it('renders tables, lists and bold text from the answer, never its HTML', () => {
+    const answer = [
+      'Compared:',
+      '',
+      '| Country | Median |',
+      '|---|---|',
+      '| India | ₹1,830,000 |',
+      '',
+      '- **Email:** not visible <img src=x onerror=alert(1)>',
+    ].join('\n');
+    const { container } = render(
+      <AskView {...props({ turns: [{ ...answered, answer, drafts: [] }] })} />,
+    );
+
+    const table = screen.getByRole('table');
+    expect(table).toHaveTextContent('India');
+    expect(screen.getByRole('cell', { name: '₹1,830,000' })).toHaveStyle({ textAlign: 'right' });
+    expect(screen.getByText('Email:').tagName).toBe('STRONG');
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getByRole('listitem')).toHaveTextContent('<img src=x onerror=alert(1)>');
   });
 });

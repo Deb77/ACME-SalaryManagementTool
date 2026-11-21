@@ -84,17 +84,14 @@ export const payByTitle = [
 export const querySteps: QueryStep[] = [
   {
     label: 'Looked up Data Analyst pay in India, US and UK',
-    query: 'salary_stats(title="Data Analyst", countries=["IN","US","GB"])',
     result: '3 rows',
   },
   {
     label: 'Found analysts in the bottom 10% for India',
-    query: 'list_employees(title="Data Analyst", country="IN", max_salary=850000)',
     result: '9 people',
   },
   {
     label: 'Checked their tenure',
-    query: 'tenure_years(employee_ids=[…9])',
     result: '7 over 3 years',
   },
 ];

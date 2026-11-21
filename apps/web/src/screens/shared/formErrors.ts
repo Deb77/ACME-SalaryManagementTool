@@ -22,3 +22,21 @@ export function zodFieldErrors(
   }
   return errors;
 }
+
+/** Required text: "Enter a name", or "Keep the name under 60 characters" when too long. */
+export const requiredTextMessage =
+  (field: string, max: number): FieldMessage =>
+  (issue) =>
+    issue.code === 'too_big' ? `Keep the ${field} under ${max} characters` : `Enter a ${field}`;
+
+/** Optional text that only fails when too long. */
+export const tooLongMessage =
+  (field: string, max: number): FieldMessage =>
+  (issue) =>
+    issue.code === 'too_big' ? `Keep the ${field} under ${max} characters` : undefined;
+
+/** Email copy shared by the employee form and invites; depends on whether it was left empty. */
+export const emailMessage =
+  (value: string): FieldMessage =>
+  () =>
+    value.trim() === '' ? 'Enter a work email' : 'Enter an email address like name@acme.com';

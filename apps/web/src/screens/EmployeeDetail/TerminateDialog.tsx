@@ -8,6 +8,7 @@ import { Dialog, FormField, PillButton } from '../../components';
 import { terminationReasonLabel, todayIso } from '../../lib/format';
 import form from '../shared/form.module.css';
 import { zodFieldErrors } from '../shared/formErrors';
+import { useFocusFirstError } from '../shared/useFocusFirstError';
 
 type TerminationReason = (typeof terminationReasons)[number];
 
@@ -37,12 +38,14 @@ export function TerminateDialog({
   const [reason, setReason] = useState<TerminationReason>(reasons[0] ?? 'resignation');
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { ref: fieldsRef, focusFirstError } = useFocusFirstError<HTMLDivElement>();
 
   const today = todayIso();
 
   const submit = () => {
     if (terminationDate > today) {
-      return setErrors({ terminationDate: 'Choose today or an earlier date' });
+      setErrors({ terminationDate: 'Choose today or an earlier date' });
+      return focusFirstError();
     }
     const parsed = terminateEmployeeRequestSchema.safeParse({
       terminationDate,
@@ -51,9 +54,10 @@ export function TerminateDialog({
       version,
     });
     if (!parsed.success) {
-      return setErrors(
+      setErrors(
         zodFieldErrors(parsed.error, { terminationDate: () => 'Enter the last working day' }),
       );
+      return focusFirstError();
     }
     setErrors({});
     onConfirm(parsed.data);
@@ -78,7 +82,7 @@ export function TerminateDialog({
         </>
       }
     >
-      <div className={form.form}>
+      <div ref={fieldsRef} className={form.form}>
         <FormField
           label="Last working day"
           required

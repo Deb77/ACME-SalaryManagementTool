@@ -1,7 +1,22 @@
+/* Phones: the countries scroll sideways without a scrollbar; the faded right edge shows there
+   are more. From tablet they all fit, so neither applies. */
 .countryPicker {
   max-width: 100%;
   overflow-x: auto;
-  padding-bottom: 2px;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+
+.countryPicker::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .countryPicker {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
 }
 
 .countryPicker > * {

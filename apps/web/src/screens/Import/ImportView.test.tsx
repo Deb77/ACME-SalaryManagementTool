@@ -1,5 +1,6 @@
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import type { ImportRow } from '@acme/shared';
 import {
   sampleImportErrors,
   sampleImportSummary,
@@ -102,5 +103,82 @@ describe('ImportView', () => {
     expect(dialog).toHaveTextContent(/Deletes the \d+ employees it added/);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Undo import' }));
     expect(onUndo).toHaveBeenCalled();
+  });
+
+  it('links back to Employees', () => {
+    render(<ImportView {...props()} />);
+
+    expect(screen.getByRole('link', { name: 'Employees' })).toHaveAttribute('href', '/employees');
+  });
+
+  it('titles review rows by name, with the code, and shows salaries in their currency', () => {
+    const rows: ImportRow[] = [
+      {
+        rowNumber: 3,
+        outcome: 'update',
+        employeeCode: 'ACM-005809',
+        employeeName: 'Sofia Lange',
+        countryCode: 'DE',
+        changes: { salaryAmountMinor: { from: 18_850_000, to: 19_000_000 } },
+        errors: [],
+      },
+      {
+        rowNumber: 4,
+        outcome: 'create',
+        employeeCode: null,
+        employeeName: 'Neha Kapoor',
+        countryCode: 'IN',
+        changes: { firstName: { from: null, to: 'Neha' } },
+        errors: [],
+      },
+    ];
+    render(
+      <ImportView
+        {...props({
+          step: 'review',
+          outcome: 'update',
+          rows: { status: 'success', items: rows, total: 2, page: 1, pageSize: 25 },
+          changeContext: { ...props().changeContext, updateCurrency: undefined },
+        })}
+      />,
+    );
+
+    const list = screen.getByRole('list', { name: 'Updates rows' });
+    const [update, create] = within(list).getAllByRole('listitem');
+    expect(update).toHaveTextContent('Sofia Lange');
+    expect(update).toHaveTextContent('ACM-005809');
+    expect(update).toHaveTextContent('Salary: €188,500 → €190,000');
+    expect(create).toHaveTextContent('Neha Kapoor');
+    expect(create).toHaveTextContent('New employee');
+  });
+
+  it("lists a row's several problems one per line", () => {
+    const row: ImportRow = {
+      rowNumber: 5,
+      outcome: 'error',
+      employeeCode: null,
+      employeeName: 'Bad Row',
+      changes: {},
+      errors: [
+        { column: 'E-mail', message: 'Not an email' },
+        { column: 'DOJ', message: 'Not a date; use YYYY-MM-DD' },
+      ],
+    };
+    render(
+      <ImportView
+        {...props({
+          step: 'review',
+          rows: { status: 'success', items: [row], total: 1, page: 1, pageSize: 25 },
+        })}
+      />,
+    );
+
+    const card = screen.getByRole('list', { name: 'Need fixing rows' });
+    const problems = within(card).getByText('E-mail: Not an email').closest('ul')!;
+    expect(
+      within(problems)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual(['E-mail: Not an email', 'DOJ: Not a date; use YYYY-MM-DD']);
   });
 });

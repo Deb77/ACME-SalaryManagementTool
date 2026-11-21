@@ -45,6 +45,7 @@ export interface EmployeesViewProps {
   onSearchChange: (value: string) => void;
   filters: EmployeeFilters;
   onFiltersChange: (filters: EmployeeFilters) => void;
+  /** Countries the user can see; with only one the data is already scoped and the filter hides. */
   countries: readonly CountryInfo[];
   departments: readonly FilterOption[];
   jobTitles: readonly FilterOption[];
@@ -83,6 +84,8 @@ export function EmployeesView({
 }: EmployeesViewProps) {
   const countryName = (code: string) => countries.find((c) => c.code === code)?.name ?? code;
   const filtered = hasActiveFilters(filters, appliedSearch);
+  // One visible country: the API scopes the list to it, so a Country filter has nothing to pick.
+  const singleCountry = countries.length === 1;
   const columns: DataTableColumn<Employee>[] = [
     {
       key: 'name',
@@ -126,7 +129,7 @@ export function EmployeesView({
       width: '16%',
       align: 'right',
       // Salaries are in local currency, so the API sorts them only within one country.
-      sortable: filters.country !== undefined,
+      sortable: filters.country !== undefined || singleCountry,
       render: (employee) => <MoneyText {...employee.salary} strong />,
     },
     {
@@ -145,28 +148,40 @@ export function EmployeesView({
       <PageHeader
         title="Employees"
         description={
-          status === 'success' || refreshing
-            ? `${formatCount(total)} ${filtered ? 'matching' : 'active'} ${total === 1 ? 'person' : 'people'}`
-            : 'Everyone you can see, in their own currency'
+          refreshing ? (
+            // The previous total would read as the new one: a placeholder until the results land.
+            <Skeleton inline width={140} height={13} />
+          ) : status === 'success' ? (
+            `${formatCount(total)} ${filtered ? 'matching' : 'active'} ${total === 1 ? 'person' : 'people'}`
+          ) : (
+            'Everyone you can see, in their own currency'
+          )
         }
         actions={
-          <>
-            {exportHref && (
-              <PillButton href={exportHref} download icon={<IconDownload size={16} />}>
-                Export CSV
-              </PillButton>
-            )}
-            {canImport && (
-              <PillButton href="/employees/import" icon={<IconUpload size={16} />}>
-                Import from Excel
-              </PillButton>
-            )}
-            {canAdd && (
-              <PillButton tone="primary" href="/employees/new" icon={<IconPlus size={16} />}>
-                Add employee
-              </PillButton>
-            )}
-          </>
+          (exportHref || canImport || canAdd) && (
+            <div className={styles.headerActions}>
+              {exportHref && (
+                <PillButton href={exportHref} download icon={<IconDownload size={16} />}>
+                  Export CSV
+                </PillButton>
+              )}
+              {canImport && (
+                <PillButton href="/employees/import" icon={<IconUpload size={16} />}>
+                  Import <span className={styles.longLabel}>from Excel</span>
+                </PillButton>
+              )}
+              {canAdd && (
+                <PillButton
+                  tone="primary"
+                  href="/employees/new"
+                  icon={<IconPlus size={16} />}
+                  className={styles.primaryAction}
+                >
+                  Add employee
+                </PillButton>
+              )}
+            </div>
+          )
         }
       />
       <TrayCard
@@ -183,12 +198,14 @@ export function EmployeesView({
         }
       >
         <div className={shared.toolbar} role="group" aria-label="Filters">
-          <FilterSelect
-            label="Country"
-            options={countries.map((c) => ({ value: c.code, label: c.name }))}
-            value={filters.country}
-            onChange={(country) => setFilter({ country })}
-          />
+          {!singleCountry && (
+            <FilterSelect
+              label="Country"
+              options={countries.map((c) => ({ value: c.code, label: c.name }))}
+              value={filters.country}
+              onChange={(country) => setFilter({ country })}
+            />
+          )}
           <FilterSelect
             label="Status"
             options={STATUS_OPTIONS}
@@ -308,6 +325,7 @@ function EmployeeCard({
   countryName: (code: string) => string;
 }) {
   const name = `${employee.firstName} ${employee.lastName}`;
+  const detail = `${employee.jobTitle.name} · ${countryName(employee.country)}`;
   return (
     <AppLink href={employeePath(employee.id)} className={styles.card}>
       <span className={styles.cardTop}>
@@ -315,8 +333,9 @@ function EmployeeCard({
         <MoneyText {...employee.salary} strong />
       </span>
       <span className={styles.cardBottom}>
-        <span className={styles.cardDetail}>
-          {employee.jobTitle.name} · {countryName(employee.country)}
+        {/* Wraps to two lines; the title is only a fallback for a pair longer than that. */}
+        <span className={styles.cardDetail} title={detail}>
+          {detail}
         </span>
         <span className={styles.cardCode}>{employee.employeeCode}</span>
       </span>

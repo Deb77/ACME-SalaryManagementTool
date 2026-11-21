@@ -1,6 +1,5 @@
 .root {
-  /* Mantine paints the clear button with --input-bg; match the grey pill instead of white. */
-  --input-bg: var(--acme-color-grey100);
+  width: 100%;
   max-width: 100%;
 }
 
@@ -30,16 +29,42 @@
   color: var(--acme-color-grey900);
 }
 
+/* A chosen filter stands out from the ones left at "All". */
+.input[data-active] {
+  color: var(--acme-color-accent-strong);
+  background: var(--acme-color-green50);
+  border-color: var(--acme-color-green300);
+}
+
 .prefix {
   font-size: var(--acme-text-sm);
   line-height: var(--acme-leading-sm);
   color: var(--acme-color-grey500);
 }
 
+/* Mantine paints the × inline with var(--input-bg), which is white at this level and drew a
+   white square over the pill's rounded end; clear the variable on the button itself. */
 .clear {
+  --input-bg: transparent;
   width: 44px;
   height: 44px;
   color: var(--acme-color-grey600);
+  border-radius: var(--acme-radius-pill);
+}
+
+/* The list never runs off a phone screen; long options wrap instead. */
+.dropdown {
+  max-width: calc(100vw - 32px);
+}
+
+/* Phones: every option is a 44px touch target and 16px text, like the pill. */
+.option {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  box-sizing: border-box;
+  font-size: var(--acme-text-md);
+  line-height: var(--acme-leading-md);
 }
 
 .option[data-combobox-selected] {
@@ -48,6 +73,10 @@
 }
 
 @media (min-width: 768px) {
+  .root {
+    width: var(--filter-width, auto);
+  }
+
   .input {
     height: 36px;
     font-size: var(--acme-text-sm);
@@ -57,5 +86,11 @@
   .clear {
     width: 28px;
     height: 28px;
+  }
+
+  .option {
+    min-height: 0;
+    font-size: var(--acme-text-sm);
+    line-height: var(--acme-leading-sm);
   }
 }
