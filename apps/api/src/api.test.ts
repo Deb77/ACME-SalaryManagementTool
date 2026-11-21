@@ -3,6 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Express } from 'express';
 import {
+  type Employee,
   auditEventSchema,
   createSalaryChangeResponseSchema,
   cursorPageSchema,
@@ -543,116 +544,147 @@ describe('HTTP API', () => {
   });
 
   describe('imports', () => {
-    it('uploads, dry-runs, commits and undoes a CSV', async () => {
-      const existing = employeeSchema.parse(
-        (await globalHr.get(`/api/employees/${(await employeeIn('IN')).id}`)).body,
-      );
+    let sheets = 0;
+
+    /**
+     * A four-row sheet in someone's own layout: an update to `existing` (new title and pay), a
+     * new hire, a row full of mistakes and a row for a country outside India HR's scope.
+     */
+    function aSheet(existing: Employee) {
+      sheets += 1;
+      const newHire = `neha.kapoor.import${sheets}@acme.test`;
       const csv = [
         'Emp ID,Name,Surname,E-mail,Role,Dept,Annual CTC,DOJ,Country',
         `${existing.employeeCode},${existing.firstName},${existing.lastName},${existing.email},Engineering Manager,${existing.department.name},"99,00,000",${existing.hireDate},IN`,
-        ',Neha,Kapoor,neha.kapoor.import@acme.test,Data Analyst,Data,1600000,2026-11-03,IN',
+        `,Neha,Kapoor,${newHire},Data Analyst,Data,1600000,2026-11-03,IN`,
         ',Bad,Row,not-an-email,Nope,Data,abc,2026-13-01,IN',
-        ',Tom,Smith,tom.smith.import@acme.test,Data Analyst,Data,50000,2026-11-03,GB',
+        `,Tom,Smith,tom.smith.import${sheets}@acme.test,Data Analyst,Data,50000,2026-11-03,GB`,
       ].join('\n');
-      const uploaded = await indiaHr
+      return { csv, newHire };
+    }
+
+    async function upload(csv: string) {
+      const res = await indiaHr
         .post('/api/imports')
         .set('Origin', ORIGIN)
         .attach('file', Buffer.from(csv), { filename: 'india.csv', contentType: 'text/csv' });
-      expect(uploaded.status, uploaded.text).toBe(201);
-      const upload = importUploadResponseSchema.parse(uploaded.body);
-      // The preview: every data row (fewer than 20 here), as text in file order.
-      expect(upload.rowCount).toBe(4);
-      expect(upload.sampleRows).toHaveLength(4);
-      expect(upload.sampleRows[1]?.slice(0, 3)).toEqual(['', 'Neha', 'Kapoor']);
-      expect(upload.suggestedMapping).toMatchObject({
+      expect(res.status, res.text).toBe(201);
+      return importUploadResponseSchema.parse(res.body);
+    }
+
+    /** Hires someone to update, uploads a sheet and maps every column: a dry run to review. */
+    async function dryRun() {
+      const existing = await hire();
+      const sheet = aSheet(existing);
+      const uploaded = await upload(sheet.csv);
+      const mapped = await send(indiaHr, 'put', `/api/imports/${uploaded.id}/mapping`, {
+        mapping: {
+          ...uploaded.suggestedMapping,
+          jobTitle: 'Role',
+          department: 'Dept',
+          email: 'E-mail',
+          country: 'Country',
+        },
+        defaults: { salaryEffectiveDate: '2026-11-03' },
+      });
+      expect(mapped.status, mapped.text).toBe(200);
+      return {
+        id: uploaded.id,
+        existing,
+        newHire: sheet.newHire,
+        mapped: importSchema.parse(mapped.body),
+      };
+    }
+
+    const commit = (id: string, skipInvalidRows = true) =>
+      send(indiaHr, 'post', `/api/imports/${id}/commit`, { skipInvalidRows });
+    const rows = async (id: string, outcome: string) =>
+      pageSchema(importRowSchema).parse(
+        (await indiaHr.get(`/api/imports/${id}/rows?outcome=${outcome}`)).body,
+      ).items;
+    const employee = async (id: string) =>
+      employeeSchema.parse((await globalHr.get(`/api/employees/${id}`)).body);
+    const peopleWithEmail = async (email: string) =>
+      pageSchema(employeeSchema).parse((await globalHr.get(`/api/employees?q=${email}`)).body)
+        .total;
+
+    it('previews every row of an upload and suggests a mapping from the headers', async () => {
+      const uploaded = await upload(aSheet(await hire()).csv);
+      expect(uploaded.rowCount).toBe(4);
+      expect(uploaded.sampleRows).toHaveLength(4);
+      expect(uploaded.sampleRows[1]?.slice(0, 3)).toEqual(['', 'Neha', 'Kapoor']);
+      expect(uploaded.suggestedMapping).toMatchObject({
         employeeCode: 'Emp ID',
         firstName: 'Name',
         lastName: 'Surname',
         salaryAmount: 'Annual CTC',
         hireDate: 'DOJ',
       });
+    });
 
-      const mapped = await send(indiaHr, 'put', `/api/imports/${upload.id}/mapping`, {
-        mapping: {
-          ...upload.suggestedMapping,
-          jobTitle: 'Role',
-          department: 'Dept',
-          email: 'E-mail',
-          country: 'Country',
-        },
-        defaults: { salaryEffectiveDate: '2026-11-01' },
-      });
-      expect(mapped.status, mapped.text).toBe(200);
-      expect(importSchema.parse(mapped.body).summary).toEqual({
-        rows: 4,
-        create: 1,
-        update: 1,
-        unchanged: 0,
-        error: 2,
-      });
+    it('sorts a dry run into creates, updates and errors without changing anyone', async () => {
+      const { mapped, existing } = await dryRun();
+      expect(mapped.summary).toEqual({ rows: 4, create: 1, update: 1, unchanged: 0, error: 2 });
+      expect((await employee(existing.id)).jobTitle.id).toBe(existing.jobTitle.id);
+    });
 
-      const errors = pageSchema(importRowSchema).parse(
-        (await indiaHr.get(`/api/imports/${upload.id}/rows?outcome=error`)).body,
-      );
-      expect(errors.items.map((r) => r.rowNumber)).toEqual([4, 5]);
-      // Rows carry the person's name (the file's for new rows) and country for the review.
-      expect(errors.items.map((r) => r.employeeName)).toEqual(['Bad Row', 'Tom Smith']);
-      const updates = pageSchema(importRowSchema).parse(
-        (await indiaHr.get(`/api/imports/${upload.id}/rows?outcome=update`)).body,
-      );
-      expect(updates.items[0]).toMatchObject({
+    it('names each reviewed row, and explains rows outside the uploader’s countries', async () => {
+      const { id, existing } = await dryRun();
+      const errors = await rows(id, 'error');
+      expect(errors.map((r) => r.rowNumber)).toEqual([4, 5]);
+      expect(errors.map((r) => r.employeeName)).toEqual(['Bad Row', 'Tom Smith']);
+      expect(errors[1]!.errors[0]!.message).toMatch(/outside your countries/);
+      expect((await rows(id, 'update'))[0]).toMatchObject({
         employeeCode: existing.employeeCode,
         employeeName: `${existing.firstName} ${existing.lastName}`,
         countryCode: 'IN',
       });
-      expect(errors.items[1]!.errors[0]!.message).toMatch(/outside your countries/);
-      // Problems are reviewed in the app; there is no CSV error report to download.
-      expect((await indiaHr.get(`/api/imports/${upload.id}/rows.csv?outcome=error`)).status).toBe(
-        404,
-      );
+    });
 
-      expect(
-        (
-          await send(indiaHr, 'post', `/api/imports/${upload.id}/commit`, {
-            skipInvalidRows: false,
-          })
-        ).status,
-      ).toBe(400);
-      const committed = await send(indiaHr, 'post', `/api/imports/${upload.id}/commit`, {
-        skipInvalidRows: true,
-      });
+    it('has no CSV error report: problems are reviewed in the app', async () => {
+      const { id } = await dryRun();
+      expect((await indiaHr.get(`/api/imports/${id}/rows.csv?outcome=error`)).status).toBe(404);
+    });
+
+    it('commits only once the invalid rows are confirmed as skipped', async () => {
+      const { id } = await dryRun();
+      expect((await commit(id, false)).status).toBe(400);
+      const committed = await commit(id, true);
       expect(committed.status, committed.text).toBe(200);
       expect(importSchema.parse(committed.body).status).toBe('committed');
-      expect(
-        (await send(indiaHr, 'post', `/api/imports/${upload.id}/commit`, { skipInvalidRows: true }))
-          .status,
-      ).toBe(409);
+    });
 
-      const after = employeeSchema.parse(
-        (await globalHr.get(`/api/employees/${existing.id}`)).body,
-      );
-      expect(after.jobTitle.id).toBe('engineering-manager');
-      expect(after.salary.amountMinor).toBe(990_000_000);
-      const neha = pageSchema(employeeSchema).parse(
-        (await globalHr.get('/api/employees?q=neha.kapoor.import')).body,
-      );
-      expect(neha.total).toBe(1);
+    it('commits an import once', async () => {
+      const { id } = await dryRun();
+      await commit(id);
+      expect((await commit(id)).status).toBe(409);
+    });
 
-      // Only the uploader can change an import; RLS hides it from anyone else's writes (404).
-      expect((await send(globalHr, 'post', `/api/imports/${upload.id}/undo`)).status).toBe(404);
+    it('applies updates and creates new employees on commit', async () => {
+      const { id, existing, newHire } = await dryRun();
+      await commit(id);
+      const updated = await employee(existing.id);
+      expect(updated.jobTitle.id).toBe('engineering-manager');
+      expect(updated.salary.amountMinor).toBe(990_000_000);
+      expect(await peopleWithEmail(newHire)).toBe(1);
+    });
 
-      const undone = await send(indiaHr, 'post', `/api/imports/${upload.id}/undo`);
+    it('lets only the uploader undo; to anyone else the import is not there', async () => {
+      const { id } = await dryRun();
+      await commit(id);
+      expect((await send(globalHr, 'post', `/api/imports/${id}/undo`)).status).toBe(404);
+    });
+
+    it('undo restores updated employees and removes the ones it created', async () => {
+      const { id, existing, newHire } = await dryRun();
+      await commit(id);
+      const undone = await send(indiaHr, 'post', `/api/imports/${id}/undo`);
       expect(undone.status, undone.text).toBe(200);
-      const restored = employeeSchema.parse(
-        (await globalHr.get(`/api/employees/${existing.id}`)).body,
-      );
+
+      const restored = await employee(existing.id);
       expect(restored.jobTitle.id).toBe(existing.jobTitle.id);
       expect(restored.salary.amountMinor).toBe(existing.salary.amountMinor);
-      expect(
-        pageSchema(employeeSchema).parse(
-          (await globalHr.get('/api/employees?q=neha.kapoor.import')).body,
-        ).total,
-      ).toBe(0);
+      expect(await peopleWithEmail(newHire)).toBe(0);
     });
 
     it('blocks undo once someone else changed an imported employee', async () => {
