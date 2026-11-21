@@ -1,20 +1,17 @@
-import { and, asc, count, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { InviteUserRequest, InviteUserResponse, UpdateUserRequest, User } from '@acme/shared';
 import { assertCountryInScope, type Actor } from '../../auth/actor.js';
 import { hashToken, newToken } from '../../auth/tokens.js';
 import type { Db } from '../../db/database.js';
 import type { ScopedDb, Tx } from '../../db/scope.js';
-import { invites, roles, sessions, userCountries, users } from '../../db/schema/index.js';
 import type { Clock } from '../../lib/clock.js';
 import { conflict, forbidden, invalid, notFound, staleVersion } from '../../lib/errors.js';
 import { diff, type AuditService } from '../audit/audit.service.js';
 import type { CatalogueService } from '../meta/catalogue.service.js';
 import { assertHolds, type RoleService } from './role.service.js';
+import type { UserRepository } from './user.repository.js';
 
 const INVITE_MS = 72 * 60 * 60 * 1000;
 const GLOBAL_HR = 'global_hr';
-/** The bootstrap account that owns seeded rows; never shown or managed in the UI. */
-const HIDDEN_EMAIL_DOMAIN = '@acme.invalid';
 
 /**
  * HR users: invite, change role or countries, deactivate, reactivate, re-issue links
@@ -29,40 +26,33 @@ export class UserService {
     private readonly catalogue: CatalogueService,
     private readonly clock: Clock,
     private readonly appUrl: string,
+    private readonly users: UserRepository,
   ) {}
 
   async list(): Promise<User[]> {
-    return this.load(this.db);
+    return this.users.load(this.db);
   }
 
   async invite(actor: Actor, input: InviteUserRequest): Promise<InviteUserResponse> {
     return this.scoped.run(actor, async (tx) => {
       const role = await this.roles.one(tx, input.roleId);
       const countries = await this.checkAssignment(actor, role, input.countries);
-      const [user] = await tx
-        .insert(users)
-        .values({
-          email: input.email.toLowerCase(),
-          name: input.name,
-          roleId: role.id,
-          status: 'invited',
-          createdBy: actor.userId,
-        })
-        .returning({ id: users.id });
-      if (countries.length > 0) {
-        await tx
-          .insert(userCountries)
-          .values(countries.map((countryCode) => ({ userId: user!.id, countryCode })));
-      }
-      const inviteUrl = await this.issueInvite(tx, actor, user!.id);
+      const userId = await this.users.insert(tx, {
+        email: input.email.toLowerCase(),
+        name: input.name,
+        roleId: role.id,
+        createdBy: actor.userId,
+      });
+      await this.users.setCountries(tx, userId, countries);
+      const inviteUrl = await this.issueInvite(tx, actor, userId);
       await this.audit.record(tx, actor, {
         action: 'user.invited',
         entityType: 'user',
-        entityId: user!.id,
+        entityId: userId,
         entityLabel: `${input.name} <${input.email.toLowerCase()}>`,
         after: { role: role.key, countries },
       });
-      return { user: await this.one(tx, user!.id), inviteUrl };
+      return { user: await this.one(tx, userId), inviteUrl };
     });
   }
 
@@ -89,16 +79,8 @@ export class UserService {
       );
       if (!changes) return before;
 
-      await tx
-        .update(users)
-        .set({ roleId: role.id, version: sql`${users.version} + 1`, updatedAt: sql`now()` })
-        .where(eq(users.id, id));
-      await tx.delete(userCountries).where(eq(userCountries.userId, id));
-      if (countries.length > 0) {
-        await tx
-          .insert(userCountries)
-          .values(countries.map((countryCode) => ({ userId: id, countryCode })));
-      }
+      await this.users.update(tx, id, { roleId: role.id });
+      await this.users.setCountries(tx, id, countries);
       await this.audit.record(tx, actor, {
         action: 'user.updated',
         entityType: 'user',
@@ -118,21 +100,10 @@ export class UserService {
       if (before.status === 'deactivated') return before;
       if (before.role.key === GLOBAL_HR && before.status === 'active')
         await this.assertAnotherGlobalHr(tx, id);
-      await tx
-        .update(users)
-        .set({
-          status: 'deactivated',
-          deactivatedAt: sql`now()`,
-          version: sql`${users.version} + 1`,
-          updatedAt: sql`now()`,
-        })
-        .where(eq(users.id, id));
+      await this.users.update(tx, id, { status: 'deactivated', deactivatedAt: this.clock.now() });
       // Access ends now, not when the session expires.
-      await tx.delete(sessions).where(eq(sessions.userId, id));
-      await tx
-        .update(invites)
-        .set({ usedAt: sql`now()` })
-        .where(and(eq(invites.userId, id), isNull(invites.usedAt)));
+      await this.users.endSessions(tx, id);
+      await this.users.revokeInvites(tx, id);
       await this.audit.record(tx, actor, {
         action: 'user.deactivated',
         entityType: 'user',
@@ -149,23 +120,14 @@ export class UserService {
     return this.scoped.run(actor, async (tx) => {
       const before = await this.one(tx, id, true);
       if (before.status !== 'deactivated') return before;
-      const [row] = await tx
-        .select({ hash: users.passwordHash })
-        .from(users)
-        .where(eq(users.id, id));
       // Without a password they go back to "invited" and need a new link.
-      const status = row?.hash ? 'active' : 'invited';
-      await tx
-        .update(users)
-        .set({
-          status,
-          deactivatedAt: null,
-          failedSignIns: 0,
-          lockedUntil: null,
-          version: sql`${users.version} + 1`,
-          updatedAt: sql`now()`,
-        })
-        .where(eq(users.id, id));
+      const status = (await this.users.hasPassword(tx, id)) ? 'active' : 'invited';
+      await this.users.update(tx, id, {
+        status,
+        deactivatedAt: null,
+        failedSignIns: 0,
+        lockedUntil: null,
+      });
       await this.audit.record(tx, actor, {
         action: 'user.updated',
         entityType: 'user',
@@ -185,7 +147,7 @@ export class UserService {
       if (user.status === 'deactivated')
         throw conflict('Reactivate this user before sending a new link');
       if (id === actor.userId) throw conflict('You cannot reset your own access here');
-      await tx.delete(sessions).where(eq(sessions.userId, id));
+      await this.users.endSessions(tx, id);
       const inviteUrl = await this.issueInvite(tx, actor, id);
       await this.audit.record(tx, actor, {
         action: 'user.invited',
@@ -199,13 +161,10 @@ export class UserService {
   }
 
   private async issueInvite(tx: Tx, actor: Actor, userId: string): Promise<string> {
-    await tx
-      .update(invites)
-      .set({ usedAt: sql`now()` })
-      .where(and(eq(invites.userId, userId), isNull(invites.usedAt)));
+    await this.users.revokeInvites(tx, userId);
     const token = newToken();
     const now = this.clock.now();
-    await tx.insert(invites).values({
+    await this.users.insertInvite(tx, {
       tokenHash: hashToken(token),
       userId,
       createdBy: actor.userId,
@@ -240,68 +199,14 @@ export class UserService {
   }
 
   private async assertAnotherGlobalHr(tx: Tx, exceptId: string) {
-    const [row] = await tx
-      .select({ n: count() })
-      .from(users)
-      .innerJoin(roles, eq(roles.id, users.roleId))
-      .where(
-        and(
-          eq(roles.key, GLOBAL_HR),
-          eq(users.status, 'active'),
-          ne(users.id, exceptId),
-          sql`${users.email}::text not like ${'%' + HIDDEN_EMAIL_DOMAIN}`,
-        ),
-      );
-    if ((row?.n ?? 0) === 0)
+    if ((await this.users.countActiveWithRole(tx, GLOBAL_HR, exceptId)) === 0)
       throw conflict('This is the last active Global HR user; someone must keep access');
   }
 
   private async one(tx: Db | Tx, id: string, lock = false): Promise<User> {
-    if (lock) await tx.select({ id: users.id }).from(users).where(eq(users.id, id)).for('update');
-    const [user] = await this.load(tx, id);
+    if (lock) await this.users.lock(tx, id);
+    const [user] = await this.users.load(tx, id);
     if (!user) throw notFound('User not found');
     return user;
-  }
-
-  private async load(db: Db | Tx, id?: string): Promise<User[]> {
-    const rows = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: sql<string>`${users.email}::text`,
-        status: users.status,
-        lastSignInAt: users.lastSignInAt,
-        version: users.version,
-        roleId: roles.id,
-        roleKey: roles.key,
-        roleName: roles.name,
-      })
-      .from(users)
-      .innerJoin(roles, eq(roles.id, users.roleId))
-      .where(
-        id ? eq(users.id, id) : sql`${users.email}::text not like ${'%' + HIDDEN_EMAIL_DOMAIN}`,
-      )
-      .orderBy(asc(users.name));
-    if (rows.length === 0) return [];
-    const assigned = await db
-      .select()
-      .from(userCountries)
-      .where(
-        inArray(
-          userCountries.userId,
-          rows.map((r) => r.id),
-        ),
-      )
-      .orderBy(asc(userCountries.countryCode));
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      email: r.email,
-      role: { id: r.roleId, key: r.roleKey, name: r.roleName },
-      countries: assigned.filter((a) => a.userId === r.id).map((a) => a.countryCode),
-      status: r.status,
-      lastSignInAt: r.lastSignInAt?.toISOString() ?? null,
-      version: r.version,
-    }));
   }
 }

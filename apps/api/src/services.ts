@@ -13,6 +13,7 @@ import { AiRepository } from './modules/ai/ai.repository.js';
 import { AskAiService } from './modules/ai/ask-ai.service.js';
 import { AnthropicLlmClient, type LlmClient } from './modules/ai/llm.js';
 import { SqlRunner, createAiPool } from './modules/ai/sql-runner.js';
+import { UserRepository } from './modules/access/user.repository.js';
 import { UserService } from './modules/access/user.service.js';
 import { AuditService } from './modules/audit/audit.service.js';
 import { EmployeeRepository } from './modules/employees/employee.repository.js';
@@ -78,6 +79,7 @@ export function buildServices(config: Config, overrides: ServiceOverrides = {}) 
     catalogueService,
     clock,
     config.appUrl,
+    new UserRepository(),
   );
   const importService = new ImportService(
     scopedDb,
