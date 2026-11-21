@@ -55,6 +55,23 @@
     display: flex;
     flex-direction: column;
   }
+
+  /* Pay by job title and the country's figures are the same height; the figures spread out. */
+  .matchedRow {
+    align-items: stretch;
+  }
+
+  .glance > :nth-child(2) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .glance > :nth-child(2) > * {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: space-between;
+  }
 }
 
 .countryCard {
