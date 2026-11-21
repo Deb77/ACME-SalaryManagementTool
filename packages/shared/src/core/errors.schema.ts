@@ -9,6 +9,9 @@ export const apiErrorCodes = [
   'stale_version',
   'payload_too_large',
   'rate_limited',
+  'ai_budget_exceeded',
+  'draft_stale',
+  'draft_applied',
   'ai_unavailable',
   'internal_error',
 ] as const;
@@ -25,6 +28,9 @@ export const apiErrorStatus = {
   stale_version: 409,
   payload_too_large: 413,
   rate_limited: 429,
+  ai_budget_exceeded: 429,
+  draft_stale: 409,
+  draft_applied: 409,
   internal_error: 500,
   ai_unavailable: 503,
 } as const satisfies Record<ApiErrorCode, number>;

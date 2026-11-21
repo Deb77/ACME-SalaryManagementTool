@@ -79,6 +79,10 @@ export const importRowSchema = z.object({
   rowNumber: z.int().positive(),
   outcome: z.enum(importOutcomes),
   employeeCode: z.string().nullable(),
+  /** Who the row is about: the matched employee's name, else the name cells in the file. */
+  employeeName: z.string().nullable().optional(),
+  /** The row's country (the matched employee's for updates), so its salary has a currency. */
+  countryCode: z.string().nullable().optional(),
   changes: z.record(z.string(), z.object({ from: changeValue, to: changeValue })),
   errors: z.array(z.object({ column: z.string(), message: z.string() })),
 });
