@@ -5,9 +5,9 @@ import type {
   SalaryDistribution,
   TitleComparison,
 } from '@acme/shared';
-import { canUseCountry, type Actor } from '../../auth/actor.js';
+import { assertCountryInScope, type Actor } from '../../auth/actor.js';
 import type { ScopedDb } from '../../db/scope.js';
-import { forbidden, notFound } from '../../lib/errors.js';
+import { notFound } from '../../lib/errors.js';
 import type { CatalogueService } from '../meta/catalogue.service.js';
 
 interface StatsRow extends Record<string, unknown> {
@@ -41,14 +41,6 @@ const stats = (row: StatsRow) => ({
   avgMinor: Number(row.avg_minor),
   maxMinor: Number(row.max_minor),
 });
-
-function inScope(actor: Actor, country: string) {
-  if (!canUseCountry(actor, country)) {
-    throw forbidden(`${country} is outside your countries`, [
-      { path: 'country', message: 'Outside your countries' },
-    ]);
-  }
-}
 
 export class InsightsService {
   constructor(
@@ -91,7 +83,7 @@ export class InsightsService {
   async byTitle(actor: Actor, country: string, department?: string): Promise<InsightsByTitle> {
     const catalogue = await this.catalogue.get();
     catalogue.assertKnown('country', country);
-    inScope(actor, country);
+    assertCountryInScope(actor, country);
     const rows = await this.query(
       actor,
       sql`select job_title_id as key, salary_currency as currency, ${statsColumns}
@@ -149,7 +141,7 @@ export class InsightsService {
     const catalogue = await this.catalogue.get();
     catalogue.assertKnown('country', country);
     if (jobTitle) catalogue.assertKnown('jobTitleId', jobTitle);
-    inScope(actor, country);
+    assertCountryInScope(actor, country);
     const currency = catalogue.currencyOf(country);
     const filter = sql`status = 'active' and country_code = ${country}
       ${jobTitle ? sql`and job_title_id = ${jobTitle}` : sql``}`;

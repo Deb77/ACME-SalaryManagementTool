@@ -1,6 +1,6 @@
 import { and, asc, count, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { InviteUserRequest, InviteUserResponse, UpdateUserRequest, User } from '@acme/shared';
-import type { Actor } from '../../auth/actor.js';
+import { assertCountryInScope, type Actor } from '../../auth/actor.js';
 import { hashToken, newToken } from '../../auth/tokens.js';
 import type { Db } from '../../db/database.js';
 import type { ScopedDb, Tx } from '../../db/scope.js';
@@ -234,7 +234,7 @@ export class UserService {
       throw invalid('countries', 'Choose at least one country for this role');
     for (const code of countries) {
       catalogue.assertKnown('country', code);
-      if (!actor.countries.includes(code)) throw forbidden(`${code} is outside your countries`);
+      assertCountryInScope(actor, code, 'countries');
     }
     return countries;
   }

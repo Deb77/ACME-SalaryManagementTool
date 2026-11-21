@@ -8,10 +8,10 @@ import type {
   TerminateEmployeeRequest,
   UpdateEmployeeRequest,
 } from '@acme/shared';
-import { canUseCountry, type Actor } from '../../auth/actor.js';
+import { assertCountryInScope, type Actor } from '../../auth/actor.js';
 import type { Clock } from '../../lib/clock.js';
 import type { ScopedDb, Tx } from '../../db/scope.js';
-import { conflict, forbidden, invalid, notFound, staleVersion } from '../../lib/errors.js';
+import { conflict, invalid, notFound, staleVersion } from '../../lib/errors.js';
 import { diff, type AuditService } from '../audit/audit.service.js';
 import type { CatalogueService } from '../meta/catalogue.service.js';
 import type { SalaryService } from '../salary/salary.service.js';
@@ -62,12 +62,7 @@ export class EmployeeService {
     catalogue.assertKnown('country', input.country);
     catalogue.assertKnown('jobTitleId', input.jobTitleId);
     catalogue.assertKnown('departmentId', input.departmentId);
-    // The country is the user's own input, so a wrong one is 403, not 404 (docs/api.md).
-    if (!canUseCountry(actor, input.country)) {
-      throw forbidden(`${input.country} is outside your countries`, [
-        { path: 'country', message: 'Outside your countries' },
-      ]);
-    }
+    assertCountryInScope(actor, input.country);
     return this.scoped.run(actor, async (tx) => {
       const row = await this.repo.insert(tx, {
         employeeCode: input.employeeCode ?? (await this.repo.nextCode(tx)),
