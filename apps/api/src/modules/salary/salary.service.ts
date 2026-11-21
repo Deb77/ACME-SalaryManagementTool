@@ -4,7 +4,8 @@ import type { Actor } from '../../auth/actor.js';
 import type { Tx } from '../../db/scope.js';
 import { salaryChanges, users } from '../../db/schema/index.js';
 import type { Clock } from '../../lib/clock.js';
-import { conflict, invalid, notFound, staleVersion } from '../../lib/errors.js';
+import { AppError, conflict, invalid, notFound, staleVersion } from '../../lib/errors.js';
+import type { AiRepository } from '../ai/ai.repository.js';
 import type { AuditService } from '../audit/audit.service.js';
 import type { EmployeeRepository, EmployeeRow } from '../employees/employee.repository.js';
 
@@ -26,7 +27,6 @@ export interface SalaryChangeInput {
 function toSalaryChange(
   row: SalaryChangeRow,
   createdBy: { id: string; name: string },
-  aiDraftId: string | null = null,
 ): SalaryChange {
   return {
     id: row.id,
@@ -40,7 +40,7 @@ function toSalaryChange(
     reason: row.reason,
     note: row.note,
     importId: row.importId,
-    aiDraftId,
+    aiDraftId: row.aiDraftId,
     createdAt: row.createdAt.toISOString(),
     createdBy,
   };
@@ -57,7 +57,29 @@ export class SalaryService {
     private readonly employees: EmployeeRepository,
     private readonly audit: AuditService,
     private readonly clock: Clock,
+    private readonly aiDrafts: AiRepository,
   ) {}
+
+  /**
+   * An Ask AI draft can be confirmed once, by its owner, for its employee, while nothing about the
+   * employee has changed and within 7 days (decision #39). RLS hides other users' drafts.
+   */
+  private async useDraft(tx: Tx, draftId: string, employee: EmployeeRow) {
+    const draft = await this.aiDrafts.lockDraft(tx, draftId);
+    if (!draft) throw notFound('Ask AI draft not found');
+    if (draft.employeeId !== employee.id) {
+      throw invalid('aiDraftId', 'This draft is for a different employee');
+    }
+    if (draft.appliedAt) {
+      throw new AppError(
+        'draft_applied',
+        'This draft has already been saved. Ask again for a new suggestion.',
+      );
+    }
+    if (draft.versionAtDraft !== employee.version || this.clock.now() >= draft.expiresAt) {
+      throw new AppError('draft_stale', 'This draft is out of date — ask again.');
+    }
+  }
 
   async history(tx: Tx, employeeId: string): Promise<SalaryChange[]> {
     const employee = await this.employees.get(tx, employeeId);
@@ -79,6 +101,7 @@ export class SalaryService {
     const current = await this.employees.get(tx, input.employeeId, { lock: true });
     if (!current) throw notFound('Employee not found');
     const before = current.employee;
+    if (input.aiDraftId) await this.useDraft(tx, input.aiDraftId, before);
     if (input.version !== undefined && input.version !== before.version) throw staleVersion();
     if (before.status !== 'active')
       throw conflict('This employee has left; their pay cannot change');
@@ -115,9 +138,12 @@ export class SalaryService {
         reason: input.reason,
         note: input.note ?? null,
         importId: input.importId ?? null,
+        aiDraftId: input.aiDraftId ?? null,
         createdBy: actor.userId,
       })
       .returning();
+    if (input.aiDraftId)
+      await this.aiDrafts.markDraftApplied(tx, input.aiDraftId, this.clock.now());
 
     const employee = await this.employees.update(tx, before.id, {
       salaryAmountMinor: input.amountMinor,
@@ -146,11 +172,7 @@ export class SalaryService {
     });
 
     return {
-      salaryChange: toSalaryChange(
-        row!,
-        { id: actor.userId, name: actor.name },
-        input.aiDraftId ?? null,
-      ),
+      salaryChange: toSalaryChange(row!, { id: actor.userId, name: actor.name }),
       employee,
     };
   }

@@ -1,12 +1,18 @@
 import { AuthService } from './auth/auth.service.js';
 import { Argon2Hasher, type PasswordHasher } from './auth/password.js';
-import type { Config } from './config.js';
+import type pg from 'pg';
+import { aiSettings, type AiSettings, type Config } from './config.js';
 import { createDb, type Db } from './db/database.js';
 import { ScopedDb } from './db/scope.js';
 import { systemClock, type Clock } from './lib/clock.js';
 import { Container } from './lib/container.js';
 import { consoleLogger, type Logger } from './lib/http.js';
 import { RoleService } from './modules/access/role.service.js';
+import { AiMetrics } from './modules/ai/ai.metrics.js';
+import { AiRepository } from './modules/ai/ai.repository.js';
+import { AskAiService } from './modules/ai/ask-ai.service.js';
+import { AnthropicLlmClient, type LlmClient } from './modules/ai/llm.js';
+import { SqlRunner, createAiPool } from './modules/ai/sql-runner.js';
 import { UserService } from './modules/access/user.service.js';
 import { AuditService } from './modules/audit/audit.service.js';
 import { EmployeeRepository } from './modules/employees/employee.repository.js';
@@ -34,6 +40,15 @@ export interface Registry {
   roleService: RoleService;
   userService: UserService;
   importService: ImportService;
+  aiSettings: AiSettings;
+  /** Null without ANTHROPIC_API_KEY: Ask AI answers 503, everything else runs. */
+  llmClient: LlmClient | null;
+  /** The acme_ai_reader pool (DATABASE_URL_AI); null when not configured. */
+  aiPool: pg.Pool | null;
+  sqlRunner: SqlRunner;
+  aiRepository: AiRepository;
+  aiMetrics: AiMetrics;
+  askAiService: AskAiService;
 }
 
 export type AppContainer = Container<Registry>;
@@ -70,6 +85,7 @@ export function buildContainer(config: Config): AppContainer {
           c.resolve('employeeRepository'),
           c.resolve('auditService'),
           c.resolve('clock'),
+          c.resolve('aiRepository'),
         ),
     )
     .register(
@@ -115,6 +131,43 @@ export function buildContainer(config: Config): AppContainer {
           c.resolve('auditService'),
           c.resolve('catalogueService'),
           c.resolve('clock'),
+        ),
+    )
+    .register('aiSettings', (c) => aiSettings(c.resolve('config')))
+    .register('llmClient', (c) => {
+      const key = c.resolve('config').anthropicApiKey;
+      return key ? new AnthropicLlmClient(key) : null;
+    })
+    .register('aiPool', (c) => {
+      const url = c.resolve('config').databaseUrlAi;
+      return url ? createAiPool(url) : null;
+    })
+    .register(
+      'sqlRunner',
+      (c) =>
+        new SqlRunner(c.resolve('db'), c.resolve('aiPool'), {
+          rowCap: c.resolve('aiSettings').sqlRowCap,
+          maxResultChars: c.resolve('aiSettings').sqlResultMaxChars,
+          statementTimeoutMs: c.resolve('aiSettings').sqlStatementTimeoutMs,
+        }),
+    )
+    .register('aiRepository', () => new AiRepository())
+    .register(
+      'aiMetrics',
+      (c) => new AiMetrics(c.resolve('aiSettings'), c.resolve('clock'), c.resolve('logger')),
+    )
+    .register(
+      'askAiService',
+      (c) =>
+        new AskAiService(
+          c.resolve('scopedDb'),
+          c.resolve('aiRepository'),
+          c.resolve('llmClient'),
+          c.resolve('sqlRunner'),
+          c.resolve('aiMetrics'),
+          c.resolve('clock'),
+          c.resolve('logger'),
+          c.resolve('aiSettings'),
         ),
     );
 }

@@ -8,6 +8,10 @@ export interface RateLimitOptions {
   key?: (req: Request) => string;
   /** Count only failed responses (status >= 400), so normal use never trips the limit. */
   failuresOnly?: boolean;
+  /** The 429 message; defaults to the sign-in wording. */
+  message?: string;
+  /** Called on every refused request (metrics). */
+  onLimited?: () => void;
 }
 
 /**
@@ -20,6 +24,8 @@ export function rateLimit({
   windowMs,
   key,
   failuresOnly = false,
+  message = 'Too many attempts. Wait a few minutes and try again.',
+  onLimited,
 }: RateLimitOptions): RequestHandler {
   const hits = new Map<string, { count: number; resetAt: number }>();
 
@@ -41,16 +47,8 @@ export function rateLimit({
     const entry = entryFor(bucket, now);
     if (entry.count >= limit) {
       const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
-      next(
-        new AppError(
-          'rate_limited',
-          'Too many attempts. Wait a few minutes and try again.',
-          undefined,
-          {
-            'Retry-After': String(retryAfter),
-          },
-        ),
-      );
+      onLimited?.();
+      next(new AppError('rate_limited', message, undefined, { 'Retry-After': String(retryAfter) }));
       return;
     }
     if (failuresOnly) {

@@ -24,6 +24,7 @@ const server = createApp({ webDist: existsSync(webDist) ? webDist : undefined, c
 async function shutdown() {
   server.close();
   await container.resolve('db').$client.end();
+  await container.resolve('aiPool')?.end();
 }
 process.once('SIGTERM', () => void shutdown());
 process.once('SIGINT', () => void shutdown());

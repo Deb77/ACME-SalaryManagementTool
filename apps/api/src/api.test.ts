@@ -540,6 +540,16 @@ describe.skipIf(!url)('HTTP API', () => {
         (await indiaHr.get(`/api/imports/${upload.id}/rows?outcome=error`)).body,
       );
       expect(errors.items.map((r) => r.rowNumber)).toEqual([4, 5]);
+      // Rows carry the person's name (the file's for new rows) and country for the review.
+      expect(errors.items.map((r) => r.employeeName)).toEqual(['Bad Row', 'Tom Smith']);
+      const updates = pageSchema(importRowSchema).parse(
+        (await indiaHr.get(`/api/imports/${upload.id}/rows?outcome=update`)).body,
+      );
+      expect(updates.items[0]).toMatchObject({
+        employeeCode: existing.employeeCode,
+        employeeName: `${existing.firstName} ${existing.lastName}`,
+        countryCode: 'IN',
+      });
       expect(errors.items[1]!.errors[0]!.message).toMatch(/outside your countries/);
       const report = await indiaHr.get(`/api/imports/${upload.id}/rows.csv?outcome=error`);
       expect(report.text).toContain('Problems');
