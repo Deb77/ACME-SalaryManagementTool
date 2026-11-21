@@ -91,3 +91,13 @@ export const commitImportRequestSchema = z.strictObject({
 });
 
 export type CommitImportRequest = z.infer<typeof commitImportRequestSchema>;
+
+/** `GET /api/imports/:id/rows` and `rows.csv`. */
+export const listImportRowsQuerySchema = z.object({
+  outcome: z.enum(importOutcomes).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+
+/** `GET /api/imports`: recent imports, newest first. */
+export const importsResponseSchema = z.object({ items: z.array(importSchema) });

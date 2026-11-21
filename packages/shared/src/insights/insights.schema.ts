@@ -78,3 +78,15 @@ export const salaryDistributionSchema = z.object({
 });
 
 export type SalaryDistribution = z.infer<typeof salaryDistributionSchema>;
+
+/** Query strings for the insights endpoints. */
+export const insightsByTitleQuerySchema = z.object({
+  country: countryCodeSchema,
+  department: catalogueRefSchema.shape.id.optional(),
+});
+
+export const salaryDistributionQuerySchema = z.object({
+  country: countryCodeSchema,
+  jobTitle: catalogueRefSchema.shape.id.optional(),
+  buckets: z.coerce.number().int().min(1).max(50).default(10),
+});

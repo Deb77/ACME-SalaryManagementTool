@@ -29,6 +29,11 @@ describe('moneySchema', () => {
 });
 
 describe('salaryAmountMinorSchema', () => {
+  it('rejects an implausibly large salary', () => {
+    expect(salaryAmountMinorSchema.safeParse(100_000_000_001).success).toBe(false);
+    expect(salaryAmountMinorSchema.safeParse(100_000_000_000).success).toBe(true);
+  });
+
   it('rejects a zero or negative salary', () => {
     expect(salaryAmountMinorSchema.safeParse(0).success).toBe(false);
     expect(salaryAmountMinorSchema.safeParse(-1).success).toBe(false);
