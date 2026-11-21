@@ -1,3 +1,6 @@
+// The parser is a large WebAssembly module. The API runs with `node --liftoff-only` (see the
+// `start` script): V8's optimising tier would otherwise compile it in the background on first
+// use and take about 600 MB, enough to get a 512 MB instance killed mid-answer (README, Ask AI).
 import { parse } from 'libpg-query';
 
 /**
@@ -21,19 +24,21 @@ export const AI_TABLES = new Set([
 export const AI_FUNCTIONS = new Set(
   [
     // aggregates
-    'count sum avg min max stddev stddev_pop stddev_samp variance var_pop var_samp percentile_cont percentile_disc mode bool_and bool_or every array_agg string_agg json_agg jsonb_agg corr regr_slope',
+    'count sum avg min max stddev stddev_pop stddev_samp variance var_pop var_samp percentile_cont percentile_disc mode bool_and bool_or every array_agg string_agg json_agg jsonb_agg corr covar_pop covar_samp regr_slope regr_intercept regr_r2 regr_count regr_avgx regr_avgy',
     // window
     'row_number rank dense_rank percent_rank cume_dist ntile lag lead first_value last_value nth_value',
     // maths
-    'round floor ceil ceiling abs trunc sign power sqrt mod div width_bucket numeric int8 int4 float8',
+    'round floor ceil ceiling abs trunc sign power sqrt cbrt exp ln log log10 pi mod div width_bucket numeric int8 int4 float8',
     // dates
-    'date_trunc date_part extract age make_date make_interval to_char to_date now timezone date_bin generate_series justify_days overlaps',
+    'date date_trunc date_part extract age make_date make_interval to_char to_date now timezone date_bin generate_series justify_days overlaps',
     // strings and arrays
-    'lower upper length char_length substring substr concat concat_ws btrim ltrim rtrim trim left right replace split_part position starts_with format lpad rpad cardinality array_length unnest array_position json_build_object jsonb_build_object',
+    'lower upper length char_length substring substr concat concat_ws btrim ltrim rtrim trim left right replace split_part position starts_with format lpad rpad initcap to_number cardinality array_length array_to_string string_to_array unnest array_position json_build_object jsonb_build_object',
   ]
     .join(' ')
     .split(' '),
 );
+
+const ALLOWED_LIST = [...AI_FUNCTIONS].join(', ');
 
 /** Casting to these types runs catalogue lookups; no answer needs them. */
 const FORBIDDEN_TYPES = /^reg[a-z]*$/;
@@ -119,7 +124,11 @@ function walk(node: unknown, ctes: Set<string>): SqlCheck | undefined {
       const name = parts.at(-1) ?? '';
       const schema = parts.length > 1 ? parts[0] : undefined;
       if (parts.length > 2 || (schema && schema !== 'pg_catalog') || !AI_FUNCTIONS.has(name)) {
-        return reject('forbidden_function', `Function "${parts.join('.')}" is not allowed`);
+        // Name what is allowed, so the model rewrites the query instead of guessing names.
+        return reject(
+          'forbidden_function',
+          `Function "${parts.join('.')}" is not allowed. Allowed functions: ${ALLOWED_LIST}`,
+        );
       }
     }
     if (key === 'typeName' || key === 'TypeName') {

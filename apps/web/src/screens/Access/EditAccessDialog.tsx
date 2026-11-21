@@ -1,6 +1,6 @@
 import type { CountryInfo, Me, Role, User } from '@acme/shared';
 import { useState } from 'react';
-import { ChoiceChips, Dialog, PersonCell, PillButton } from '../../components';
+import { ChoiceChips, Dialog, Notice, PersonCell, PillButton } from '../../components';
 import { canAssignRole } from '../../session/permissions';
 import form from '../shared/form.module.css';
 import styles from './Access.module.css';
@@ -16,10 +16,15 @@ export interface EditAccessDialogProps {
   error?: string;
   onSave: (change: { roleId: string; countries: string[] }) => void;
   onRemoveAccess: () => void;
+  /** A person without access: gives it back, with the role and countries chosen here. */
+  onRestoreAccess: (change: { roleId: string; countries: string[] }) => void;
   onCancel: () => void;
 }
 
-/** Change a person's role and countries; only roles you could hold yourself are offered. */
+/**
+ * Change a person's role and countries; only roles you could hold yourself are offered. For a
+ * person whose access was removed, the same choices give it back.
+ */
 export function EditAccessDialog({
   me,
   user,
@@ -30,8 +35,10 @@ export function EditAccessDialog({
   error,
   onSave,
   onRemoveAccess,
+  onRestoreAccess,
   onCancel,
 }: EditAccessDialogProps) {
+  const removed = user.status === 'deactivated';
   const [roleId, setRoleId] = useState(user.role.id);
   const [chosen, setChosen] = useState<string[]>(user.countries);
   const [countryError, setCountryError] = useState<string>();
@@ -44,29 +51,37 @@ export function EditAccessDialog({
       setCountryError('Choose at least one country');
       return;
     }
-    onSave({ roleId, countries: scoped ? chosen : [] });
+    (removed ? onRestoreAccess : onSave)({ roleId, countries: scoped ? chosen : [] });
   };
 
   return (
     <Dialog
       open
-      title="Edit access"
+      title={removed ? 'Give access back' : 'Edit access'}
       onClose={onCancel}
       busy={saving}
-      footerNote="Changes apply on their next request"
+      footerNote={
+        removed ? 'They can sign in again straight away' : 'Changes apply on their next request'
+      }
       actions={
         <>
           <PillButton onClick={onCancel} disabled={saving}>
             Cancel
           </PillButton>
           <PillButton tone="primary" loading={saving} onClick={save}>
-            Save
+            {removed ? 'Give access back' : 'Save'}
           </PillButton>
         </>
       }
     >
       <div className={form.form}>
         <PersonCell name={user.name} detail={user.email} wrapDetail />
+        {removed && (
+          <Notice tone="info" title="No access">
+            {user.name} cannot sign in. Choose their role and countries, then give access back. If
+            they never set a password, you get a new invite link to send them.
+          </Notice>
+        )}
         <fieldset className={form.fieldset} disabled={isLastGlobalHr}>
           <legend className={form.legend}>Role</legend>
           <div className={form.radioRow}>
@@ -116,11 +131,13 @@ export function EditAccessDialog({
             {error}
           </p>
         )}
-        <div>
-          <PillButton tone="danger" disabled={isLastGlobalHr || saving} onClick={onRemoveAccess}>
-            Remove access
-          </PillButton>
-        </div>
+        {!removed && (
+          <div>
+            <PillButton tone="danger" disabled={isLastGlobalHr || saving} onClick={onRemoveAccess}>
+              Remove access
+            </PillButton>
+          </div>
+        )}
       </div>
     </Dialog>
   );

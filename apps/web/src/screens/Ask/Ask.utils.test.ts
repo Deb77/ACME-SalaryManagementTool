@@ -21,8 +21,7 @@ const turn: AskTurn = {
 
 describe('applyStreamEvent', () => {
   it('appends text, tracks tool calls and their results, and collects drafts', () => {
-    let next = applyStreamEvent(turn, { type: 'text', delta: 'Nine ' });
-    next = applyStreamEvent(next, { type: 'text', delta: 'analysts.' });
+    let next = applyStreamEvent(turn, { type: 'text', delta: "I'll look that up." });
     next = applyStreamEvent(next, {
       type: 'tool_call',
       callId: 'c1',
@@ -30,7 +29,11 @@ describe('applyStreamEvent', () => {
       summary: 'Looked up pay',
     });
     expect(next.steps[0]).toEqual({ callId: 'c1', label: 'Looked up pay', result: 'Running…' });
+    // The note before the step is not part of the answer.
+    expect(next.answer).toBe('');
     next = applyStreamEvent(next, { type: 'tool_result', callId: 'c1', rowCount: 1 });
+    next = applyStreamEvent(next, { type: 'text', delta: 'Nine ' });
+    next = applyStreamEvent(next, { type: 'text', delta: 'analysts.' });
     next = applyStreamEvent(next, { type: 'draft_salary_change', draft: sampleDraft });
     next = applyStreamEvent(next, { type: 'done' });
 
@@ -47,7 +50,7 @@ describe('applyStreamEvent', () => {
     });
   });
 
-  it('marks a failed step', () => {
+  it('marks a failed step without the database message', () => {
     let next = applyStreamEvent(turn, {
       type: 'tool_call',
       callId: 'c1',
@@ -62,7 +65,7 @@ describe('applyStreamEvent', () => {
     });
     expect(next.steps[0]).toMatchObject({
       label: 'Headcount',
-      result: 'Failed: rejected (forbidden_table)',
+      result: 'Failed',
     });
   });
 

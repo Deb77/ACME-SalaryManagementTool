@@ -38,7 +38,6 @@ function Import({ step: initial, ...overrides }: Partial<ImportViewProps> & { st
   return (
     <ImportView
       step={step}
-      templateHref="#template"
       onFileSelected={() => setStep('match')}
       onFileRejected={() => {}}
       upload={sampleUpload}
@@ -53,7 +52,6 @@ function Import({ step: initial, ...overrides }: Partial<ImportViewProps> & { st
       onOutcomeChange={setOutcome}
       rows={{ status: 'success', items, total: items.length, page: 1, pageSize: 25 }}
       onRowsPageChange={() => {}}
-      errorReportHref="#errors.csv"
       skipInvalidRows={skip}
       onSkipInvalidRowsChange={setSkip}
       onCommit={() => setStep('done')}

@@ -47,7 +47,8 @@ Ask AI answers questions with SQL that Claude writes and the API checks and runs
 
    On Render, run the same command from your laptop with `DATABASE_URL_MIGRATOR` set to the **External** Database URL (your IP on the allowlist). Run it again to rotate the password.
 3. **Point the API at it**: `DATABASE_URL_AI=postgres://acme_ai_reader:<password>@<host>:<port>/<db>`. On Render use the **Internal** Database URL's host, port and database with the `acme_ai_reader` user, and set `ANTHROPIC_API_KEY` as a secret. Optionally `AI_MODEL_PRIMARY`, `AI_MODEL_FALLBACK` and the `AI_*` budgets in `.env.example`.
-4. **Watch it**: every SQL attempt is in `GET /api/ai/sql-runs`; counters and alerts at `GET /api/ai/metrics`; `GET /api/health` shows `ai.configured` and `ai.database`. Set `METRICS_TOKEN` to expose Prometheus text at `/metrics`.
+4. **Memory**: the API runs with `node --liftoff-only` (the `start` and `dev` scripts). Without it, V8's optimising compiler for the WebAssembly SQL parser (`libpg-query`) takes about 600 MB the first time Ask AI checks a query, which got the 512 MB Render instance killed mid-answer. With it a turn peaks around 260 MB, and the check is no slower.
+5. **Watch it**: every SQL attempt is in `GET /api/ai/sql-runs`; counters and alerts at `GET /api/ai/metrics`; `GET /api/health` shows `ai.configured` and `ai.database`. Set `METRICS_TOKEN` to expose Prometheus text at `/metrics`.
 
 ### Evals
 

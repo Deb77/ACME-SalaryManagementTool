@@ -1,13 +1,14 @@
 import { createHash } from 'node:crypto';
 import { and, asc, count, desc, eq, gt, inArray, sql } from 'drizzle-orm';
-import type {
-  CommitImportRequest,
-  Import,
-  ImportMappingRequest,
-  ImportOutcome,
-  ImportRow,
-  ImportSummary,
-  ImportUploadResponse,
+import {
+  IMPORT_PREVIEW_ROWS,
+  type CommitImportRequest,
+  type Import,
+  type ImportMappingRequest,
+  type ImportOutcome,
+  type ImportRow,
+  type ImportSummary,
+  type ImportUploadResponse,
 } from '@acme/shared';
 import type { Actor } from '../../auth/actor.js';
 import type { ScopedDb, Tx } from '../../db/scope.js';
@@ -19,7 +20,6 @@ import {
   salaryChanges,
 } from '../../db/schema/index.js';
 import type { Clock } from '../../lib/clock.js';
-import { csvLine } from '../../lib/csv.js';
 import { AppError, conflict, invalid, notFound } from '../../lib/errors.js';
 import type { AuditService } from '../audit/audit.service.js';
 import type { EmployeeRepository, EmployeeRow } from '../employees/employee.repository.js';
@@ -90,7 +90,8 @@ export class ImportService {
         status: 'uploaded' as const,
         fileName: created!.fileName,
         columns: sheet.columns,
-        sampleRows: sheet.rows.slice(0, 5),
+        rowCount: sheet.rows.length,
+        sampleRows: sheet.rows.slice(0, IMPORT_PREVIEW_ROWS),
         suggestedMapping: suggestMapping(sheet.columns),
       };
     });
@@ -213,37 +214,6 @@ export class ImportService {
           (r.outcome ? [] : [{ column: '', message: 'Not validated yet' }]),
       }));
       return { items, page, pageSize, total: total?.n ?? 0 };
-    });
-  }
-
-  /** Rows with their original cells plus the outcome and reasons, for fixing in Excel. */
-  rowsCsv(
-    actor: Actor,
-    id: string,
-    outcome: ImportOutcome | undefined,
-  ): Promise<{ csv: string; fileName: string }> {
-    return this.scoped.run(actor, async (tx) => {
-      const record = await this.load(tx, id);
-      const rows = await tx
-        .select()
-        .from(importRows)
-        .where(
-          and(eq(importRows.importId, id), outcome ? eq(importRows.outcome, outcome) : undefined),
-        )
-        .orderBy(asc(importRows.rowNumber));
-      const columns = record.columns as string[];
-      const lines = [csvLine(['Row', ...columns, 'Outcome', 'Problems'])];
-      for (const r of rows) {
-        const problems = ((r.errors as { column: string; message: string }[] | null) ?? [])
-          .map((e) => (e.column ? `${e.column}: ${e.message}` : e.message))
-          .join('; ');
-        lines.push(csvLine([r.rowNumber, ...(r.raw as string[]), r.outcome ?? '', problems]));
-      }
-      const base = record.fileName.replace(/\.[^.]+$/, '').replace(/[^\w.-]+/g, '-');
-      return {
-        csv: `\uFEFF${lines.join('\r\n')}\r\n`,
-        fileName: `${base}-${outcome ?? 'rows'}.csv`,
-      };
     });
   }
 

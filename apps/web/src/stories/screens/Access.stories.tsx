@@ -1,5 +1,6 @@
 import type { Story } from '@ladle/react';
 import { useState } from 'react';
+import { AccessSkeleton } from '../../screens/Access/AccessSkeleton';
 import { AccessView, type AccessViewProps } from '../../screens/Access/AccessView';
 import { EditAccessDialog } from '../../screens/Access/EditAccessDialog';
 import { InviteDialog } from '../../screens/Access/InviteDialog';
@@ -49,6 +50,14 @@ export const GlobalHr: Story = () => (
 GlobalHr.storyName = 'Global HR';
 GlobalHr.meta = { fullscreen: true };
 
+/** The page until roles, people and recent changes have all loaded; matches Global HR. */
+export const Loading: Story = () => (
+  <ScreenFrame me={sampleMeGlobal} path="/access">
+    <AccessSkeleton />
+  </ScreenFrame>
+);
+Loading.meta = { fullscreen: true };
+
 const countryManager = {
   ...sampleMeCountry,
   permissions: [...sampleMeCountry.permissions, 'users:manage' as const],
@@ -71,10 +80,26 @@ export const EditAccess: Story = () => (
     isLastGlobalHr={false}
     onSave={() => {}}
     onRemoveAccess={() => {}}
+    onRestoreAccess={() => {}}
     onCancel={() => {}}
   />
 );
 EditAccess.storyName = 'Edit access (sheet on phones)';
+
+export const GiveAccessBack: Story = () => (
+  <EditAccessDialog
+    me={sampleMeGlobal}
+    user={{ ...sampleUsers[4]!, status: 'deactivated', lastSignInAt: null }}
+    roles={sampleRoles}
+    countries={sampleMeta.countries}
+    isLastGlobalHr={false}
+    onSave={() => {}}
+    onRemoveAccess={() => {}}
+    onRestoreAccess={() => {}}
+    onCancel={() => {}}
+  />
+);
+GiveAccessBack.storyName = 'Give access back (access removed)';
 
 export const EditLastGlobalHr: Story = () => (
   <EditAccessDialog
@@ -85,6 +110,7 @@ export const EditLastGlobalHr: Story = () => (
     isLastGlobalHr
     onSave={() => {}}
     onRemoveAccess={() => {}}
+    onRestoreAccess={() => {}}
     onCancel={() => {}}
   />
 );

@@ -10,6 +10,8 @@ export interface LlmRequest {
   maxTokens: number;
   /** `none` on the last allowed round, so the model answers instead of calling another tool. */
   toolChoice?: Anthropic.ToolChoice;
+  /** Thinking effort; `low` for the forced final answer, so the reserve goes to text. */
+  effort?: 'low' | 'medium';
 }
 
 export interface LlmUsage {
@@ -74,7 +76,7 @@ export class AnthropicLlmClient implements LlmClient {
           messages: request.messages,
           ...(request.toolChoice ? { tool_choice: request.toolChoice } : {}),
           // Answers are short analytic turns with a few tool calls; medium keeps them quick.
-          output_config: { effort: 'medium' },
+          output_config: { effort: request.effort ?? 'medium' },
           // Caches the growing conversation prefix; the system block carries its own breakpoint.
           cache_control: { type: 'ephemeral' },
         },

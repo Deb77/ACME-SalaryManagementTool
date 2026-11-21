@@ -31,6 +31,19 @@ export function PayByTitleSkeleton({ rows = 8 }: { rows?: number }) {
   );
 }
 
+/**
+ * The pay-by-title footer with the count still loading: the same words, so it wraps onto the
+ * same number of lines as the real one.
+ */
+export function TitlesNote({ count }: { count?: number }) {
+  return (
+    <span>
+      {count ?? <Skeleton inline width={14} height={12} />} titles · sorted by median · bar is min
+      to max, dot is the median
+    </span>
+  );
+}
+
 /** A tile value; `trend` tiles reserve the 48px mini chart's height like the real ones. */
 function TileValue({ width, trend = false }: { width: number; trend?: boolean }) {
   const value = <Skeleton inline width={width} height={24} />;
@@ -79,7 +92,7 @@ export function InsightsSkeleton() {
           value={<TileValue width={110} trend />}
           note={
             <>
-              across <Skeleton inline width={14} height={12} /> countries
+              across <Skeleton inline width={8} height={12} /> countries
             </>
           }
         />
@@ -104,19 +117,20 @@ export function InsightsSkeleton() {
           }
         />
       </div>
-      <div className={styles.countryPicker}>
-        <Skeleton width={620} height={32} pill />
+      <div className={`${styles.countryPicker} ${styles.pickerSkeleton}`}>
+        <Skeleton width={620} height="100%" pill />
       </div>
       <div className={shared.twoColumns}>
         <TrayCard
           title="Pay by job title"
           extra={
             <span className={`${shared.small} ${shared.muted}`}>
-              <Skeleton inline width={90} height={11} /> median{' '}
-              <Skeleton inline width={60} height={11} />
+              {/* As wide as "India median ₹25,00,000", so it stays beside the title on phones. */}
+              <Skeleton inline width={44} height={11} /> median{' '}
+              <Skeleton inline width={72} height={11} />
             </span>
           }
-          footer={<Skeleton inline width={320} height={12} />}
+          footer={<TitlesNote />}
         >
           <PayByTitleSkeleton />
         </TrayCard>
@@ -151,7 +165,11 @@ export function InsightsSkeleton() {
               Total <Skeleton inline width={56} height={11} />
             </span>
           }
-          footer={<Skeleton inline width={260} height={12} />}
+          footer={
+            <>
+              USD is indicative · fixed rates as of <Skeleton inline width={76} height={12} />
+            </>
+          }
         >
           <DataTable<never>
             label="Payroll by country"
@@ -162,6 +180,8 @@ export function InsightsSkeleton() {
             query={{ page: 1, pageSize: 8 }}
             onQueryChange={() => {}}
             skeletonRows={8}
+            // Every country fits on the one page, so the real footer has no pager.
+            skeletonPager={false}
             renderCard={() => null}
             skeletonCard={
               <div className={styles.countryCard}>

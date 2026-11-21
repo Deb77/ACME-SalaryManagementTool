@@ -4,15 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --conditions=development --env-file-if-exists=../../.env src/server.ts",
+    "dev": "tsx watch --liftoff-only --conditions=development --env-file-if-exists=../../.env src/server.ts",
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/server.js",
+    "start": "node --liftoff-only dist/server.js",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --conditions=development --env-file-if-exists=../../.env src/db/migrate.ts",
     "db:seed": "tsx --conditions=development --env-file-if-exists=../../.env src/db/seed/seed.ts",
     "db:roles": "tsx --conditions=development --env-file-if-exists=../../.env src/db/roles.ts",
-    "evals": "tsx --conditions=development --env-file-if-exists=../../.env src/evals/run.ts"
+    "evals": "tsx --liftoff-only --conditions=development --env-file-if-exists=../../.env src/evals/run.ts"
   },
   "dependencies": {
     "@acme/shared": "^0.0.0",

@@ -10,6 +10,8 @@ import {
   listPermissions,
   listRoles,
   listUsers,
+  reactivateUser,
+  reissueInvite,
   updateRole,
   updateUser,
 } from '../../api/endpoints';
@@ -24,7 +26,7 @@ import { RoleEditorDialog } from './RoleEditorDialog';
 import { AccessSkeleton } from './AccessSkeleton';
 
 type Open =
-  | { kind: 'invite'; inviteUrl?: string }
+  | { kind: 'invite'; inviteUrl?: string; invitee?: string }
   | { kind: 'edit-user'; user: User }
   | { kind: 'remove-user'; user: User }
   | { kind: 'role'; role?: Role }
@@ -48,6 +50,7 @@ export function AccessScreen() {
   const [open, setOpen] = useState<Open>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
+  const [shown, setShown] = useState(false);
 
   const failed = [roles, users].find((r) => r.status === 'error');
   if (failed) {
@@ -59,7 +62,14 @@ export function AccessScreen() {
       />
     );
   }
-  if (!roles.data || (can('users:manage') && !users.data)) {
+  // First load: the page appears once, with the recent changes, instead of that card popping in.
+  const settled = (r: { status: string }) => r.status === 'success' || r.status === 'error';
+  const allLoaded =
+    roles.data !== undefined &&
+    (!can('users:manage') || users.data !== undefined) &&
+    (!can('audit:read') || settled(changes));
+  if (allLoaded && !shown) setShown(true);
+  if (!roles.data || (can('users:manage') && !users.data) || (!shown && !allLoaded)) {
     return <AccessSkeleton />;
   }
 
@@ -110,6 +120,7 @@ export function AccessScreen() {
           saving={saving}
           error={error}
           inviteUrl={open.inviteUrl}
+          invitee={open.invitee}
           onClose={close}
           onInvite={(body) => {
             void run(
@@ -133,6 +144,26 @@ export function AccessScreen() {
           error={error}
           onCancel={close}
           onRemoveAccess={() => setOpen({ kind: 'remove-user', user: open.user })}
+          onRestoreAccess={(change) => {
+            const { user } = open;
+            void run(
+              async () => {
+                const changed =
+                  change.roleId !== user.role.id ||
+                  change.countries.join() !== user.countries.join();
+                if (changed) await updateUser(user.id, { ...change, version: user.version });
+                const restored = await reactivateUser(user.id);
+                // Someone who never set a password is invited again and needs a fresh link.
+                if (restored.status === 'invited') {
+                  const { inviteUrl } = await reissueInvite(user.id);
+                  setOpen({ kind: 'invite', inviteUrl, invitee: user.name });
+                } else {
+                  close();
+                }
+              },
+              () => {},
+            );
+          }}
           onSave={(change) =>
             void run(() => updateUser(open.user.id, { ...change, version: open.user.version }))
           }

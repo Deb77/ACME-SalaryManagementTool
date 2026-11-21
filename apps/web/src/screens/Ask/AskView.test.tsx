@@ -38,12 +38,13 @@ describe('AskView', () => {
     expect(onAsk).toHaveBeenCalledWith(expect.any(String));
   });
 
-  it('shows the answer, the approval card and the folded steps', async () => {
+  it('shows the answer, the approval card and the steps', async () => {
     const onReviewDrafts = vi.fn();
     render(<AskView {...props({ turns: [answered], onReviewDrafts })} />);
 
     expect(screen.getByText('Nine analysts.')).toBeInTheDocument();
     expect(screen.getByText(/How I worked this out · 1 step/)).toBeInTheDocument();
+    expect(screen.getByText('Looked up pay')).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: 'Review draft' }));
     expect(onReviewDrafts).toHaveBeenCalledWith('t1');
   });
@@ -91,6 +92,27 @@ describe('AskView', () => {
     expect(screen.getByRole('cell', { name: '₹1,830,000' })).toHaveStyle({ textAlign: 'right' });
     expect(screen.getByText('Email:').tagName).toBe('STRONG');
     expect(container.querySelector('img')).toBeNull();
-    expect(screen.getByRole('listitem')).toHaveTextContent('<img src=x onerror=alert(1)>');
+    expect(screen.getByText('Email:').closest('li')).toHaveTextContent(
+      '<img src=x onerror=alert(1)>',
+    );
+  });
+
+  it('says what it is doing while the answer is still being worked out', () => {
+    const working: AskTurn = {
+      ...answered,
+      answer: 'Salaries are in different currencies, so I will convert them first.',
+      steps: [{ callId: 'c', label: 'Looked up pay', result: 'Running…' }],
+      drafts: [],
+      status: 'streaming',
+    };
+    const { rerender } = render(<AskView {...props({ turns: [working], busy: true })} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Running a query…');
+
+    const writing = { ...working, steps: [{ ...working.steps[0]!, result: '3 rows' }] };
+    rerender(<AskView {...props({ turns: [writing], busy: true })} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Writing the answer…');
+
+    rerender(<AskView {...props({ turns: [{ ...writing, status: 'done' }] })} />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });

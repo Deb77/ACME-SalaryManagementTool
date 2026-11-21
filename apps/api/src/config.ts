@@ -37,8 +37,13 @@ export interface AiSettings {
   dailyTokenBudget: number;
   /** Tool rounds per answer; the last model call is told to answer without tools. */
   maxToolRounds: number;
-  /** Output tokens per answer, summed over its model calls. */
+  /** Output tokens per answer, summed over its model calls (steps and the answer itself). */
   maxOutputTokens: number;
+  /**
+   * Of those, kept back for the written answer: steps may only spend the rest, so a turn with
+   * many or long queries still has room to answer instead of ending empty.
+   */
+  answerReserveTokens: number;
   messagesPerMinute: number;
   messagesPerDay: number;
   /** Rows returned to the model per run_sql call, and the size of that result as JSON. */
@@ -60,7 +65,8 @@ export const defaultAiSettings: AiSettings = {
   conversationTokenBudget: 150_000,
   dailyTokenBudget: 1_000_000,
   maxToolRounds: 6,
-  maxOutputTokens: 2_000,
+  maxOutputTokens: 6_000,
+  answerReserveTokens: 2_000,
   messagesPerMinute: 20,
   messagesPerDay: 200,
   sqlRowCap: 200,
@@ -96,6 +102,7 @@ function aiFromEnv(env: NodeJS.ProcessEnv): Partial<AiSettings> {
     ['dailyTokenBudget', numberEnv(env, 'AI_DAILY_TOKEN_BUDGET')],
     ['maxToolRounds', numberEnv(env, 'AI_MAX_TOOL_ROUNDS')],
     ['maxOutputTokens', numberEnv(env, 'AI_MAX_OUTPUT_TOKENS')],
+    ['answerReserveTokens', numberEnv(env, 'AI_ANSWER_RESERVE_TOKENS')],
     ['messagesPerMinute', numberEnv(env, 'AI_MESSAGES_PER_MINUTE')],
     ['messagesPerDay', numberEnv(env, 'AI_MESSAGES_PER_DAY')],
     ['sqlRowCap', numberEnv(env, 'AI_SQL_ROW_CAP')],

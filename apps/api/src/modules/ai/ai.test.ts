@@ -620,6 +620,90 @@ describe.skipIf(!url)('Ask AI', () => {
       expect(fake.requests).toHaveLength(1);
     });
 
+    it('keeps room for the answer: a step that runs out of tokens is followed by an answer', async () => {
+      fake.setScript((_req, call) =>
+        call === 0
+          ? {
+              tools: [{ name: 'run_sql', input: { sql: 'select 1', purpose: 'Count' } }],
+              stopReason: 'max_tokens',
+              usage: { outputTokens: 2_400 },
+            }
+          : { text: 'Here is what I found.' },
+      );
+      const res = await ask(indiaHr, 'Draft raises for everyone');
+      expect(fake.requests[0]!.maxTokens).toBe(6_000);
+      expect(fake.requests[1]).toMatchObject({
+        toolChoice: { type: 'none' },
+        effort: 'low',
+        maxTokens: 3_600,
+      });
+      expect(toolResultsOf(1)[0]!.content).toMatch(/out of room for more steps/);
+      expect(res.events.at(-1)).toEqual({ type: 'done' });
+    });
+
+    it('runs the tool calls that arrived whole when the limit cuts the last one', async () => {
+      fake.setScript((_req, call) =>
+        call === 0
+          ? {
+              tools: [
+                { name: 'run_sql', input: { sql: 'select 1', purpose: 'First' } },
+                { name: 'run_sql', input: { sql: 'select', purpose: 'Cut' } },
+              ],
+              stopReason: 'max_tokens',
+              usage: { outputTokens: 5_000 },
+            }
+          : { text: 'Answer.' },
+      );
+      const res = await ask(indiaHr, 'Many steps');
+      const results = toolResultsOf(1);
+      expect(results[0]!.isError).toBe(false);
+      expect(results[1]!.content).toMatch(/out of room for more steps/);
+      // The answer still gets the full reserve although the steps used more than their share.
+      expect(fake.requests[1]).toMatchObject({ toolChoice: { type: 'none' }, maxTokens: 2_000 });
+      expect(res.events.at(-1)).toEqual({ type: 'done' });
+    });
+
+    it('answers again, tool-free, when a reply spent its tokens thinking', async () => {
+      fake.setScript((_req, call) =>
+        call === 0
+          ? { stopReason: 'max_tokens', usage: { outputTokens: 4_000 } }
+          : { text: 'The summary.' },
+      );
+      const res = await ask(indiaHr, 'A long committee question');
+      expect(fake.requests).toHaveLength(2);
+      expect(fake.requests[1]).toMatchObject({ toolChoice: { type: 'none' }, effort: 'low' });
+      expect(res.events.at(-1)).toEqual({ type: 'done' });
+    });
+
+    it('says an answer was cut off at its length limit instead of ending mid-sentence', async () => {
+      fake.setScript(() => ({ text: '1. ACM-000001 – $208,', stopReason: 'max_tokens' }));
+      const res = await ask(indiaHr, 'List the 100 highest paid');
+      const text = res.events
+        .filter((e): e is { type: 'text'; delta: string } => e.type === 'text')
+        .map((e) => e.delta)
+        .join('');
+      expect(text).toMatch(/\(The answer was cut off at its length limit\./);
+      expect(res.events.at(-1)).toEqual({ type: 'done' });
+    });
+
+    it('sends an error, never a bare done, when the model writes no answer', async () => {
+      // Nothing was streamed, so it is a plain HTTP error the app shows as "No answer".
+      fake.setScript(() => ({}));
+      const empty = await ask(indiaHr, 'Hello');
+      expect(empty.status).toBe(502);
+      expect((empty.body as { error: { code: string } }).error.code).toBe('ai_no_answer');
+
+      // After a step the stream is open, so it ends with an error event instead of done.
+      fake.setScript((_req, call) =>
+        call === 0
+          ? { tools: [{ name: 'run_sql', input: { sql: 'select 1', purpose: 'Count' } }] }
+          : {},
+      );
+      const afterStep = await ask(indiaHr, 'Hello');
+      expect(afterStep.events.at(-1)).toMatchObject({ type: 'error', code: 'ai_no_answer' });
+      expect(afterStep.events.some((e) => e.type === 'done')).toBe(false);
+    });
+
     it('stops a conversation over its token budget', async () => {
       const agent = await makeUser('ai_budget_conv', ASK_PERMS, ['IN']);
       fake.setScript(() => ({ text: 'Long.', usage: { inputTokens: 160_000 } }));

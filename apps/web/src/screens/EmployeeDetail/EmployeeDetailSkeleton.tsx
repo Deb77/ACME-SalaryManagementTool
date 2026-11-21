@@ -47,18 +47,29 @@ export function EmployeeDetailSkeleton() {
         title={<Skeleton inline width={240} height={26} />}
         description={
           <span className={styles.subtitle}>
-            <Skeleton inline width={200} height={12} />
+            {/* As wide as a typical "title · department · country", so on phones the status
+                badge wraps under it as the real one does. */}
+            <Skeleton inline width={290} height={12} />
             <Skeleton width={64} height={24} pill />
           </span>
         }
         actions={
-          <>
-            {can('employees:terminate') && <PillButton tone="danger">Terminate</PillButton>}
+          // The view's action group and classes, so phones get the same order and widths.
+          <div className={styles.headerActions}>
+            {can('employees:terminate') && (
+              <PillButton tone="danger" className={styles.dangerAction}>
+                Terminate
+              </PillButton>
+            )}
             {can('employees:write') && id && (
               <PillButton href={`/employees/${id}/edit`}>Edit details</PillButton>
             )}
-            {can('salary:change') && <PillButton tone="primary">Record salary change</PillButton>}
-          </>
+            {can('salary:change') && (
+              <PillButton tone="primary" className={styles.primaryAction}>
+                Record salary change
+              </PillButton>
+            )}
+          </div>
         }
       />
       <div className={shared.twoColumns}>
@@ -75,8 +86,8 @@ export function EmployeeDetailSkeleton() {
                 <Skeleton inline width={150} height={24} />
               </div>
               <div className={shared.muted}>
-                per year · <Skeleton inline width={32} height={12} /> · effective{' '}
-                <Skeleton inline width={80} height={12} />
+                per year · <Skeleton inline width={26} height={12} /> · effective{' '}
+                <Skeleton inline width={70} height={12} />
               </div>
             </div>
           </div>

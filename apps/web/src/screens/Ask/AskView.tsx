@@ -1,6 +1,6 @@
 import { Table } from '@mantine/core';
 import { IconMessagePlus } from '@tabler/icons-react';
-import type { ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import {
   AppLink,
   ChatComposer,
@@ -158,6 +158,63 @@ function AnswerSkeleton() {
   );
 }
 
+/**
+ * Under an answer that is still being worked out: what is happening now, so a pause between steps
+ * never reads as finished or stuck.
+ */
+function WorkingNote({ turn }: { turn: AskTurn }) {
+  const running = turn.steps.some((step) => step.result === 'Running…');
+  return (
+    <p className={styles.working} role="status">
+      <span className={styles.workingDots} aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </span>
+      {running ? 'Running a query…' : turn.steps.length > 0 ? 'Writing the answer…' : 'Thinking…'}
+    </p>
+  );
+}
+
+/**
+ * Keeps the newest answer in view above the sticky question box: a new question scrolls to the
+ * end, and a streaming answer follows only while the reader is already at the end (scrolling
+ * up to reread stops it).
+ */
+function useFollowLatest(turns: readonly AskTurn[]) {
+  const endRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  const atEnd = useRef(true);
+  const count = useRef(turns.length);
+
+  const measure = () => {
+    const end = endRef.current;
+    const composer = composerRef.current;
+    if (!end || !composer) return;
+    atEnd.current = end.getBoundingClientRect().top <= composer.getBoundingClientRect().top + 48;
+  };
+
+  useEffect(() => {
+    // Phones scroll the window; desktop scrolls AppShell's <main>. Capture catches both.
+    document.addEventListener('scroll', measure, { capture: true, passive: true });
+    return () => document.removeEventListener('scroll', measure, { capture: true });
+  }, []);
+
+  useLayoutEffect(() => {
+    const added = turns.length > count.current;
+    count.current = turns.length;
+    const end = endRef.current;
+    const composer = composerRef.current;
+    if (!end || !composer || !(added || atEnd.current)) return;
+    // Stop the end just above the question box (and the phone tab bar under it).
+    end.style.scrollMarginBottom = `${Math.max(0, window.innerHeight - composer.getBoundingClientRect().top)}px`;
+    end.scrollIntoView?.({ block: 'end', behavior: added ? 'smooth' : 'auto' });
+    atEnd.current = true;
+  }, [turns]);
+
+  return { endRef, composerRef };
+}
+
 /** Ask AI: one column of questions and answers, the steps behind each answer, and drafts to review. */
 export function AskView({
   turns,
@@ -173,6 +230,7 @@ export function AskView({
   people = NO_PEOPLE,
   suggestions = DEFAULT_SUGGESTIONS,
 }: AskViewProps) {
+  const { endRef, composerRef } = useFollowLatest(turns);
   return (
     <div className={styles.page}>
       <PageHeader
@@ -228,7 +286,11 @@ export function AskView({
                           ? 'Limit reached'
                           : turn.errorCode === 'rate_limited'
                             ? 'Slow down'
-                            : 'The answer stopped'
+                            : turn.errorCode === 'interrupted'
+                              ? 'The answer was cut off'
+                              : turn.errorCode === 'ai_no_answer'
+                                ? 'No answer'
+                                : 'The answer stopped'
                       }
                       action={
                         turn.errorCode === 'ai_budget_exceeded' ? (
@@ -269,11 +331,11 @@ export function AskView({
                           : 'You can see these drafts but not record salary changes. Ask someone who can.'}
                     </Notice>
                   )}
+                  {turn.status === 'streaming' && turn.answer && <WorkingNote turn={turn} />}
                   {turn.steps.length > 0 && (
                     <QuerySteps
                       title={`How I worked this out · ${turn.steps.length} ${turn.steps.length === 1 ? 'step' : 'steps'}`}
                       steps={turn.steps}
-                      defaultExpanded={false}
                     />
                   )}
                 </ChatMessage>
@@ -281,8 +343,9 @@ export function AskView({
             );
           })
         )}
+        <div ref={endRef} aria-hidden="true" />
       </div>
-      <div className={styles.composer}>
+      <div ref={composerRef} className={styles.composer}>
         <ChatComposer
           value={question}
           onChange={onQuestionChange}

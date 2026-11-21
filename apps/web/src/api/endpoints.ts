@@ -143,8 +143,6 @@ export const getSalaryDistribution = (country: string, { signal }: Signal = {}) 
 
 // ---- Import ----
 
-export const IMPORT_TEMPLATE_URL = `${API_BASE}/imports/template.xlsx`;
-
 export function uploadImport(file: File) {
   const body = new FormData();
   body.append('file', file);
@@ -167,9 +165,6 @@ export const listImportRows = (
     importRowPageSchema,
     { signal },
   );
-
-export const importErrorReportUrl = (id: string) =>
-  `${API_BASE}/imports/${encodeURIComponent(id)}/rows.csv?outcome=error`;
 
 export const commitImport = (id: string, body: CommitImportRequest) =>
   request(`/imports/${encodeURIComponent(id)}/commit`, importSchema, { method: 'POST', body });

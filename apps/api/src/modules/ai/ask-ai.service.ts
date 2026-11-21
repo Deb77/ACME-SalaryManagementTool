@@ -64,11 +64,51 @@ interface TurnState {
   started: number;
 }
 
-function toParam(row: AiMessageRow): Anthropic.MessageParam {
+function toParam(row: Pick<AiMessageRow, 'role' | 'content'>): Anthropic.MessageParam {
   return {
     role: row.role === 'assistant' ? 'assistant' : 'user',
     content: row.content as Anthropic.ContentBlockParam[],
   };
+}
+
+/**
+ * A turn cut off after a step (the reader left, the server restarted) is stored ending in tool
+ * results with no answer. Sent as is, the next question reads like a follow-up to those results
+ * and the model answers the old question instead. Every question that follows an unfinished
+ * turn says so, so the model answers the question it is given.
+ */
+/** Output tokens another step needs to be worth a call. */
+const MIN_STEP_TOKENS = 256;
+
+/** Added to an answer that reached its length limit, so it never ends as if complete. */
+export const CUT_OFF_NOTE =
+  '\n\n(The answer was cut off at its length limit. Ask for fewer rows or a narrower question.)';
+
+export const INTERRUPTED_NOTE =
+  '(The previous answer was cut off before it finished and the user did not see it. ' +
+  'Answer only the question below; do not continue the previous answer.)';
+
+export function historyToMessages(
+  history: readonly AiMessageRow[],
+  question: Anthropic.ContentBlockParam[],
+): Anthropic.MessageParam[] {
+  const rows = [
+    ...history,
+    { role: 'user', content: question } as Pick<AiMessageRow, 'role' | 'content'>,
+  ];
+  return rows.map((row, index) => {
+    const message = toParam(row);
+    if (row.role === 'user' && rows[index - 1]?.role === 'tool') {
+      return {
+        role: 'user',
+        content: [
+          { type: 'text', text: INTERRUPTED_NOTE },
+          ...(message.content as Anthropic.ContentBlockParam[]),
+        ],
+      };
+    }
+    return message;
+  });
 }
 
 function textOf(content: unknown): string {
@@ -183,21 +223,29 @@ export class AskAiService {
       },
     ];
     const tools = toolsFor(canDraft);
-    const messages: Anthropic.MessageParam[] = [...prep.history.map(toParam)];
-    messages.push({ role: 'user', content: prep.userContent });
+    const messages = historyToMessages(prep.history, prep.userContent);
     let seq = prep.nextSeq;
 
     sink.send({ type: 'conversation', conversationId: prep.conversationId });
     let errorCode: string | undefined;
     try {
+      // Every call may use what is left of the output budget, so an answer is never cut at a
+      // smaller step allowance. Steps stop once they have used all but the answer reserve, and
+      // the final, tool-free call always gets at least the reserve (so a turn's worst case is
+      // the budget plus the reserve).
+      let answerNow = false;
+      let answered = false;
       for (;;) {
         if (state.conversationTokens >= this.settings.conversationTokenBudget) {
           this.metrics.increment('ai_budget_exceeded_total{scope="conversation"}');
           throw budgetError('conversation');
         }
+        const reserve = this.settings.answerReserveTokens;
         const remaining = this.settings.maxOutputTokens - state.outputUsed;
-        if (remaining < 64) break;
-        const lastRound = state.toolRounds >= this.settings.maxToolRounds;
+        const lastRound =
+          answerNow ||
+          state.toolRounds >= this.settings.maxToolRounds ||
+          remaining - reserve < MIN_STEP_TOKENS;
         const response = await this.callModel(
           llm,
           {
@@ -205,8 +253,8 @@ export class AskAiService {
             system,
             tools,
             messages,
-            maxTokens: remaining,
-            ...(lastRound ? { toolChoice: { type: 'none' } } : {}),
+            maxTokens: lastRound ? Math.max(remaining, reserve) : remaining,
+            ...(lastRound ? { toolChoice: { type: 'none' }, effort: 'low' as const } : {}),
           },
           state,
           sink,
@@ -216,19 +264,48 @@ export class AskAiService {
           (block): block is Anthropic.ToolUseBlockParam => block.type === 'tool_use',
         );
         const assistantSeq = seq;
+        if (toolUses.length === 0 && !lastRound && textOf(response.content).trim() === '') {
+          // It chose to answer but spent its tokens thinking: answer again, tool-free and at
+          // low effort. The thinking-only reply is not kept (history needs text or a tool call).
+          answerNow = true;
+          continue;
+        }
         if (toolUses.length === 0) {
+          const content = [...response.content];
+          answered = textOf(content).trim() !== '';
+          if (answered && response.stopReason === 'max_tokens') {
+            // Cut off at the limit: say so rather than end mid-sentence as if it were complete.
+            this.metrics.increment('ai_answers_cut_total');
+            sink.send({ type: 'text', delta: CUT_OFF_NOTE });
+            content.push({ type: 'text', text: CUT_OFF_NOTE });
+          }
           await this.persist(actor, state.conversationId, [
-            { seq: assistantSeq, role: 'assistant', content: response.content, response },
+            { seq: assistantSeq, role: 'assistant', content, response },
           ]);
           seq += 1;
           break;
         }
-        // A cut-off or over-limit tool call is answered with errors so history stays valid.
-        const runnable = response.stopReason === 'tool_use' && !lastRound;
-        state.toolRounds += runnable ? 1 : 0;
-        const outcomes = runnable
-          ? await this.runTools(actor, canDraft, state, assistantSeq, toolUses, sink, signal)
-          : toolUses.map((use) => this.errorOutcome(use.id, 'Stopped: step limit reached'));
+        // Tool calls that arrived whole run; one cut off by the token limit (always the last)
+        // or past the step limit is answered with an error, so history stays valid.
+        const cut = response.stopReason === 'max_tokens';
+        const runnable = lastRound ? [] : cut ? toolUses.slice(0, -1) : toolUses;
+        const stopped = cut
+          ? 'Stopped: out of room for more steps. Answer with what you have.'
+          : 'Stopped: step limit reached. Answer with what you have.';
+        if (runnable.length > 0) state.toolRounds += 1;
+        const ran = await this.runTools(
+          actor,
+          canDraft,
+          state,
+          assistantSeq,
+          runnable,
+          sink,
+          signal,
+        );
+        const outcomes = [
+          ...ran,
+          ...toolUses.slice(runnable.length).map((use) => this.errorOutcome(use.id, stopped)),
+        ];
         const results = outcomes.map((outcome) => outcome.result);
         await this.persist(actor, state.conversationId, [
           { seq: assistantSeq, role: 'assistant', content: response.content, response },
@@ -237,10 +314,31 @@ export class AskAiService {
         seq += 2;
         messages.push({ role: 'assistant', content: response.content });
         messages.push({ role: 'user', content: results });
-        if (!runnable) break;
+        // Out of room or past the step limit: one more call, without tools, to answer.
+        if (cut || runnable.length < toolUses.length) {
+          if (lastRound) break;
+          answerNow = true;
+        }
+      }
+      if (!answered) {
+        // Never end with "done" and nothing to read.
+        this.metrics.increment('ai_answers_empty_total');
+        throw new AppError(
+          'ai_no_answer',
+          'Ask AI could not finish an answer to this. Try a narrower question, or ask for fewer rows.',
+        );
       }
       sink.send({ type: 'done' });
     } catch (error) {
+      if (signal.aborted) {
+        // The reader closed the page or lost the connection: nothing to report or answer.
+        errorCode = 'cancelled';
+        this.logger.info('ai.turn_cancelled', {
+          conversationId: state.conversationId,
+          userId: actor.userId,
+        });
+        return;
+      }
       errorCode = error instanceof AppError ? error.code : 'internal_error';
       if (!(error instanceof AppError)) {
         this.logger.error('ai.turn_failed', {
@@ -249,7 +347,7 @@ export class AskAiService {
           error: error instanceof Error ? error.message : String(error),
         });
       }
-      if (!sink.started || signal.aborted) throw error;
+      if (!sink.started) throw error;
       sink.send({
         type: 'error',
         code: errorCode,
@@ -651,7 +749,8 @@ export class AskAiService {
         const turn = turns.at(-1);
         if (!turn) continue;
         if (message.role === 'assistant') {
-          turn.answer += textOf(blocks);
+          // Text written before a step is a working note, not part of the answer.
+          if (!blocks.some((block) => block.type === 'tool_use')) turn.answer += textOf(blocks);
           for (const block of blocks) {
             if (block.type !== 'tool_use') continue;
             const input = (block.input ?? {}) as Record<string, unknown>;

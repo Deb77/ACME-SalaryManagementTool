@@ -30,6 +30,7 @@ export function EmployeeDetailScreen() {
   const [dialog, setDialog] = useState<'salary' | 'terminate' | null>(null);
   const [terminating, setTerminating] = useState(false);
   const [terminateError, setTerminateError] = useState<string>();
+  const [shownFor, setShownFor] = useState<string>();
 
   if (employee.status === 'error') {
     return (
@@ -40,7 +41,17 @@ export function EmployeeDetailScreen() {
       />
     );
   }
-  if (!employee.data) return <EmployeeDetailSkeleton />;
+  // The page appears once, with everything in place: the employee, their history and the
+  // benchmark (which waits for the employee's job title) arrive at different times, and
+  // swapping each in as it lands made the cards resize several times. Only the first load
+  // waits; a retry or a later change updates the page in place.
+  const settled = (status: string) => status === 'success' || status === 'error';
+  const allLoaded =
+    employee.data !== undefined &&
+    settled(history.status) &&
+    (comparison.status === 'idle' || settled(comparison.status));
+  if (allLoaded && shownFor !== id) setShownFor(id);
+  if (!employee.data || (shownFor !== id && !allLoaded)) return <EmployeeDetailSkeleton />;
   const current: Employee = employee.data;
 
   const row = comparison.data?.rows.find((r) => r.country === current.country);

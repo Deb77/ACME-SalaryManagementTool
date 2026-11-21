@@ -1,6 +1,7 @@
 import type { Story } from '@ladle/react';
 import { useState } from 'react';
 import { ApiError } from '../../api/client';
+import { InsightsSkeleton } from '../../screens/Insights/InsightsSkeleton';
 import { InsightsView, type InsightsViewProps } from '../../screens/Insights/InsightsView';
 import {
   sampleByTitle,
@@ -81,3 +82,11 @@ export const CountryFailed: Story = () => (
 );
 CountryFailed.storyName = 'Pay by title failed, empty spread';
 CountryFailed.meta = { fullscreen: true };
+
+/** The page until the overview, pay by title and the spread have all loaded; matches Global HR. */
+export const Loading: Story = () => (
+  <ScreenFrame me={sampleMeGlobal} path="/insights">
+    <InsightsSkeleton />
+  </ScreenFrame>
+);
+Loading.meta = { fullscreen: true };

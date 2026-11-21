@@ -1,5 +1,4 @@
 import { render, screen } from '../../../test/render';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { QuerySteps } from './QuerySteps';
 
@@ -23,17 +22,10 @@ describe('QuerySteps', () => {
     expect(screen.getByText('9 people')).toBeInTheDocument();
   });
 
-  it('collapses and expands the steps', async () => {
+  it('always shows the steps, with nothing to open or close', () => {
     render(<QuerySteps title="Worked through 2 steps" steps={steps} />);
-    const toggle = screen.getByRole('button', { name: 'Hide steps' });
 
-    await userEvent.click(toggle);
-
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('list')).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Show steps' }));
-
-    expect(screen.getByRole('list')).toBeInTheDocument();
+    expect(screen.getByRole('list')).toBeVisible();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

@@ -14,41 +14,49 @@ const props = (overrides: Partial<EmployeeFormViewProps> = {}): EmployeeFormView
   ...overrides,
 });
 
+/** Fills every required field of Add employee; `email` and `hireDate` can be overridden. */
+async function fillNewEmployee({ email = 'neha.kulkarni@acme.com', hireDate = '2026-11-03' } = {}) {
+  await userEvent.type(screen.getByLabelText(/First name/), 'Neha');
+  await userEvent.type(screen.getByLabelText(/Last name/), 'Kulkarni');
+  await userEvent.type(screen.getByLabelText(/Work email/), email);
+  await userEvent.selectOptions(screen.getByLabelText(/Department/), 'Data');
+  await userEvent.selectOptions(screen.getByLabelText(/Job title/), 'Data Analyst');
+  await userEvent.selectOptions(screen.getByLabelText(/Country/), 'India');
+  const hire = screen.getByLabelText(/Hire date/);
+  await userEvent.clear(hire);
+  await userEvent.type(hire, hireDate);
+  await userEvent.type(screen.getByLabelText(/Annual base salary/), '1950000');
+}
+
 describe('EmployeeFormView', () => {
-  it('validates a new employee before submitting', async () => {
+  it('keeps Save off until every required field has a value', async () => {
     const onSubmit = vi.fn();
     render(<EmployeeFormView {...props({ onSubmit })} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Save employee' }));
-    expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByLabelText(/First name/)).toHaveAttribute('aria-invalid', 'true');
+    const save = screen.getByRole('button', { name: 'Save employee' });
+    expect(save).toBeDisabled();
+    expect(save).toHaveAttribute('title', 'Fill in every required field to save');
+
+    await fillNewEmployee();
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ mode: 'create' }));
   });
 
-  it('explains each missing field in plain words, not schema messages', async () => {
-    render(<EmployeeFormView {...props()} />);
+  it('turns Save off again when a required field is emptied', async () => {
+    render(<EmployeeFormView {...props({ employee: samplePriya })} />);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Save employee' }));
-    for (const message of [
-      'Enter a first name',
-      'Enter a last name',
-      'Enter a work email',
-      'Choose a department',
-      'Choose a job title',
-      'Choose a country',
-      'Enter the annual salary',
-    ]) {
-      expect(screen.getByText(message)).toBeInTheDocument();
-    }
-    expect(screen.queryByText(/Too small|Expected|Invalid input/)).not.toBeInTheDocument();
+    const save = screen.getByRole('button', { name: 'Save changes' });
+    expect(save).toBeEnabled();
+    await userEvent.clear(screen.getByLabelText(/First name/));
+    expect(save).toBeDisabled();
   });
 
   it('only accepts hire dates up to today', async () => {
     render(<EmployeeFormView {...props()} />);
 
-    const hireDate = screen.getByLabelText(/Hire date/);
-    expect(hireDate).toHaveAttribute('max', todayIso());
-    await userEvent.clear(hireDate);
-    await userEvent.type(hireDate, '2999-01-01');
+    expect(screen.getByLabelText(/Hire date/)).toHaveAttribute('max', todayIso());
+    await fillNewEmployee({ hireDate: '2999-01-01' });
     await userEvent.click(screen.getByRole('button', { name: 'Save employee' }));
     expect(screen.getByText('Choose today or an earlier date')).toBeInTheDocument();
   });
@@ -84,17 +92,23 @@ describe('EmployeeFormView', () => {
   });
 
   it('leads to the first error after a failed save', async () => {
-    render(<EmployeeFormView {...props()} />);
+    const onSubmit = vi.fn();
+    render(<EmployeeFormView {...props({ onSubmit })} />);
 
+    await fillNewEmployee({ email: 'neha.kulkarni' });
     await userEvent.click(screen.getByRole('button', { name: 'Save employee' }));
 
-    expect(screen.getByLabelText(/First name/)).toHaveFocus();
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Enter an email address like name@acme.com')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Work email/)).toHaveFocus();
   });
 
   it('focuses a later field when it is the first one in error', async () => {
     render(<EmployeeFormView {...props({ employee: samplePriya })} />);
 
-    await userEvent.clear(screen.getByLabelText(/Work email/));
+    const email = screen.getByLabelText(/Work email/);
+    await userEvent.clear(email);
+    await userEvent.type(email, 'priya.sharma');
     await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
     expect(screen.getByLabelText(/Work email/)).toHaveFocus();

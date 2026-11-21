@@ -215,4 +215,41 @@ describe('DataTable on a phone', () => {
 
     expect(onQueryChange).toHaveBeenCalledWith({ page: 1188, pageSize: 10 });
   });
+
+  it('follows the row link from a click anywhere on the row', async () => {
+    const onLinkClick = vi.fn((event: React.MouseEvent) => event.preventDefault());
+    render(
+      <DataTable
+        label="Employees"
+        columns={[
+          {
+            key: 'name',
+            title: 'Name',
+            render: (row: Row) => (
+              <a href={`/employees/${row.id}`} onClick={onLinkClick}>
+                {row.name}
+              </a>
+            ),
+          },
+          { key: 'title', title: 'Job title', render: (row: Row) => row.title },
+        ]}
+        rows={rows}
+        rowKey={(row) => row.id}
+        total={2}
+        query={{ page: 1, pageSize: 10 }}
+        onQueryChange={vi.fn()}
+        rowLink
+      />,
+    );
+
+    await userEvent.click(screen.getByText('Data Analyst'));
+    expect(onLinkClick).toHaveBeenCalledTimes(1);
+    expect((onLinkClick.mock.calls[0]![0].target as HTMLAnchorElement).textContent).toBe(
+      'Arjun Mehta',
+    );
+
+    // A click on the link itself is the link's own, not a second one from the row.
+    await userEvent.click(screen.getByRole('link', { name: 'Priya Sharma' }));
+    expect(onLinkClick).toHaveBeenCalledTimes(2);
+  });
 });

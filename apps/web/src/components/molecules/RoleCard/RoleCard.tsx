@@ -53,16 +53,18 @@ export function RoleCard({
 }
 
 /**
- * RoleCard while roles load: the real card, heading, badge, check-list and footer boxes with
- * placeholder text, so each line keeps the real line height.
+ * RoleCard while roles load: the real card, heading, badge and footer boxes with placeholder
+ * text. Every role lists the same permissions, so their real labels are shown (each line wraps
+ * as it will); only whether each is allowed is still unknown.
  */
 export function RoleCardSkeleton({
-  permissionCount,
-  withActions = false,
+  permissions,
+  actions,
 }: {
-  permissionCount: number;
-  /** Reserve the small Edit button row a manageable role has. */
-  withActions?: boolean;
+  /** The labels of every permission, in the order the cards list them. */
+  permissions: readonly string[];
+  /** The role's buttons, so the footer keeps their height (44px touch targets on phones). */
+  actions?: ReactNode;
 }) {
   return (
     <div className={styles.card} aria-hidden="true">
@@ -80,20 +82,16 @@ export function RoleCardSkeleton({
         </span>
       </div>
       <ul className={checkStyles.list}>
-        {Array.from({ length: permissionCount }, (_, index) => (
-          <li key={index} className={checkStyles.item} data-allowed="false">
+        {permissions.map((label) => (
+          <li key={label} className={checkStyles.item} data-allowed="false">
             <span className={checkStyles.mark} />
-            <Skeleton inline width={index % 2 ? 150 : 190} height={12} />
+            {label}
           </li>
         ))}
       </ul>
       <div className={styles.footer}>
         <Skeleton inline width={120} height={11} />
-        {withActions && (
-          <div className={styles.actions}>
-            <Skeleton width={64} height={36} pill />
-          </div>
-        )}
+        {actions && <div className={styles.actions}>{actions}</div>}
       </div>
     </div>
   );

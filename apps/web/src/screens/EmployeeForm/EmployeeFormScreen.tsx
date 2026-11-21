@@ -33,7 +33,7 @@ export function EmployeeFormScreen() {
   if (id && existing.status === 'error') {
     return <ErrorState description={describeError(existing.error)} onRetry={existing.reload} />;
   }
-  if (id && !existing.data) return <EmployeeFormSkeleton />;
+  if (id && !existing.data) return <EmployeeFormSkeleton mode="edit" />;
 
   const row = role && comparison.data?.rows.find((r) => r.country === role.country);
   const benchmark: RoleBenchmark | null =

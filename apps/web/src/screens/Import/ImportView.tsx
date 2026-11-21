@@ -8,7 +8,7 @@ import type {
   ImportUploadResponse,
 } from '@acme/shared';
 import { importFields } from '@acme/shared';
-import { IconChevronLeft, IconDownload, IconFileSpreadsheet } from '@tabler/icons-react';
+import { IconAlertCircle, IconChevronLeft, IconFileSpreadsheet } from '@tabler/icons-react';
 import { useState } from 'react';
 import {
   AppLink,
@@ -32,6 +32,7 @@ import form from '../shared/form.module.css';
 import { ResourceState } from '../shared/ResourceState';
 import shared from '../shared/screen.module.css';
 import styles from './Import.module.css';
+import { SheetPreview } from './SheetPreview';
 import {
   IMPORT_FIELD_LABELS,
   IMPORT_STEPS,
@@ -59,7 +60,6 @@ export interface ImportViewProps {
   step: ImportStep;
   /** Country HR only: which countries the file may change (decision #24). */
   scopeNote?: string;
-  templateHref: string;
   error?: string;
   busy?: boolean;
   // Upload
@@ -79,7 +79,6 @@ export interface ImportViewProps {
   onOutcomeChange: (outcome: ImportOutcome) => void;
   rows: ImportRowsPage;
   onRowsPageChange: (page: number) => void;
-  errorReportHref?: string;
   skipInvalidRows: boolean;
   onSkipInvalidRowsChange: (skip: boolean) => void;
   onCommit: () => void;
@@ -94,7 +93,7 @@ const NOT_IN_FILE = '';
 
 /** Import from Excel: upload → match columns → review the dry run → import (and undo). */
 export function ImportView(props: ImportViewProps) {
-  const { step, scopeNote, templateHref, error } = props;
+  const { step, scopeNote, error } = props;
   return (
     <>
       <PageHeader
@@ -106,13 +105,10 @@ export function ImportView(props: ImportViewProps) {
         }
         title="Import from Excel"
         description="Bring your existing sheet in as it is. Nothing changes until you confirm."
-        actions={
-          <PillButton href={templateHref} download icon={<IconDownload size={16} />}>
-            Download template
-          </PillButton>
-        }
       />
-      <Stepper label="Import progress" steps={IMPORT_STEPS} current={STEP_INDEX[step]} />
+      <div className={styles.steps}>
+        <Stepper label="Import progress" steps={IMPORT_STEPS} current={STEP_INDEX[step]} />
+      </div>
       {scopeNote && <Notice tone="info">{scopeNote}</Notice>}
       {error && (
         <Notice tone="warning" title="That didn't work">
@@ -241,6 +237,16 @@ function MatchStep({
         }
       />
       <TrayCard
+        title="Preview"
+        footer={
+          upload.rowCount > upload.sampleRows.length
+            ? `First ${upload.sampleRows.length} of ${formatCount(upload.rowCount)} rows, as they are in your file`
+            : `All ${formatCount(upload.rowCount)} ${upload.rowCount === 1 ? 'row' : 'rows'}, as they are in your file`
+        }
+      >
+        <SheetPreview upload={upload} mapping={mapping} />
+      </TrayCard>
+      <TrayCard
         title="Match columns"
         footer="We guessed from your headers. Check each field before the dry run."
       >
@@ -305,7 +311,6 @@ function ReviewStep({
   onOutcomeChange,
   rows,
   onRowsPageChange,
-  errorReportHref,
   skipInvalidRows,
   onSkipInvalidRowsChange,
   busy,
@@ -327,7 +332,18 @@ function ReviewStep({
     {
       key: 'detail',
       title: outcome === 'error' ? 'Problem' : 'Change',
-      render: (row) => <RowDetail row={row} context={changeContext} />,
+      render: (row) =>
+        row.errors.length ? (
+          // Red with an icon, so a problem reads as one without relying on colour alone.
+          <span className={styles.problemCell}>
+            <IconAlertCircle aria-hidden="true" size={16} className={styles.problemIcon} />
+            <span>
+              <RowDetail row={row} context={changeContext} />
+            </span>
+          </span>
+        ) : (
+          <RowDetail row={row} context={changeContext} />
+        ),
     },
   ];
   return (
@@ -408,15 +424,6 @@ function ReviewStep({
               />
             </div>
           }
-          footer={
-            outcome === 'error' &&
-            summary.error > 0 &&
-            errorReportHref && (
-              <PillButton tone="quiet" size="small" href={errorReportHref} download>
-                Download error report (.csv)
-              </PillButton>
-            )
-          }
         >
           <ResourceState
             status={rows.status}
@@ -454,9 +461,22 @@ function ReviewStep({
                       Row {row.rowNumber}
                     </span>
                   </div>
-                  <div className={row.errors.length ? styles.problem : shared.small}>
-                    <RowDetail row={row} context={changeContext} />
-                  </div>
+                  {row.errors.length ? (
+                    <div className={`${styles.problemCell} ${shared.small}`}>
+                      <IconAlertCircle
+                        aria-hidden="true"
+                        size={16}
+                        className={styles.problemIcon}
+                      />
+                      <div>
+                        <RowDetail row={row} context={changeContext} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={shared.small}>
+                      <RowDetail row={row} context={changeContext} />
+                    </div>
+                  )}
                 </div>
               )}
             />

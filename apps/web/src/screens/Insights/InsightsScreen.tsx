@@ -29,6 +29,7 @@ export function InsightsScreen() {
   const { me, meta, can } = useSession();
   const overview = useResource('insights-overview', (signal) => getInsightsOverview({ signal }));
   const [chosen, setChosen] = useState<string>();
+  const [shown, setShown] = useState(false);
   const available = overview.data?.countries.map((c) => c.country) ?? [];
   const country =
     chosen && available.includes(chosen)
@@ -50,7 +51,15 @@ export function InsightsScreen() {
       />
     );
   }
-  if (!overview.data) return <InsightsSkeleton />;
+  // The page appears once with all three sections filled: pay by title and the spread wait for
+  // the overview (they need its countries), and swapping each in as it landed made the page
+  // flicker. Later country changes show each section's own placeholder instead.
+  const settled = (status: string) => status === 'success' || status === 'error';
+  const allLoaded =
+    overview.data !== undefined &&
+    (country === undefined || (settled(byTitle.status) && settled(distribution.status)));
+  if (allLoaded && !shown) setShown(true);
+  if (!overview.data || (!shown && !allLoaded)) return <InsightsSkeleton />;
 
   return (
     <InsightsView

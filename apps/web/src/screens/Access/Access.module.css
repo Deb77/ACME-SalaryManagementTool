@@ -104,3 +104,14 @@
 .skeletonEnd {
   margin-left: auto;
 }
+
+/* The role filter while people load: its 30px pills, 44px touch targets (50px with padding) on phones. */
+.filterSkeleton {
+  height: 50px;
+}
+
+@media (min-width: 768px) {
+  .filterSkeleton {
+    height: 30px;
+  }
+}

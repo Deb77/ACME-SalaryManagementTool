@@ -53,6 +53,7 @@ export function PillButton({
         variant="default"
         className={classes}
         aria-label={rest['aria-label']}
+        title={rest.title}
       >
         {children}
       </Button>

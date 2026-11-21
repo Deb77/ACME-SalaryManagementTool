@@ -55,6 +55,9 @@ export function applyStreamEvent(turn: AskTurn, event: AiStreamEvent): AskTurn {
     case 'tool_call':
       return {
         ...turn,
+        // Text before a step is the model thinking aloud ("I'll look that up first"), not the
+        // answer; the answer is what it writes after its last step.
+        answer: '',
         steps: [
           ...turn.steps,
           {
@@ -71,8 +74,9 @@ export function applyStreamEvent(turn: AskTurn, event: AiStreamEvent): AskTurn {
           step.callId === event.callId
             ? {
                 ...step,
+                // The database's message is for the model to fix its query, not for the reader.
                 result: event.error
-                  ? `Failed: ${event.error}`
+                  ? 'Failed'
                   : `${event.rowCount} ${event.rowCount === 1 ? 'row' : 'rows'}`,
               }
             : step,

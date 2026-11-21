@@ -1,4 +1,4 @@
-import { UnstyledButton } from '@mantine/core';
+import { Loader, UnstyledButton } from '@mantine/core';
 import { IconArrowUp } from '@tabler/icons-react';
 import { useId, useLayoutEffect, useRef, type ReactNode } from 'react';
 import styles from './ChatComposer.module.css';
@@ -73,7 +73,7 @@ export function ChatComposer({
             rows={1}
             autoComplete="off"
             enterKeyHint="send"
-            aria-describedby={hint ? hintId : undefined}
+            aria-describedby={hint || busy ? hintId : undefined}
             onChange={(event) => onChange(event.currentTarget.value)}
             onKeyDown={(event) => {
               // Enter sends; Shift+Enter (and Enter while composing CJK text) types a new line.
@@ -87,15 +87,20 @@ export function ChatComposer({
         <UnstyledButton
           type="submit"
           className={styles.send}
-          aria-label="Send question"
+          aria-label={busy ? 'Waiting for the answer' : 'Send question'}
           disabled={!canSend}
+          data-busy={busy || undefined}
         >
-          <IconArrowUp aria-hidden="true" size={20} stroke={2.2} />
+          {busy ? (
+            <Loader size={18} color="currentColor" aria-hidden="true" />
+          ) : (
+            <IconArrowUp aria-hidden="true" size={20} stroke={2.2} />
+          )}
         </UnstyledButton>
       </div>
-      {hint && (
+      {(hint || busy) && (
         <p id={hintId} className={styles.hint}>
-          {hint}
+          {busy ? 'You can type your next question; send it once this answer finishes.' : hint}
         </p>
       )}
     </form>

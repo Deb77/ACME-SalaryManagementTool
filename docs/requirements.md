@@ -35,7 +35,7 @@ Nov 18, 2026 · @Deborah
 | CSV export | Export the current filtered list | Should | HR will still share data in Excel |
 | Sign-in with role-based access (RBAC) | Each user has one role: a set of permissions (view, edit, terminate, change pay, export, import, insights, Ask AI, audit log, manage users, manage roles) plus a country scope (all, or assigned countries). Global HR and Country HR are seeded, and Global HR can add or edit roles without a deploy. The auth layer checks the permission on every request; Country HR sees and edits only assigned countries in lists, insights, exports, import and Ask AI | Should | Pay data is need-to-know; access is enforced on the server, not just hidden in the UI, and a new HR role doesn't need a release |
 | Seed data | Reproducible script creating 10,000 realistic employees | Must | Required to demo and test at real scale |
-| Excel and CSV import | Upload .xlsx or .csv, match columns, preview row-level errors, then add new and update existing employees in one step; downloadable template | Must | HR lives in Excel today; adoption needs an easy way in, and repeat imports while teams switch over |
+| Excel and CSV import | Upload the .xlsx or .csv sheet HR already uses (no template), preview its rows, match columns, review row-level errors, then add new and update existing employees in one step | Must | HR lives in Excel today; adoption needs an easy way in, and repeat imports while teams switch over |
 
 ## Deliberately out of scope
 

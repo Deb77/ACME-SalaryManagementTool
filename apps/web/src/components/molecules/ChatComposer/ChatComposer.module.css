@@ -70,6 +70,10 @@
   cursor: not-allowed;
 }
 
+.send[data-busy] {
+  opacity: 0.75;
+}
+
 .send:focus-visible {
   outline: 2px solid var(--acme-color-accent);
   outline-offset: 2px;
