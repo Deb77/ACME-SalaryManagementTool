@@ -20,7 +20,8 @@
   border-radius: var(--acme-radius-pill);
 }
 
-.input:focus {
+/* Keyboard focus only: a click that picks a value leaves no glow behind. */
+.input:focus-visible {
   border-color: var(--acme-color-accent);
   box-shadow: var(--acme-shadow-focus);
 }
