@@ -17,7 +17,6 @@ import {
   PayRangeRow,
   PillButton,
   SegmentedControl,
-  Skeleton,
   StatTile,
   TrayCard,
   type DataTableColumn,
@@ -25,7 +24,7 @@ import {
 import { formatMoney, roundToMajor } from '../../lib/money';
 import { formatCount, formatDate } from '../../lib/format';
 import { ResourceState } from '../shared/ResourceState';
-import { PayByTitleSkeleton } from './InsightsSkeleton';
+import { PayByTitleSkeleton, TitlesNote } from './InsightsSkeleton';
 import shared from '../shared/screen.module.css';
 import styles from './Insights.module.css';
 
@@ -202,12 +201,9 @@ export function InsightsView({
           }
           footer={
             byTitle.data ? (
-              <span>
-                {byTitle.data.rows.length} titles · sorted by median · bar is min to max, dot is the
-                median
-              </span>
+              <TitlesNote count={byTitle.data.rows.length} />
             ) : byTitle.status === 'loading' ? (
-              <Skeleton width={320} height={13} />
+              <TitlesNote />
             ) : undefined
           }
         >

@@ -14,6 +14,18 @@ import {
 import { askStore, type AskState } from './askStore';
 import { AskView } from './AskView';
 
+/**
+ * Longest silence before an answer counts as lost. A model call times out after 30 s and may be
+ * retried once on the fallback model, so the server can be quiet for about a minute.
+ */
+export const ASK_IDLE_TIMEOUT_MS = 90_000;
+
+const INTERRUPTED: Pick<AskTurn, 'status' | 'error' | 'errorCode'> = {
+  status: 'error',
+  error: 'The answer was cut off before it finished. Ask the question again.',
+  errorCode: 'interrupted',
+};
+
 const BLANK: AskState = {
   turns: [],
   question: '',
@@ -78,20 +90,35 @@ export function AskScreen() {
       busy: true,
     }));
     const signal = askStore.startStream();
+    // Gives up when the server sends nothing for a while, so a dropped answer never looks busy forever.
+    const idle = new AbortController();
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    const stillWaiting = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => idle.abort(), ASK_IDLE_TIMEOUT_MS);
+    };
+    stillWaiting();
+    let finished = false;
     try {
       await askAi(
         { conversationId: askStore.get().conversationId, message: text },
         (event) => {
+          stillWaiting();
+          if (event.type === 'done' || event.type === 'error') finished = true;
           if (event.type === 'conversation') {
             askStore.update({ conversationId: event.conversationId });
           }
           update((turn) => applyStreamEvent(turn, event));
         },
-        signal,
+        AbortSignal.any([signal, idle.signal]),
       );
-      update((turn) => (turn.status === 'streaming' ? { ...turn, status: 'done' } : turn));
+      // The stream closed without `done` (the server restarted or the connection dropped): say
+      // so, rather than leave a half answer that looks finished.
+      if (!finished) update((turn) => ({ ...turn, ...INTERRUPTED }));
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+      if (idle.signal.aborted && !signal.aborted) {
+        update((turn) => ({ ...turn, ...INTERRUPTED }));
+      } else if (!(error instanceof DOMException && error.name === 'AbortError')) {
         update((turn) => ({
           ...turn,
           status: 'error',
@@ -100,6 +127,7 @@ export function AskScreen() {
         }));
       }
     } finally {
+      clearTimeout(idleTimer);
       // A newer question (or New chat) owns `busy` once this stream was replaced.
       if (!signal.aborted) askStore.update({ busy: false });
     }

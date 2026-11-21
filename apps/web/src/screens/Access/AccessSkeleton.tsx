@@ -11,6 +11,7 @@ import {
   TrayCard,
   type DataTableColumn,
 } from '../../components';
+import { permissionLabels } from '../../lib/format';
 import { useOptionalSession } from '../../session/SessionContext';
 import shared from '../shared/screen.module.css';
 import styles from './Access.module.css';
@@ -54,6 +55,7 @@ const memberColumns: DataTableColumn<never>[] = [
 ];
 
 const LOG_WIDTHS = [320, 260, 360];
+const permissionLabelList = permissionKeys.map((key) => permissionLabels[key]);
 
 /**
  * AccessView while roles and people load: real titles, buttons (from permissions), footers
@@ -94,8 +96,15 @@ export function AccessSkeleton() {
           {[0, 1, 2].map((index) => (
             <RoleCardSkeleton
               key={index}
-              permissionCount={permissionKeys.length}
-              withActions={index > 0 && can('roles:manage')}
+              permissions={permissionLabelList}
+              actions={
+                index > 0 &&
+                can('roles:manage') && (
+                  <PillButton size="small" tabIndex={-1}>
+                    Edit
+                  </PillButton>
+                )
+              }
             />
           ))}
         </div>
@@ -104,7 +113,11 @@ export function AccessSkeleton() {
         <TrayCard
           title="Team members"
           flush
-          extra={<Skeleton width={258} height={30} pill />}
+          extra={
+            <div className={styles.filterSkeleton}>
+              <Skeleton width={258} height="100%" pill />
+            </div>
+          }
           footer="You can't remove the last Global HR. Every access change is logged."
         >
           <DataTable<never>
@@ -116,6 +129,7 @@ export function AccessSkeleton() {
             query={{ page: 1, pageSize: 5 }}
             onQueryChange={() => {}}
             skeletonRows={5}
+            skeletonPager={false}
             renderCard={() => null}
             skeletonCard={
               <div className={styles.memberCard}>

@@ -146,14 +146,25 @@ textarea.control {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  /* Still pinned above the tab bar on tablets; buttons sit at the right. */
   .actions {
-    position: static;
     justify-content: flex-end;
-    border-top: 0;
   }
 
   .actions > * {
     flex: none;
+  }
+}
+
+/*
+ * Desktop: <main> scrolls, so the bar pins to its bottom edge. The negative offset and matching
+ * padding cover main's bottom padding, so nothing scrolls visibly below the buttons.
+ */
+@media (min-width: 1024px) {
+  .actions {
+    bottom: calc(-1 * var(--acme-main-padding-bottom, 0px));
+    margin-bottom: calc(-1 * var(--acme-main-padding-bottom, 0px));
+    padding-bottom: calc(12px + var(--acme-main-padding-bottom, 0px));
   }
 }
 
@@ -173,8 +184,9 @@ textarea.control {
     calc(var(--acme-tabbar-height) + 96px + env(safe-area-inset-bottom));
 }
 
-@media (min-width: 768px) {
+/* Desktop: no tab bar, but the Save bar is still pinned at the bottom. */
+@media (min-width: 1024px) {
   :global([aria-invalid='true']) {
-    scroll-margin-block: 96px 24px;
+    scroll-margin-block: 96px;
   }
 }

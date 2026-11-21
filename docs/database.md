@@ -582,7 +582,7 @@ Serves `?actorId=` and, if open question 2 adds "own events" to the read policy,
 create index import_rows_outcome on import_rows (import_id, outcome, row_number);
 ```
 
-Serves `GET /api/imports/:id/rows?outcome=error&page=` and `rows.csv?outcome=error`. The PK `(import_id, row_number)` serves the unfiltered list and commit's in-order pass.
+Serves `GET /api/imports/:id/rows?outcome=error&page=`. The PK `(import_id, row_number)` serves the unfiltered list and commit's in-order pass.
 
 **M1: `imports (created_at desc)`.** Not needed: hundreds of rows at most. `GET /api/imports` sorts in memory.
 

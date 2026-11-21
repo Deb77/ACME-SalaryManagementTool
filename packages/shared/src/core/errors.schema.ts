@@ -13,6 +13,7 @@ export const apiErrorCodes = [
   'draft_stale',
   'draft_applied',
   'ai_unavailable',
+  'ai_no_answer',
   'internal_error',
 ] as const;
 
@@ -33,6 +34,7 @@ export const apiErrorStatus = {
   draft_applied: 409,
   internal_error: 500,
   ai_unavailable: 503,
+  ai_no_answer: 502,
 } as const satisfies Record<ApiErrorCode, number>;
 
 export const apiErrorDetailSchema = z.object({

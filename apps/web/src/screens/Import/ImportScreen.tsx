@@ -3,8 +3,6 @@ import { useState } from 'react';
 import { describeError } from '../../api/client';
 import {
   commitImport,
-  IMPORT_TEMPLATE_URL,
-  importErrorReportUrl,
   listImportRows,
   setImportMapping,
   undoImport,
@@ -75,7 +73,6 @@ export function ImportScreen() {
           ? `Rows for countries outside your access (${me.countries.map(countryName).join(', ')}) are reported as errors.`
           : undefined
       }
-      templateHref={IMPORT_TEMPLATE_URL}
       error={error}
       busy={busy}
       onFileSelected={(file) =>
@@ -126,7 +123,6 @@ export function ImportScreen() {
         onRetry: rows.reload,
       }}
       onRowsPageChange={setPage}
-      errorReportHref={record ? importErrorReportUrl(record.id) : undefined}
       skipInvalidRows={skipInvalidRows}
       onSkipInvalidRowsChange={setSkipInvalidRows}
       onCommit={() =>

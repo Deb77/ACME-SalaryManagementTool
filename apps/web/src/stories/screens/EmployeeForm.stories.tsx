@@ -1,4 +1,5 @@
 import type { Story } from '@ladle/react';
+import { EmployeeFormSkeleton } from '../../screens/EmployeeForm/EmployeeFormSkeleton';
 import {
   EmployeeFormView,
   type EmployeeFormViewProps,
@@ -62,3 +63,27 @@ export const ServerErrors: Story = () => (
 );
 ServerErrors.storyName = 'Server errors';
 ServerErrors.meta = { fullscreen: true };
+
+export const LoadingAdd: Story = () => (
+  <ScreenFrame me={sampleMeGlobal} path="/employees">
+    <EmployeeFormSkeleton mode="add" />
+  </ScreenFrame>
+);
+LoadingAdd.storyName = 'Loading, add';
+LoadingAdd.meta = { fullscreen: true };
+
+export const LoadingAddCountryHr: Story = () => (
+  <ScreenFrame me={sampleMeCountry} path="/employees">
+    <EmployeeFormSkeleton mode="add" oneCountry />
+  </ScreenFrame>
+);
+LoadingAddCountryHr.storyName = 'Loading, add, Country HR';
+LoadingAddCountryHr.meta = { fullscreen: true };
+
+export const LoadingEdit: Story = () => (
+  <ScreenFrame me={sampleMeGlobal} path="/employees">
+    <EmployeeFormSkeleton mode="edit" />
+  </ScreenFrame>
+);
+LoadingEdit.storyName = 'Loading, edit';
+LoadingEdit.meta = { fullscreen: true };

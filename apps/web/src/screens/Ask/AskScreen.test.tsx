@@ -65,6 +65,22 @@ describe('AskScreen', () => {
     );
   });
 
+  it('says the answer was cut off when the stream ends before it is done', async () => {
+    // The server restarted mid-answer: some text and a step, then the connection closed.
+    streams([
+      { type: 'conversation', conversationId: 'c1' },
+      { type: 'text', delta: 'Salaries are in different currencies.' },
+      { type: 'tool_call', callId: 't1', tool: 'run_sql', summary: 'Find the top earners' },
+      { type: 'tool_result', callId: 't1', rowCount: 3 },
+    ]);
+    renderScreen();
+    await askQuestion();
+    expect(await screen.findByRole('region', { name: 'The answer was cut off' })).toHaveTextContent(
+      'Ask the question again',
+    );
+    expect(screen.getByRole('textbox')).toBeEnabled();
+  });
+
   it('asks the user to slow down when rate limited (429)', async () => {
     ask.mockRejectedValueOnce(new ApiError(429, 'rate_limited', 'Too many'));
     renderScreen();
@@ -129,8 +145,7 @@ describe('AskScreen', () => {
     ]);
     renderScreen();
     await askQuestion();
-    await userEvent.click(await screen.findByRole('button', { name: 'Show steps' }));
-    expect(screen.getByText('Headcount')).toBeVisible();
+    expect(await screen.findByText('Headcount')).toBeVisible();
     expect(screen.queryByText(/select/i)).not.toBeInTheDocument();
   });
 

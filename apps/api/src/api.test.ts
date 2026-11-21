@@ -509,6 +509,10 @@ describe.skipIf(!url)('HTTP API', () => {
         .attach('file', Buffer.from(csv), { filename: 'india.csv', contentType: 'text/csv' });
       expect(uploaded.status, uploaded.text).toBe(201);
       const upload = importUploadResponseSchema.parse(uploaded.body);
+      // The preview: every data row (fewer than 20 here), as text in file order.
+      expect(upload.rowCount).toBe(4);
+      expect(upload.sampleRows).toHaveLength(4);
+      expect(upload.sampleRows[1]?.slice(0, 3)).toEqual(['', 'Neha', 'Kapoor']);
       expect(upload.suggestedMapping).toMatchObject({
         employeeCode: 'Emp ID',
         firstName: 'Name',
@@ -551,8 +555,10 @@ describe.skipIf(!url)('HTTP API', () => {
         countryCode: 'IN',
       });
       expect(errors.items[1]!.errors[0]!.message).toMatch(/outside your countries/);
-      const report = await indiaHr.get(`/api/imports/${upload.id}/rows.csv?outcome=error`);
-      expect(report.text).toContain('Problems');
+      // Problems are reviewed in the app; there is no CSV error report to download.
+      expect((await indiaHr.get(`/api/imports/${upload.id}/rows.csv?outcome=error`)).status).toBe(
+        404,
+      );
 
       expect(
         (
@@ -630,10 +636,9 @@ describe.skipIf(!url)('HTTP API', () => {
       expect(blocked.status).toBe(409);
     });
 
-    it('serves the template', async () => {
-      const res = await globalHr.get('/api/imports/template.xlsx');
-      expect(res.status).toBe(200);
-      expect(res.headers['content-type']).toMatch(/spreadsheetml/);
+    it('has no template to download: people bring the sheet they already use', async () => {
+      expect((await globalHr.get('/api/imports/template.xlsx')).status).toBe(404);
+      expect((await globalHr.get('/api/imports/template.csv')).status).toBe(404);
     });
   });
 

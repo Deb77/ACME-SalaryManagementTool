@@ -20,7 +20,6 @@ const record = {
 
 const props = (overrides: Partial<ImportViewProps> = {}): ImportViewProps => ({
   step: 'upload',
-  templateHref: '/api/imports/template.xlsx',
   onFileSelected: vi.fn(),
   onFileRejected: vi.fn(),
   upload: sampleUpload,
@@ -35,7 +34,6 @@ const props = (overrides: Partial<ImportViewProps> = {}): ImportViewProps => ({
   onOutcomeChange: vi.fn(),
   rows: { status: 'success', items: sampleImportErrors, total: 6, page: 1, pageSize: 25 },
   onRowsPageChange: vi.fn(),
-  errorReportHref: '/api/imports/x/rows.csv?outcome=error',
   skipInvalidRows: true,
   onSkipInvalidRowsChange: vi.fn(),
   onCommit: vi.fn(),
@@ -52,14 +50,12 @@ const props = (overrides: Partial<ImportViewProps> = {}): ImportViewProps => ({
 });
 
 describe('ImportView', () => {
-  it('starts with the upload step and the template link', () => {
+  it('starts with the upload step and no template to download', () => {
     render(<ImportView {...props()} />);
 
     expect(screen.getByText('Upload your file')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Download template/ })).toHaveAttribute(
-      'href',
-      '/api/imports/template.xlsx',
-    );
+    // People bring the sheet they already use; columns are matched after upload.
+    expect(screen.queryByRole('link', { name: /template/i })).not.toBeInTheDocument();
   });
 
   it('matches columns and runs the dry run', async () => {
@@ -78,7 +74,7 @@ describe('ImportView', () => {
     render(<ImportView {...props({ step: 'review', onCommit })} />);
 
     expect(screen.getByRole('list', { name: 'Need fixing rows' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Download error report/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /error report/i })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Import 59 rows' }));
     expect(onCommit).toHaveBeenCalled();
   });

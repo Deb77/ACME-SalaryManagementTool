@@ -74,7 +74,7 @@ Services throw typed domain errors (`NotFoundError`, `ConflictError`, …). A si
 ### Idempotency and rate limits
 
 - There is no `Idempotency-Key` header. The writes that matter are already protected: employee writes require `version`, and import commit/undo are state transitions on the import resource, so repeating one returns `409`.
-- Ask AI: 20 messages per minute and 200 per day per user (in-memory limiter, which is fine for one Render instance), plus token budgets (150k per conversation, 1M per user per day, counted from stored messages) and, per answer, at most 6 tool rounds and 2,000 output tokens. Other endpoints have no limit beyond the session.
+- Ask AI: 20 messages per minute and 200 per day per user (in-memory limiter, which is fine for one Render instance), plus token budgets (150k per conversation, 1M per user per day, counted from stored messages) and, per answer, at most 6 tool rounds and 6,000 output tokens: steps stop once they have used all but 2,000, and the written answer always gets at least those 2,000 (so the worst case is 8,000). Tool calls that arrived whole still run when the limit cuts the last one, and a reply that spent its tokens thinking gets one more tool-free, low-effort call to answer. An answer that hits that limit says it was cut off; a turn that ends with no answer is `ai_no_answer` (`502`, or an `error` event once the stream has started), never a bare `done`. Other endpoints have no limit beyond the session.
 
 ## 2. Roles and permissions
 
@@ -113,7 +113,6 @@ The auth layer checks each route's permission (`requirePermission`), and Postgre
 | GET | `/api/insights/by-title?country=IN` | Per job title within one country | `insights:read` (scoped) |
 | GET | `/api/insights/titles/:jobTitleId` | One title compared across countries | `insights:read` (scoped) |
 | GET | `/api/insights/distribution?country=IN[&jobTitle=…]` | Salary histogram | `insights:read` (scoped) |
-| GET | `/api/imports/template.xlsx` | Downloadable template (`template.csv` also available) | `imports:run` |
 | POST | `/api/imports` | Upload a file; returns detected columns and a suggested mapping | `imports:run` |
 | GET | `/api/imports` | Recent imports | `imports:run` (scoped) |
 | GET | `/api/imports/:id` | Import status and summary | `imports:run` (scoped) |
@@ -274,17 +273,18 @@ The import is a resource with a status: `uploaded → validated → committed �
    ```json
    { "id": "…", "status": "uploaded", "fileName": "india-2026.xlsx",
      "columns": ["Emp ID", "Name", "Surname", "E-mail", "Role", "Dept", "Annual CTC", "DOJ"],
+     "rowCount": 812,
      "sampleRows": [["IN-0042", "Asha", "Rao", "…"]],
      "suggestedMapping": { "employeeCode": "Emp ID", "firstName": "Name", "salaryAmount": "Annual CTC", "hireDate": "DOJ" } }
    ```
-   The suggested mapping comes from fuzzy header matching against field names and their known aliases.
+   `rowCount` is the number of data rows; `sampleRows` holds the first 20 (`IMPORT_PREVIEW_ROWS`) as text, aligned with `columns`, for the preview shown while columns are matched. The suggested mapping comes from fuzzy header matching against field names and their known aliases.
 2. **Map and dry run**: `PUT /api/imports/:id/mapping`
    ```json
    { "mapping": { "employeeCode": "Emp ID", "firstName": "Name", "…": "…" },
      "defaults": { "country": "IN", "salaryEffectiveDate": "2026-11-01" } }
    ```
    This parses and validates every row and changes nothing. It returns `200` with `{ status: "validated", summary: { rows: 2104, create: 12, update: 87, unchanged: 1998, error: 7 } }`. The client can call it again to try a different mapping.
-3. **Review**: `GET /api/imports/:id/rows?outcome=error|create|update|unchanged&page=1` returns `{ items: [{ rowNumber, outcome, employeeCode, changes: { jobTitleId: { from, to }, salaryAmountMinor: { from, to } }, errors: [{ column: "Annual CTC", message: "Not a number" }] }], page, pageSize, total }`. An error report is available as `GET /api/imports/:id/rows.csv?outcome=error`, so HR can fix the rows in Excel.
+3. **Review**: `GET /api/imports/:id/rows?outcome=error|create|update|unchanged&page=1` returns `{ items: [{ rowNumber, outcome, employeeCode, changes: { jobTitleId: { from, to }, salaryAmountMinor: { from, to } }, errors: [{ column: "Annual CTC", message: "Not a number" }] }], page, pageSize, total }`.
 4. **Commit**: `POST /api/imports/:id/commit` with `{ "skipInvalidRows": true }` (required if `error > 0`). The server re-validates inside one transaction. Valid rows are created or updated, and pay changes go through `SalaryService` (`reason: "import"`). If the data changed since the dry run so that the outcome differs, the whole commit rolls back with `409` and the user re-runs step 2. It returns `200` with the final summary. Committing twice returns `409`.
 5. **Undo**: `POST /api/imports/:id/undo` → `200`. This is allowed only while the import is still the latest change to every employee it touched. Otherwise it returns `409` and lists the blocking employees. Updated employees get their previous values back, with compensating `import_undo` salary entries (history stays append-only). Employees the batch created are removed together with their import-only history rows. This is the single, audited exception to "nothing is deleted", and it runs in a `SECURITY DEFINER` function restricted to that batch id.
 

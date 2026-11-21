@@ -109,6 +109,18 @@ export function EmployeeFormView({
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
   const errors = { ...serverErrors, ...clientErrors };
   const currency = countries.find((c) => c.code === draft.country)?.currency;
+  // Save stays off until every required field has a value (format checks still run on save).
+  const complete =
+    [
+      draft.firstName,
+      draft.lastName,
+      draft.email,
+      draft.departmentId,
+      draft.jobTitleId,
+      draft.country,
+      draft.hireDate,
+    ].every((value) => value.trim() !== '') &&
+    (editing || draft.salaryAmountMinor !== null);
 
   const update = (patch: Partial<Draft>) => {
     const next = { ...draft, ...patch };
@@ -207,7 +219,13 @@ export function EmployeeFormView({
       ) : (
         <PillButton href={cancelHref}>Cancel</PillButton>
       )}
-      <PillButton tone="primary" loading={saving} onClick={submit}>
+      <PillButton
+        tone="primary"
+        loading={saving}
+        disabled={!complete}
+        title={complete ? undefined : 'Fill in every required field to save'}
+        onClick={submit}
+      >
         {editing ? 'Save changes' : 'Save employee'}
       </PillButton>
     </>
@@ -242,10 +260,7 @@ export function EmployeeFormView({
             {text('email', 'Work email', 'email', 'email')}
           </fieldset>
         </TrayCard>
-        <TrayCard
-          title="Role"
-          footer="Titles come from ACME's job catalogue, so insights group correctly"
-        >
+        <TrayCard title="Role">
           <fieldset className={form.fieldset}>
             <legend className="visually-hidden">Role</legend>
             <div className={form.row}>

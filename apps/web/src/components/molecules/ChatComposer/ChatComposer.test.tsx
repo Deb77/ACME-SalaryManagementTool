@@ -36,7 +36,10 @@ describe('ChatComposer', () => {
 
     await userEvent.type(screen.getByRole('textbox'), 'Hello');
 
-    expect(screen.getByRole('button', { name: 'Send question' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Waiting for the answer' })).toBeDisabled();
+    expect(screen.getByRole('textbox')).toHaveAccessibleDescription(/once this answer finishes/);
+    await userEvent.keyboard('{Enter}');
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('links the caveat to the input', () => {

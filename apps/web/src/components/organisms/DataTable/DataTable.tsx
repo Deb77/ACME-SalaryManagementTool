@@ -1,6 +1,6 @@
 import { NativeSelect, Pagination, Table, UnstyledButton, VisuallyHidden } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import type { AriaAttributes, Key, ReactNode } from 'react';
+import type { AriaAttributes, Key, MouseEvent, ReactNode } from 'react';
 import { mediaQueries } from '../../../theme/tokens';
 import { Skeleton } from '../../atoms/Skeleton/Skeleton';
 import styles from './DataTable.module.css';
@@ -70,6 +70,30 @@ export interface DataTableProps<T, F extends string = string> {
   skeletonRows?: number;
   /** Phone card placeholder for `skeletonRows`; defaults to two text lines. */
   skeletonCard?: ReactNode;
+  /**
+   * Whether the placeholder footer reserves a pager. Turn it off for a table that fits on one
+   * page, whose real footer is the summary alone.
+   */
+  skeletonPager?: boolean;
+  /**
+   * Each row holds a link to its item (a PersonCell name, say): a click anywhere on the row
+   * follows it, as a bigger target. The link stays the keyboard and screen reader route.
+   */
+  rowLink?: boolean;
+}
+
+/**
+ * A click on a `rowLink` row follows the row's first link, unless it landed on a control of
+ * its own or ended a text selection. Cmd/Ctrl-click opens it in a new tab, like the link does.
+ */
+function followRowLink(event: MouseEvent<HTMLTableRowElement>) {
+  const target = event.target as HTMLElement;
+  if (target.closest('a, button, input, select, textarea, label, [role="button"]')) return;
+  if (window.getSelection()?.toString()) return;
+  const link = event.currentTarget.querySelector<HTMLAnchorElement>('a[href]');
+  if (!link) return;
+  if (event.metaKey || event.ctrlKey) window.open(link.href, '_blank', 'noopener');
+  else link.click();
 }
 
 /** Placeholder rows while `loading` when `skeletonRows` is not set. */
@@ -117,6 +141,8 @@ export function DataTable<T, F extends string = string>({
   fill = false,
   skeletonRows,
   skeletonCard = DEFAULT_CARD_SKELETON,
+  skeletonPager = true,
+  rowLink = false,
 }: DataTableProps<T, F>) {
   const placeholderCount = skeletonRows || (loading ? DEFAULT_LOADING_ROWS : 0);
   const placeholders = placeholderCount
@@ -250,7 +276,11 @@ export function DataTable<T, F extends string = string>({
             </Table.Tr>
           ) : (
             rows.map((row) => (
-              <Table.Tr key={rowKey(row)}>
+              <Table.Tr
+                key={rowKey(row)}
+                className={rowLink ? styles.linkRow : undefined}
+                onClick={rowLink ? followRowLink : undefined}
+              >
                 {columns.map((column) => (
                   <Table.Td key={column.key} style={{ textAlign: column.align }}>
                     {column.render(row)}
@@ -280,7 +310,7 @@ export function DataTable<T, F extends string = string>({
           <span className={styles.summary}>
             <Skeleton inline width={170} height={11} />
           </span>
-          <Skeleton width={wide ? 96 : 140} height={wide ? 32 : 44} pill />
+          {skeletonPager && <Skeleton width={wide ? 96 : 140} height={wide ? 32 : 44} pill />}
         </div>
       )}
 

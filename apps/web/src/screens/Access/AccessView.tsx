@@ -1,6 +1,6 @@
 import type { AuditEvent, CountryInfo, Me, Role, User } from '@acme/shared';
 import { permissionKeys } from '@acme/shared';
-import { IconPencil, IconPlus, IconUserPlus } from '@tabler/icons-react';
+import { IconPencil, IconPlus, IconUserCheck, IconUserPlus } from '@tabler/icons-react';
 import {
   DataTable,
   EmptyState,
@@ -51,6 +51,14 @@ const ACTION_VERBS: Partial<Record<AuditEvent['action'], string>> = {
   'role.updated': 'changed the role',
   'role.deleted': 'deleted the role',
 };
+
+/** What an access change did, in words; a restore is logged as an update from "deactivated". */
+function actionVerb(event: AuditEvent) {
+  if (event.action === 'user.updated' && event.before?.status === 'deactivated') {
+    return 'gave access back to';
+  }
+  return ACTION_VERBS[event.action] ?? event.action;
+}
 
 function scopeText(role: Pick<Role, 'countryScope'>) {
   return role.countryScope === 'all' ? 'All countries' : 'Only the countries assigned to them';
@@ -121,6 +129,23 @@ export function AccessView({
   const editButton = (user: User, compact: boolean) => {
     const rules = accessEditRules(me, user, users ?? [], roles);
     if (!canEditAccess(rules)) return null;
+    if (user.status === 'deactivated') {
+      return compact ? (
+        <IconButton
+          label={`Give access back to ${user.name}`}
+          icon={<IconUserCheck size={18} />}
+          onClick={() => onEditUser(user)}
+        />
+      ) : (
+        <PillButton
+          size="small"
+          aria-label={`Give access back to ${user.name}`}
+          onClick={() => onEditUser(user)}
+        >
+          Give access
+        </PillButton>
+      );
+    }
     return compact ? (
       <IconButton
         label={`Edit access for ${user.name}`}
@@ -315,8 +340,7 @@ export function AccessView({
               {accessChanges.map((event) => (
                 <li key={event.id} className={styles.logItem}>
                   <span>
-                    {event.actor.name} {ACTION_VERBS[event.action] ?? event.action}{' '}
-                    {event.entity.label}
+                    {event.actor.name} {actionVerb(event)} {event.entity.label}
                   </span>
                   <span className={`${shared.small} ${shared.muted}`}>
                     {formatRelative(event.occurredAt, now)}

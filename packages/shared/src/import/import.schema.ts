@@ -4,6 +4,9 @@ import { countryCodeSchema, isoDateSchema, timestampSchema } from '../core/commo
 export const importStatuses = ['uploaded', 'validated', 'committed', 'undone', 'failed'] as const;
 export type ImportStatus = (typeof importStatuses)[number];
 
+/** Rows of the uploaded file shown in the preview before columns are matched. */
+export const IMPORT_PREVIEW_ROWS = 20;
+
 /** Fields a spreadsheet column can be matched to (`suggestedMapping` keys). */
 export const importFields = [
   'employeeCode',
@@ -33,6 +36,9 @@ export const importUploadResponseSchema = z.object({
   status: z.literal('uploaded'),
   fileName: z.string(),
   columns: z.array(z.string()),
+  /** Data rows in the file (header excluded). */
+  rowCount: z.int().nonnegative(),
+  /** The first `IMPORT_PREVIEW_ROWS` data rows, aligned with `columns`, for the preview. */
   sampleRows: z.array(z.array(z.string())),
   suggestedMapping: importMappingSchema,
 });
@@ -96,7 +102,7 @@ export const commitImportRequestSchema = z.strictObject({
 
 export type CommitImportRequest = z.infer<typeof commitImportRequestSchema>;
 
-/** `GET /api/imports/:id/rows` and `rows.csv`. */
+/** `GET /api/imports/:id/rows`. */
 export const listImportRowsQuerySchema = z.object({
   outcome: z.enum(importOutcomes).optional(),
   page: z.coerce.number().int().min(1).default(1),

@@ -18,6 +18,10 @@
   line-height: var(--acme-leading-sm);
 }
 
+.linkRow {
+  cursor: pointer;
+}
+
 .th {
   font-size: var(--acme-text-xs);
   line-height: var(--acme-leading-xs);

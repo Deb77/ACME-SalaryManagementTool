@@ -34,6 +34,11 @@ export interface EmployeesViewProps {
   total: number;
   /** True while a new search, filter, sort or page loads; the table shows skeleton rows. */
   refreshing?: boolean;
+  /**
+   * True while a new search or filter loads, so the count is a placeholder; a page or sort
+   * change keeps the count. Defaults to `refreshing`.
+   */
+  counting?: boolean;
   query: TableQuery<EmployeeSortField>;
   onQueryChange: (query: TableQuery<EmployeeSortField>) => void;
   search: string;
@@ -68,6 +73,7 @@ export function EmployeesView({
   rows,
   total,
   refreshing = false,
+  counting = refreshing,
   query,
   onQueryChange,
   search,
@@ -141,6 +147,8 @@ export function EmployeesView({
     },
   ];
 
+  // Known only once the current search and filters have loaded.
+  const exportCount = status === 'success' && !counting ? total : undefined;
   const setFilter = (patch: Partial<EmployeeFilters>) => onFiltersChange({ ...filters, ...patch });
 
   return (
@@ -148,11 +156,11 @@ export function EmployeesView({
       <PageHeader
         title="Employees"
         description={
-          refreshing ? (
+          counting ? (
             // The previous total would read as the new one: a placeholder until the results land.
             <Skeleton inline width={140} height={13} />
           ) : status === 'success' ? (
-            `${formatCount(total)} ${filtered ? 'matching' : 'active'} ${total === 1 ? 'person' : 'people'}`
+            `${formatCount(total)} ${filtered ? 'matching' : 'active'} ${total === 1 ? 'person' : 'people'}${exportHref ? ' · Export uses the current search and filters' : ''}`
           ) : (
             'Everyone you can see, in their own currency'
           )
@@ -161,13 +169,35 @@ export function EmployeesView({
           (exportHref || canImport || canAdd) && (
             <div className={styles.headerActions}>
               {exportHref && (
-                <PillButton href={exportHref} download icon={<IconDownload size={16} />}>
-                  Export CSV
+                <PillButton
+                  href={exportHref}
+                  download
+                  icon={<IconDownload size={16} />}
+                  // The CSV follows the search and filters (Status starts on Active), so the
+                  // label says how many people it holds rather than suggesting everyone.
+                  title={
+                    exportCount === undefined
+                      ? 'Downloads the people that match the search and filters'
+                      : `Downloads the ${formatCount(exportCount)} ${exportCount === 1 ? 'person' : 'people'} that match the search and filters`
+                  }
+                >
+                  {exportCount === undefined ? (
+                    'Export CSV'
+                  ) : (
+                    <span>
+                      Export {formatCount(exportCount)}{' '}
+                      <span className={styles.longLabel}>as CSV</span>
+                    </span>
+                  )}
                 </PillButton>
               )}
               {canImport && (
                 <PillButton href="/employees/import" icon={<IconUpload size={16} />}>
-                  Import <span className={styles.longLabel}>from Excel</span>
+                  {/* One inline run: Mantine's label is a flex row, which drops the space
+                      between "Import" and a sibling span. */}
+                  <span>
+                    Import <span className={styles.longLabel}>from Excel</span>
+                  </span>
                 </PillButton>
               )}
               {canAdd && (
@@ -273,6 +303,7 @@ export function EmployeesView({
               // A search, filter, sort or page change: the first-load skeleton rows (cards on
               // phones) replace the old rows, while the search and filters stay mounted.
               loading={refreshing}
+              rowLink
               skeletonCard={<EmployeeCardSkeleton />}
               fill
               itemName="employees"

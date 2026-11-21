@@ -5,6 +5,7 @@ import { EmployeeDetailSkeleton } from '../screens/EmployeeDetail/EmployeeDetail
 import { EmployeeFormSkeleton } from '../screens/EmployeeForm/EmployeeFormSkeleton';
 import { EmployeesSkeleton } from '../screens/Employees/EmployeesSkeleton';
 import { InsightsSkeleton } from '../screens/Insights/InsightsSkeleton';
+import { useOptionalSession } from '../session/SessionContext';
 import { skeletonFor } from './skeletonFor';
 
 /**
@@ -12,8 +13,12 @@ import { skeletonFor } from './skeletonFor';
  * page is laid out exactly as it will be, otherwise the closest generic PageSkeleton.
  */
 export function RouteSkeleton({ pathname }: { pathname: string }) {
+  const session = useOptionalSession();
   if (pathname === '/employees' || pathname === '/') return <EmployeesSkeleton />;
-  if (/^\/employees\/[^/]+\/edit$/.test(pathname)) return <EmployeeFormSkeleton />;
+  if (pathname === '/employees/new') {
+    return <EmployeeFormSkeleton mode="add" oneCountry={session?.me.countries.length === 1} />;
+  }
+  if (/^\/employees\/[^/]+\/edit$/.test(pathname)) return <EmployeeFormSkeleton mode="edit" />;
   if (pathname.startsWith('/ask')) return <AskSkeleton />;
   const variant = skeletonFor(pathname);
   if (variant === 'detail') return <EmployeeDetailSkeleton />;

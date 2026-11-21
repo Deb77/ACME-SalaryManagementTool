@@ -117,10 +117,18 @@
   padding-left: 16px;
 }
 
-.problem {
-  font-size: var(--acme-text-xs);
-  line-height: var(--acme-leading-xs);
+/* A row's problems in the review table: red text after an alert icon. */
+.problemCell {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
   color: var(--acme-color-danger-text);
+}
+
+.problemIcon {
+  flex: none;
+  /* Centred on the first line of text. */
+  margin-top: calc((1lh - 16px) / 2);
 }
 
 .facts {
@@ -158,4 +166,154 @@
     grid-template-columns: minmax(0, 1fr) 320px;
     align-items: start;
   }
+}
+
+/*
+ * The steps stay in view while the page scrolls: below the sticky top bar on phones and
+ * tablets (60px plus the notch inset), and below the sticky page header on desktop, whose
+ * height PageHeader publishes. The white band and fade let cards scroll under it cleanly.
+ */
+.steps {
+  position: sticky;
+  top: calc(60px + env(safe-area-inset-top));
+  z-index: 21;
+  margin-block: -8px;
+  padding-block: 8px;
+  background: var(--acme-color-white);
+}
+
+.steps::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 16px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, var(--acme-color-white), rgba(255, 255, 255, 0));
+}
+
+@media (min-width: 1024px) {
+  .steps {
+    /* PageHeader sticks at -(main's top padding), so its bottom edge is this far down. */
+    top: calc(var(--acme-page-header-height, 0px) - var(--acme-main-padding-top, 0px));
+  }
+}
+
+/* ---- Sheet preview: the file's first rows, laid out like a spreadsheet ---- */
+
+.previewBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.previewScroll {
+  max-width: 100%;
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--acme-color-grey200);
+  border-radius: var(--acme-radius-md);
+}
+
+.previewScroll:focus-visible {
+  outline: 2px solid var(--acme-color-accent);
+  outline-offset: 2px;
+}
+
+.preview {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.preview th,
+.preview td {
+  max-width: 240px;
+  padding: 6px 12px;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-right: 1px solid var(--acme-color-grey150);
+  border-bottom: 1px solid var(--acme-color-grey150);
+}
+
+.preview thead th {
+  position: sticky;
+  z-index: 1;
+  background: var(--acme-color-grey50);
+  font-weight: 500;
+  vertical-align: top;
+}
+
+/* A, B, C… then the header row of the file, both pinned while the rows scroll. */
+.previewLetters th {
+  top: 0;
+  height: 28px;
+  box-sizing: border-box;
+  padding-block: 4px;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
+  font-weight: 400;
+  color: var(--acme-color-grey500);
+  text-align: center;
+}
+
+.preview thead tr + tr th {
+  top: 28px;
+}
+
+.previewColumn {
+  display: block;
+  color: var(--acme-color-grey900);
+}
+
+.previewField {
+  display: block;
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
+  font-weight: 500;
+  color: var(--acme-color-success-text);
+}
+
+.preview th[data-unmatched] .previewField {
+  font-weight: 400;
+  color: var(--acme-color-grey500);
+}
+
+/* Columns that won't be imported read as greyed out. */
+.preview td[data-unmatched] {
+  color: var(--acme-color-grey400);
+}
+
+/* Row numbers stay at the left edge while wide sheets scroll sideways. */
+.preview .previewCorner,
+.preview .previewRowNumber {
+  position: sticky;
+  left: 0;
+  min-width: 44px;
+  box-sizing: border-box;
+  text-align: right;
+  color: var(--acme-color-grey500);
+  font-weight: 400;
+  background: var(--acme-color-grey50);
+}
+
+.preview thead .previewCorner {
+  z-index: 2;
+}
+
+.preview .previewRowNumber {
+  z-index: 1;
+  font-size: var(--acme-text-xs);
+}
+
+.previewEmpty {
+  margin: 0;
+  font-size: var(--acme-text-sm);
+  color: var(--acme-color-grey500);
 }

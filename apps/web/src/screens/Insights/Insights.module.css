@@ -65,3 +65,14 @@
   align-items: center;
   height: 48px;
 }
+
+/* The picker placeholder: the phone select's height, then the segmented control's. */
+.pickerSkeleton {
+  height: 50px;
+}
+
+@media (min-width: 768px) {
+  .pickerSkeleton {
+    height: 32px;
+  }
+}

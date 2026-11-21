@@ -21,6 +21,8 @@ export interface InviteDialogProps {
   error?: string;
   /** Set after the invite is created: the link is shown once (decision #25). */
   inviteUrl?: string;
+  /** Who the link is for when it was not made by this form (access given back to an invitee). */
+  invitee?: string;
   onInvite: (body: InviteUserRequest) => void;
   onClose: () => void;
 }
@@ -33,6 +35,7 @@ export function InviteDialog({
   saving = false,
   error,
   inviteUrl,
+  invitee,
   onInvite,
   onClose,
 }: InviteDialogProps) {
@@ -83,7 +86,8 @@ export function InviteDialog({
       >
         <div className={form.form}>
           <Notice tone="info" title="Copy this link now">
-            Send it to {name || 'them'} yourself. It is shown once and expires in 72 hours.
+            Send it to {invitee ?? (name || 'them')} yourself. It is shown once and expires in 72
+            hours.
           </Notice>
           <code className={styles.inviteUrl}>{inviteUrl}</code>
           <div>

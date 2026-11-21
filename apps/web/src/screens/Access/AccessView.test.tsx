@@ -112,4 +112,37 @@ describe('AccessView', () => {
     expect(within(card).getByText('No access')).toBeInTheDocument();
     expect(within(card).getByText('No countries')).toBeInTheDocument();
   });
+
+  it('offers to give access back to someone whose access was removed, and logs it in words', async () => {
+    const onEditUser = vi.fn();
+    const removed = { ...sampleUsers[4]!, status: 'deactivated' as const };
+    const restore = {
+      ...sampleAccessChanges[0]!,
+      id: '00000000-0000-4000-8000-0000000000ff',
+      action: 'user.updated' as const,
+      entity: { type: 'user', id: removed.id, label: removed.name },
+      before: { status: 'deactivated' },
+      after: { status: 'active' },
+    };
+    render(
+      <AccessView
+        {...props({
+          users: sampleUsers.map((u) => (u.id === removed.id ? removed : u)),
+          accessChanges: [restore],
+          onEditUser,
+        })}
+      />,
+    );
+
+    expect(
+      screen.queryByRole('button', { name: `Edit access for ${removed.name}` }),
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: `Give access back to ${removed.name}` }),
+    );
+    expect(onEditUser).toHaveBeenCalledWith(removed);
+    expect(
+      screen.getByText(`${restore.actor.name} gave access back to ${removed.name}`),
+    ).toBeInTheDocument();
+  });
 });

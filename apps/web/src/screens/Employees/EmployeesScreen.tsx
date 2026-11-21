@@ -38,6 +38,10 @@ export function EmployeesScreen() {
   );
   const shown = employees.data ?? employees.previous;
   const refreshing = employees.status === 'loading' && shown !== undefined;
+  // The count depends on the search and filters only: a page or sort change keeps it.
+  const countKey = JSON.stringify({ ...params, sort: undefined });
+  const [countedKey, setCountedKey] = useState<string>();
+  if (employees.data && countedKey !== countKey) setCountedKey(countKey);
 
   return (
     <EmployeesView
@@ -47,6 +51,7 @@ export function EmployeesScreen() {
       rows={shown?.items ?? []}
       total={shown?.total ?? 0}
       refreshing={refreshing}
+      counting={refreshing && countedKey !== countKey}
       query={query}
       onQueryChange={setQuery}
       search={search}

@@ -1,5 +1,3 @@
-import { useId, useState } from 'react';
-import { PillButton } from '../../atoms/PillButton/PillButton';
 import { TrayCard } from '../../molecules/TrayCard/TrayCard';
 import styles from './QuerySteps.module.css';
 
@@ -13,30 +11,16 @@ export interface QueryStep {
 export interface QueryStepsProps {
   title: string;
   steps: readonly QueryStep[];
-  defaultExpanded?: boolean;
 }
 
-/** "Worked through 3 steps": what an AI answer looked up, in plain English, with each outcome. */
-export function QuerySteps({ title, steps, defaultExpanded = true }: QueryStepsProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
-  const listId = useId();
+/**
+ * "Worked through 3 steps": what an AI answer looked up, in plain English, with each outcome.
+ * Always open: the steps are how people check the numbers, so they are never one click away.
+ */
+export function QuerySteps({ title, steps }: QueryStepsProps) {
   return (
-    <TrayCard
-      title={title}
-      headingLevel={3}
-      extra={
-        <PillButton
-          tone="quiet"
-          size="small"
-          aria-expanded={expanded}
-          aria-controls={listId}
-          onClick={() => setExpanded((value) => !value)}
-        >
-          {expanded ? 'Hide steps' : 'Show steps'}
-        </PillButton>
-      }
-    >
-      <ol id={listId} className={styles.list} hidden={!expanded}>
+    <TrayCard title={title} headingLevel={3}>
+      <ol className={styles.list}>
         {steps.map((step) => (
           <li key={step.label} className={styles.step}>
             <span className={styles.dot} aria-hidden="true" />

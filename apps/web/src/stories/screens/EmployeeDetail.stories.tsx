@@ -1,10 +1,12 @@
 import type { Story } from '@ladle/react';
 import { useState } from 'react';
+import { MemoryRouter, Route, Routes } from 'react-router';
 import { ApiError } from '../../api/client';
 import {
   EmployeeDetailView,
   type EmployeeDetailViewProps,
 } from '../../screens/EmployeeDetail/EmployeeDetailView';
+import { EmployeeDetailSkeleton } from '../../screens/EmployeeDetail/EmployeeDetailSkeleton';
 import { TerminateDialog } from '../../screens/EmployeeDetail/TerminateDialog';
 import { SalaryChangeDialog } from '../../screens/SalaryChange/SalaryChangeDialog';
 import {
@@ -146,3 +148,16 @@ export const Terminate: Story = () => (
     onConfirm={() => {}}
   />
 );
+
+/** The page before the employee, history and benchmark have all loaded; matches Global HR. */
+export const Loading: Story = () => (
+  <ScreenFrame me={sampleMeGlobal} path="/employees">
+    {/* The skeleton reads the employee id from the route, for its Edit details link. */}
+    <MemoryRouter initialEntries={[`/employees/${samplePriya.id}`]}>
+      <Routes>
+        <Route path="/employees/:id" element={<EmployeeDetailSkeleton />} />
+      </Routes>
+    </MemoryRouter>
+  </ScreenFrame>
+);
+Loading.meta = { fullscreen: true };

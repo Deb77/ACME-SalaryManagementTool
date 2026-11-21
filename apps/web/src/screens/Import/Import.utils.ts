@@ -166,3 +166,15 @@ export function rowDetail(row: ImportRow, context: ChangeContext): string {
   if (changes.length === 0) return row.outcome === 'create' ? 'New employee' : 'No changes';
   return changes.join(' · ');
 }
+
+/** Column letters as in Excel: A … Z, AA, AB … */
+export function columnLetter(index: number): string {
+  let n = index + 1;
+  let letters = '';
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    letters = String.fromCharCode(65 + rem) + letters;
+    n = Math.floor((n - 1) / 26);
+  }
+  return letters;
+}

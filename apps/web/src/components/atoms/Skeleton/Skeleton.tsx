@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 import styles from './Skeleton.module.css';
 
 export interface SkeletonProps {
@@ -18,6 +18,19 @@ export interface SkeletonProps {
   className?: string;
 }
 
+/** Matches the `shimmer` animation's duration in Skeleton.module.css. */
+const SHIMMER_MS = 1400;
+
+/**
+ * Starts the shimmer part-way through, in step with the page clock, so every placeholder sweeps
+ * together and a skeleton that replaces another (the route's, then the screen's own while its
+ * data loads) carries on instead of restarting, which read as the page loading twice.
+ */
+function useShimmerPhase(): string {
+  const [delay] = useState(() => `${-Math.round(performance.now() % SHIMMER_MS)}ms`);
+  return delay;
+}
+
 const size = (value: number | string | undefined) =>
   typeof value === 'number' ? `${value}px` : value;
 
@@ -26,9 +39,11 @@ const size = (value: number | string | undefined) =>
  * the surrounding LoadingState or PageSkeleton announces the loading state.
  */
 export function Skeleton({ width, height = 14, circle, pill, inline, className }: SkeletonProps) {
+  const animationDelay = useShimmerPhase();
   const style: CSSProperties = {
     width: size(circle ? height : (width ?? '100%')),
     height: size(height),
+    animationDelay,
   };
   const shape = circle ? styles.circle : pill ? styles.pill : undefined;
   const bone = (

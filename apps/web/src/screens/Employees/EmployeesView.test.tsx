@@ -35,9 +35,28 @@ describe('EmployeesView', () => {
       '/employees/new',
     );
     expect(screen.getByRole('link', { name: /Import from Excel/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Export CSV/ })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /^Export \d+ as CSV$/ })).toHaveAttribute(
       'href',
       '/api/employees.csv',
+    );
+  });
+
+  it('says the export holds only the people that match the filters', () => {
+    const { rerender } = render(<EmployeesView {...props({ total: 9514 })} />);
+    expect(
+      screen.getByText('9,514 active people · Export uses the current search and filters'),
+    ).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: 'Export 9,514 as CSV' });
+    expect(link).toHaveAttribute(
+      'title',
+      'Downloads the 9,514 people that match the search and filters',
+    );
+
+    // While new results load the count isn't known yet, so it doesn't show a stale one.
+    rerender(<EmployeesView {...props({ total: 9514, refreshing: true })} />);
+    expect(screen.getByRole('link', { name: 'Export CSV' })).toHaveAttribute(
+      'title',
+      'Downloads the people that match the search and filters',
     );
   });
 
@@ -48,7 +67,7 @@ describe('EmployeesView', () => {
 
     expect(screen.queryByRole('link', { name: /Add employee/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Import from Excel/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Export CSV/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^Export/ })).not.toBeInTheDocument();
   });
 
   it('explains an empty search', () => {
@@ -100,10 +119,18 @@ describe('EmployeesView', () => {
     expect(screen.queryByText(/42 matching people/)).not.toBeInTheDocument();
   });
 
+  it('keeps the count while another page or sort of the same results loads', () => {
+    render(
+      <EmployeesView {...props({ total: 42, refreshing: true, counting: false, search: 'pri' })} />,
+    );
+
+    expect(screen.getByText(/^42 matching people/)).toBeInTheDocument();
+  });
+
   it('shows the count once the results have loaded', () => {
     render(<EmployeesView {...props({ total: 42, search: 'pri' })} />);
 
-    expect(screen.getByText('42 matching people')).toBeInTheDocument();
+    expect(screen.getByText(/^42 matching people/)).toBeInTheDocument();
   });
 
   it('offers a Country filter only when the user can see more than one country', () => {
@@ -130,7 +157,7 @@ describe('EmployeesView', () => {
 
     const add = screen.getByRole('link', { name: /Add employee/ });
     const group = add.parentElement!;
-    expect(group).toContainElement(screen.getByRole('link', { name: /Export CSV/ }));
+    expect(group).toContainElement(screen.getByRole('link', { name: /^Export/ }));
     expect(group).toContainElement(screen.getByRole('link', { name: /Import from Excel/ }));
   });
 });
