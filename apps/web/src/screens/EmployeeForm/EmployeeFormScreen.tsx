@@ -62,6 +62,7 @@ export function EmployeeFormScreen() {
       error={error && Object.keys(formErrors).length === 0 ? describeError(error) : undefined}
       serverErrors={formErrors}
       cancelHref={id ? employeePath(id) : '/employees'}
+      onCancel={() => navigate(id ? employeePath(id) : '/employees')}
       onSubmit={async (submit) => {
         setSaving(true);
         setError(null);

@@ -1,6 +1,6 @@
 import { render, screen, within } from '../../../test/render';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DataTable, type DataTableColumn, type TableQuery } from './DataTable';
 
 interface Row {
@@ -35,7 +35,29 @@ function renderTable(query: TableQuery, onQueryChange = vi.fn()) {
   return onQueryChange;
 }
 
+/** Makes `matchMedia` match the tablet query only (the setup's mock never matches: a phone). */
+function mockTabletViewport() {
+  const original = window.matchMedia;
+  beforeEach(() => {
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(min-width: 768px)',
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+  });
+  afterEach(() => {
+    window.matchMedia = original;
+  });
+}
+
 describe('DataTable', () => {
+  mockTabletViewport();
+
   it('renders one row per item and a server-side total', () => {
     renderTable({ page: 1, pageSize: 10 });
 
@@ -43,6 +65,24 @@ describe('DataTable', () => {
     expect(within(table).getByText('Priya Sharma')).toBeInTheDocument();
     expect(within(table).getByText('Data Analyst')).toBeInTheDocument();
     expect(screen.getByText('Showing 1–10 of 25 employees')).toBeInTheDocument();
+  });
+
+  it('shows only the summary when everything fits on one page', () => {
+    render(
+      <DataTable
+        label="Countries"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        total={2}
+        query={{ page: 1, pageSize: 10 }}
+        onQueryChange={vi.fn()}
+        itemName="countries"
+      />,
+    );
+
+    expect(screen.getByText('Showing 1–2 of 2 countries')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument();
   });
 
   it('asks for the next page when a page is chosen', async () => {
@@ -137,5 +177,42 @@ describe('DataTable on a phone', () => {
       pageSize: 10,
       sort: { field: 'name', order: 'desc' },
     });
+  });
+
+  it('pages with previous / "Page x of y" / next instead of numbered pages', async () => {
+    const onQueryChange = renderCards({ page: 1, pageSize: 10 });
+
+    expect(screen.getByText('Showing 1–10 of 25 employees')).toBeInTheDocument();
+    expect(screen.getByText('Page 1 of 3')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Page 2' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Previous page' })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Next page' }));
+
+    expect(onQueryChange).toHaveBeenCalledWith({ page: 2, pageSize: 10 });
+  });
+
+  it('formats large page counts and disables next on the last page', async () => {
+    const onQueryChange = vi.fn();
+    render(
+      <DataTable
+        label="Employees"
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        total={11_890}
+        query={{ page: 1189, pageSize: 10 }}
+        onQueryChange={onQueryChange}
+        itemName="employees"
+        renderCard={(row) => row.name}
+      />,
+    );
+
+    expect(screen.getByText('Page 1,189 of 1,189')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Previous page' }));
+
+    expect(onQueryChange).toHaveBeenCalledWith({ page: 1188, pageSize: 10 });
   });
 });

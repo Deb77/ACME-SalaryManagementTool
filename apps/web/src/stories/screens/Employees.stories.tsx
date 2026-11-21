@@ -5,7 +5,13 @@ import type { EmployeeSortField } from '../../api/endpoints';
 import type { TableQuery } from '../../components';
 import type { EmployeeFilters } from '../../screens/Employees/Employees.utils';
 import { EmployeesView, type EmployeesViewProps } from '../../screens/Employees/EmployeesView';
-import { sampleEmployees, sampleMeGlobal, sampleMeta, sampleMeViewer } from '../screenSampleData';
+import {
+  sampleEmployees,
+  sampleMeCountry,
+  sampleMeGlobal,
+  sampleMeta,
+  sampleMeViewer,
+} from '../screenSampleData';
 import { ScreenFrame } from './ScreenFrame';
 
 export default { title: 'Screens / Employees' };
@@ -54,6 +60,18 @@ function Employees({
 export const GlobalHr: Story = () => <Employees />;
 GlobalHr.storyName = 'Global HR';
 GlobalHr.meta = { fullscreen: true };
+
+/** India HR: one visible country, so there is no Country filter. */
+export const CountryHr: Story = () => (
+  <Employees
+    me={sampleMeCountry}
+    rows={sampleEmployees.filter((e) => e.country === 'IN')}
+    total={sampleEmployees.filter((e) => e.country === 'IN').length}
+    countries={sampleMeta.countries.filter((c) => c.code === 'IN')}
+  />
+);
+CountryHr.storyName = 'Country HR (one country)';
+CountryHr.meta = { fullscreen: true };
 
 export const ReadOnly: Story = () => <Employees me={sampleMeViewer} />;
 ReadOnly.storyName = 'Read-only role (no add, import or export)';

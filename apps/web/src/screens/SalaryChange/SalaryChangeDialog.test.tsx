@@ -28,6 +28,7 @@ describe('SalaryChangeDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save change' }));
     expect(onSubmit).not.toHaveBeenCalled();
     expect(screen.getByText('Enter the new annual salary')).toBeInTheDocument();
+    expect(screen.getByLabelText(/New annual salary/)).toHaveFocus();
   });
 
   it('prefills an AI draft and sends its id with the version', async () => {

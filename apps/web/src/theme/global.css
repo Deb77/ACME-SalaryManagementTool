@@ -4,6 +4,8 @@
  * browser still bounces.
  */
 html {
+  /* Height of the phone tab bar, not counting the safe area. Sticky bars sit right above it. */
+  --acme-tabbar-height: 68px;
   background: #f1f2f1;
   overscroll-behavior: none;
 }

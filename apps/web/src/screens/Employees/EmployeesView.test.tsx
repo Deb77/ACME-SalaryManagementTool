@@ -93,4 +93,44 @@ describe('EmployeesView', () => {
     expect(screen.getByLabelText('Search employees')).toHaveValue('pri');
     expect(screen.getByRole('status')).toHaveTextContent('Loading employees…');
   });
+
+  it('never shows the previous count as current while new results load', () => {
+    render(<EmployeesView {...props({ total: 42, refreshing: true, search: 'pri' })} />);
+
+    expect(screen.queryByText(/42 matching people/)).not.toBeInTheDocument();
+  });
+
+  it('shows the count once the results have loaded', () => {
+    render(<EmployeesView {...props({ total: 42, search: 'pri' })} />);
+
+    expect(screen.getByText('42 matching people')).toBeInTheDocument();
+  });
+
+  it('offers a Country filter only when the user can see more than one country', () => {
+    const { unmount } = render(<EmployeesView {...props()} />);
+    expect(screen.getByRole('combobox', { name: 'Country' })).toBeInTheDocument();
+    unmount();
+
+    render(<EmployeesView {...props({ countries: sampleMeta.countries.slice(0, 1) })} />);
+    expect(screen.queryByRole('combobox', { name: 'Country' })).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Department' })).toBeInTheDocument();
+  });
+
+  it('keeps the full job title and country readable on the cards', () => {
+    const [employee] = sampleEmployees;
+    render(<EmployeesView {...props()} />);
+
+    const country = sampleMeta.countries.find((c) => c.code === employee!.country)!.name;
+    const detail = `${employee!.jobTitle.name} · ${country}`;
+    expect(screen.getAllByText(detail)[0]).toHaveAttribute('title', detail);
+  });
+
+  it('puts the primary Add employee action with the secondary ones in one actions group', () => {
+    render(<EmployeesView {...props()} />);
+
+    const add = screen.getByRole('link', { name: /Add employee/ });
+    const group = add.parentElement!;
+    expect(group).toContainElement(screen.getByRole('link', { name: /Export CSV/ }));
+    expect(group).toContainElement(screen.getByRole('link', { name: /Import from Excel/ }));
+  });
 });

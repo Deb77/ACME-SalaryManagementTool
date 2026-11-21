@@ -14,7 +14,8 @@ import { ChoiceChips, Dialog, FormField, PillButton } from '../../components';
 import { permissionLabels } from '../../lib/format';
 import { withoutPermission, withRequirements } from '../../session/permissions';
 import form from '../shared/form.module.css';
-import { zodFieldErrors } from '../shared/formErrors';
+import { requiredTextMessage, tooLongMessage, zodFieldErrors } from '../shared/formErrors';
+import { useFocusFirstError } from '../shared/useFocusFirstError';
 
 export type RoleEditorSubmit =
   { mode: 'create'; body: CreateRoleRequest } | { mode: 'edit'; body: UpdateRoleRequest };
@@ -51,6 +52,7 @@ export function RoleEditorDialog({
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const canGrantAll = me.role.countryScope === 'all';
+  const { ref: fieldsRef, focusFirstError } = useFocusFirstError<HTMLDivElement>();
 
   const change = (next: Permission[]) => {
     const added = next.find((p) => !permissions.includes(p));
@@ -73,7 +75,16 @@ export function RoleEditorDialog({
           countryScope,
           permissions,
         });
-    if (!parsed.success) return setErrors(zodFieldErrors(parsed.error));
+    if (!parsed.success) {
+      setErrors(
+        zodFieldErrors(parsed.error, {
+          name: requiredTextMessage('name', 60),
+          description: tooLongMessage('description', 200),
+          permissions: () => 'Choose at least one permission',
+        }),
+      );
+      return focusFirstError();
+    }
     setErrors({});
     onSubmit(
       role
@@ -101,7 +112,7 @@ export function RoleEditorDialog({
         </>
       }
     >
-      <div className={form.form}>
+      <div ref={fieldsRef} className={form.form}>
         <FormField label="Name" required error={errors.name}>
           {(control) => (
             <input

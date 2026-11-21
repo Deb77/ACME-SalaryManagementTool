@@ -6,6 +6,7 @@ import type { AppContainer } from './container.js';
 import { notFound } from './lib/errors.js';
 import { errorHandler, noStore, originCheck, securityHeaders, consoleLogger } from './lib/http.js';
 import { accessRoutes } from './modules/access/access.routes.js';
+import { aiRoutes, prometheusRoute } from './modules/ai/ai.routes.js';
 import { auditRoutes } from './modules/audit/audit.routes.js';
 import { employeeRoutes } from './modules/employees/employee.routes.js';
 import { importRoutes } from './modules/imports/import.routes.js';
@@ -33,6 +34,7 @@ function apiRoutes(c: AppContainer): Router {
     importRoutes(c.resolve('importService')),
     auditRoutes(c.resolve('scopedDb'), c.resolve('auditService')),
     accessRoutes(c.resolve('userService'), c.resolve('roleService')),
+    aiRoutes(c.resolve('askAiService'), c.resolve('aiMetrics'), c.resolve('aiSettings')),
   );
   return router;
 }
@@ -45,10 +47,20 @@ export function createApp({ webDist, container }: AppOptions = {}): Express {
   app.use(securityHeaders);
   app.use('/api', noStore, express.json({ limit: '100kb' }));
 
-  app.get('/api/health', (_req, res) => {
-    const body: HealthResponse = { status: 'ok' };
+  app.get('/api/health', async (_req, res) => {
+    // Ask AI readiness without secrets: is a key set, does the reader pool connect.
+    const body: HealthResponse = container
+      ? { status: 'ok', ai: await container.resolve('askAiService').health() }
+      : { status: 'ok' };
     res.json(body);
   });
+
+  if (container) {
+    app.get(
+      '/metrics',
+      prometheusRoute(container.resolve('aiMetrics'), container.resolve('config').metricsToken),
+    );
+  }
 
   if (container) app.use('/api', apiRoutes(container));
 

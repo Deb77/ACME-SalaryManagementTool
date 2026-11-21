@@ -51,8 +51,9 @@ describe('FileDropzone accessibility', () => {
   it('is a keyboard-reachable button that says what it accepts', () => {
     render(<FileDropzone onFileSelected={vi.fn()} />);
 
-    expect(
-      screen.getByRole('button', { name: /Drop your Excel or CSV file here/ }),
-    ).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('button', { name: /Choose an Excel or CSV file/ })).toHaveAttribute(
+      'tabindex',
+      '0',
+    );
   });
 });

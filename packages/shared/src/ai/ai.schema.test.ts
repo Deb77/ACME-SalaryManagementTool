@@ -20,6 +20,7 @@ describe('aiStreamEventSchema', () => {
       draft: {
         draftId: '6f1c1f3e-2a51-4c55-9d4e-3c3a8e0b7a10',
         employeeId: '0b8f4a2e-6c1d-4f7e-9a3b-2d5e8c1f4a60',
+        employeeCode: 'ACM-000123',
         employeeName: 'Asha Rao',
         currentAmount: { amountMinor: 180_000_000, currency: 'INR' },
         proposedAmount: { amountMinor: 198_000_000, currency: 'INR' },

@@ -114,6 +114,12 @@ function fromPostgres(error: unknown): AppError | undefined {
   switch (pg.code) {
     case '23505': {
       const constraint = (pg.constraint ?? '').toLowerCase().replace(/_/g, '');
+      if (constraint.includes('aidraft')) {
+        return new AppError(
+          'draft_applied',
+          'This draft has already been saved. Ask again for a new suggestion.',
+        );
+      }
       if (constraint.includes('email')) {
         return new AppError('conflict', 'This email is already in use', [
           { path: 'email', message: 'Already in use' },
@@ -147,11 +153,14 @@ function fromPostgres(error: unknown): AppError | undefined {
 export interface Logger {
   error(message: string, meta?: Record<string, unknown>): void;
   info(message: string, meta?: Record<string, unknown>): void;
+  /** Alerts (`ai.alert`); loggers without it fall back to `info`. */
+  warn?(message: string, meta?: Record<string, unknown>): void;
 }
 
 export const consoleLogger: Logger = {
   error: (message, meta) => console.error(JSON.stringify({ level: 'error', message, ...meta })),
   info: (message, meta) => console.log(JSON.stringify({ level: 'info', message, ...meta })),
+  warn: (message, meta) => console.warn(JSON.stringify({ level: 'warn', message, ...meta })),
 };
 
 export const errorHandler =

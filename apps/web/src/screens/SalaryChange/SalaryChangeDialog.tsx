@@ -17,6 +17,7 @@ import {
 import { percentChange, salaryReasonLabel, todayIso } from '../../lib/format';
 import form from '../shared/form.module.css';
 import { zodFieldErrors } from '../shared/formErrors';
+import { useFocusFirstError } from '../shared/useFocusFirstError';
 import styles from './SalaryChangeDialog.module.css';
 
 export interface SalaryChangeSubject {
@@ -70,6 +71,7 @@ export function SalaryChangeDialog({
   const [note, setNote] = useState(draft?.note ?? '');
   const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
   const errors = { ...serverErrors, ...clientErrors };
+  const { ref: formRef, focusFirstError } = useFocusFirstError<HTMLFormElement>();
   const currency = employee.salary.currency;
   const delta = amountMinor === null ? null : amountMinor - employee.salary.amountMinor;
   const noteRequired = REASONS_NEEDING_NOTE.has(reason);
@@ -87,6 +89,7 @@ export function SalaryChangeDialog({
       const fieldErrors = zodFieldErrors(parsed.error);
       if (fieldErrors.amountMinor) fieldErrors.amountMinor = 'Enter the new annual salary';
       setClientErrors(fieldErrors);
+      focusFirstError();
       return;
     }
     setClientErrors({});
@@ -112,6 +115,7 @@ export function SalaryChangeDialog({
       }
     >
       <form
+        ref={formRef}
         className={form.form}
         noValidate
         onSubmit={(event) => {
@@ -122,6 +126,7 @@ export function SalaryChangeDialog({
         <PersonCell
           name={employee.name}
           detail={`${employee.employeeCode} · ${employee.jobTitle} · ${employee.countryName}`}
+          wrapDetail
         />
         {draft && (
           <Notice tone="accent" title="Drafted by Ask AI">

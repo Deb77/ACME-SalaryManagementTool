@@ -46,4 +46,15 @@ describe('ChatComposer', () => {
       'Answers use only the salary data you can see.',
     );
   });
+
+  it('starts a new line with Shift+Enter instead of sending', async () => {
+    const onSubmit = vi.fn();
+    render(<Harness onSubmit={onSubmit} />);
+    const box = screen.getByRole('textbox', { name: 'Ask a question about pay' });
+
+    await userEvent.type(box, 'Line one{Shift>}{Enter}{/Shift}Line two');
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(box).toHaveValue('Line one\nLine two');
+  });
 });

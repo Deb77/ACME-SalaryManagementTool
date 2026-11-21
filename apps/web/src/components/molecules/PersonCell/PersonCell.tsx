@@ -10,10 +10,21 @@ export interface PersonCellProps {
   /** Makes the name a link to the person's page. */
   href?: string;
   size?: 'small' | 'medium' | 'large';
+  /**
+   * Let the detail wrap instead of ending in "…": for dialogs and headers, where there is room
+   * below. Table cells keep one line (the full text is in the title).
+   */
+  wrapDetail?: boolean;
 }
 
 /** Initials avatar + name + detail, used in tables, dialogs and AI answers. */
-export function PersonCell({ name, detail, href, size = 'medium' }: PersonCellProps) {
+export function PersonCell({
+  name,
+  detail,
+  href,
+  size = 'medium',
+  wrapDetail = false,
+}: PersonCellProps) {
   return (
     <div className={styles.root}>
       <span aria-hidden="true" className={`${styles.avatar} ${styles[size]}`}>
@@ -27,7 +38,14 @@ export function PersonCell({ name, detail, href, size = 'medium' }: PersonCellPr
         ) : (
           <div className={styles.name}>{name}</div>
         )}
-        {detail && <div className={styles.detail}>{detail}</div>}
+        {detail && (
+          <div
+            className={wrapDetail ? `${styles.detail} ${styles.wrap}` : styles.detail}
+            title={wrapDetail ? undefined : detail}
+          >
+            {detail}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -16,6 +16,17 @@
   color: var(--acme-color-grey600);
 }
 
+/*
+ * Phones: every option is a 44px touch target. The label stays display: block (Mantine's
+ * ellipsis needs it) and never wraps, so a 44px line box gives exactly 44px.
+ */
+@media (max-width: 767.98px) {
+  .label {
+    padding-block: 0;
+    line-height: 44px;
+  }
+}
+
 .label[data-active] {
   color: var(--acme-color-grey900);
 }

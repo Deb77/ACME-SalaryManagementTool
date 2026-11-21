@@ -19,6 +19,24 @@
   gap: 6px;
 }
 
+/*
+ * A state rather than a country ("No access", "No countries"): the tag's size, but dashed and
+ * muted, so it never reads as one of the neutral country chips beside it.
+ */
+.mutedTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 10px;
+  font-size: var(--acme-text-xs);
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  color: var(--acme-color-grey500);
+  background: transparent;
+  border: 1px dashed var(--acme-color-grey400);
+  border-radius: var(--acme-radius-pill);
+}
+
 .memberCard {
   display: flex;
   align-items: flex-start;

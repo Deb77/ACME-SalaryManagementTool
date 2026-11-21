@@ -1,4 +1,4 @@
-import type { FieldMessage } from '../shared/formErrors';
+import { emailMessage, type FieldMessage } from '../shared/formErrors';
 
 /** What the form holds for the fields whose message depends on whether they are empty. */
 export interface EmployeeFieldValues {
@@ -24,10 +24,7 @@ export function employeeFieldMessages(values: EmployeeFieldValues): Record<strin
   return {
     firstName: name('first name'),
     lastName: name('last name'),
-    email: () =>
-      values.email.trim() === ''
-        ? 'Enter a work email'
-        : 'Enter an email address like name@acme.com',
+    email: emailMessage(values.email),
     departmentId: () => 'Choose a department',
     jobTitleId: () => 'Choose a job title',
     country: () => 'Choose a country',

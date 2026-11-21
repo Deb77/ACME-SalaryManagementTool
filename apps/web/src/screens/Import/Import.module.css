@@ -1,3 +1,20 @@
+/* "← Employees", as on Employee detail. */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  align-self: flex-start;
+  min-height: 44px;
+  margin: -8px 0 -8px -6px;
+  padding-inline: 6px;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+  font-weight: 500;
+  color: var(--acme-color-accent);
+  text-decoration: none;
+  border-radius: var(--acme-radius-sm);
+}
+
 .file {
   display: flex;
   flex-wrap: wrap;
@@ -69,8 +86,35 @@
 
 .rowCardTop {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 8px;
+}
+
+.rowNumber {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* A review row's person: name, then the employee code (or "New employee") below. */
+.person {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.personName {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* Several problems on one row: a short list, not one run-on line. */
+.problemList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding-left: 16px;
 }
 
 .problem {

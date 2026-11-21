@@ -5,6 +5,7 @@ import { InsightsView, type InsightsViewProps } from '../../screens/Insights/Ins
 import {
   sampleByTitle,
   sampleDistribution,
+  sampleMeCountry,
   sampleMeGlobal,
   sampleMeta,
   sampleMeViewer,
@@ -37,6 +38,26 @@ export const GlobalHr: Story = () => (
 );
 GlobalHr.storyName = 'Global HR';
 GlobalHr.meta = { fullscreen: true };
+
+const india = sampleOverview.countries.filter((c) => c.country === 'IN');
+
+/** India HR: no country picker, payroll in rupees first with USD as the secondary figure. */
+export const CountryHr: Story = () => (
+  <ScreenFrame me={sampleMeCountry} path="/insights">
+    <Insights
+      overview={{
+        ...sampleOverview,
+        countries: india,
+        total: {
+          headcount: india.reduce((sum, c) => sum + c.headcount, 0),
+          payrollUsdIndicativeMinor: india.reduce((sum, c) => sum + c.payrollUsdIndicativeMinor, 0),
+        },
+      }}
+    />
+  </ScreenFrame>
+);
+CountryHr.storyName = 'Country HR (one country)';
+CountryHr.meta = { fullscreen: true };
 
 export const CountryLoading: Story = () => (
   <ScreenFrame me={sampleMeViewer} path="/insights">

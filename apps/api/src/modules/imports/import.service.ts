@@ -168,25 +168,45 @@ export class ImportService {
     pageSize: number,
   ) {
     return this.scoped.run(actor, async (tx) => {
-      await this.load(tx, id);
+      const record = await this.load(tx, id);
       const where = and(
         eq(importRows.importId, id),
         outcome ? eq(importRows.outcome, outcome) : undefined,
       );
       const [rows, [total]] = await Promise.all([
         tx
-          .select()
+          .select({
+            row: importRows,
+            firstName: employees.firstName,
+            lastName: employees.lastName,
+          })
           .from(importRows)
+          .leftJoin(employees, eq(employees.id, importRows.employeeId))
           .where(where)
           .orderBy(asc(importRows.rowNumber))
           .limit(pageSize)
           .offset((page - 1) * pageSize),
         tx.select({ n: count() }).from(importRows).where(where),
       ]);
-      const items: ImportRow[] = rows.map((r) => ({
+      // The name as the file has it, for rows that match no (visible) employee.
+      const columns = (record.columns as string[] | null) ?? [];
+      const mapping = (record.mapping as ImportMappingRequest['mapping'] | null) ?? {};
+      const cell = (raw: unknown, field: 'firstName' | 'lastName') => {
+        const header = mapping[field];
+        const at = header === undefined ? -1 : columns.indexOf(header);
+        const value = Array.isArray(raw) && at >= 0 ? raw[at] : undefined;
+        return typeof value === 'string' ? value.trim() : '';
+      };
+      const items: ImportRow[] = rows.map(({ row: r, firstName, lastName }) => ({
         rowNumber: r.rowNumber,
         outcome: r.outcome ?? 'error',
         employeeCode: r.employeeCode,
+        employeeName:
+          (firstName !== null && lastName !== null
+            ? `${firstName} ${lastName}`
+            : [cell(r.raw, 'firstName'), cell(r.raw, 'lastName')].filter(Boolean).join(' ')) ||
+          null,
+        countryCode: r.countryCode,
         changes: (r.changes as ImportRow['changes'] | null) ?? {},
         errors:
           (r.errors as ImportRow['errors'] | null) ??

@@ -10,9 +10,11 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { users } from './access.js';
+import { aiSalaryDrafts } from './ai.js';
 import { countries } from './catalogue.js';
 import { employees, imports } from './employees.js';
 
@@ -31,7 +33,7 @@ export const salaryChangeReasons = [
  * The append-only salary history. The employee's country is copied onto each row, kept honest
  * by a composite foreign key, so the 100x index plan (S4, decision #27) needs no backfill.
  * S4 itself uses INCLUDE, which Drizzle can't express, so it lives in a hand-written migration.
- * `ai_draft_id` is added by the Ask AI migration, with the table it points at.
+ * `ai_draft_id` links a change confirmed from an Ask AI draft; S3 makes each draft usable once.
  */
 export const salaryChanges = pgTable(
   'salary_changes',
@@ -47,6 +49,7 @@ export const salaryChanges = pgTable(
     reason: text({ enum: salaryChangeReasons }).notNull(),
     note: text(),
     importId: uuid().references(() => imports.id),
+    aiDraftId: uuid().references(() => aiSalaryDrafts.id),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     createdBy: uuid()
       .notNull()
@@ -70,6 +73,10 @@ export const salaryChanges = pgTable(
     index('salary_changes_import')
       .on(t.importId)
       .where(sql`${t.importId} is not null`),
+    // S3: an Ask AI draft is applied at most once (decision #39).
+    uniqueIndex('salary_changes_ai_draft')
+      .on(t.aiDraftId)
+      .where(sql`${t.aiDraftId} is not null`),
     check('salary_changes_amount_positive', sql`${t.amountMinor} > 0`),
     check('salary_changes_previous_positive', sql`${t.previousAmountMinor} > 0`),
     check(

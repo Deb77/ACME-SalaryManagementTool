@@ -366,7 +366,15 @@ None of the docs define these yet; they follow from api.md ("the server keeps th
 
 `ai_messages`: `conversation_id uuid not null FK ai_conversations(id) ON DELETE CASCADE`, `seq int not null`, `role text not null CHECK (role IN ('user','assistant','tool'))`, `content jsonb not null` (text, tool calls and tool results as the model loop stores them), `input_tokens int`, `output_tokens int` (for the per-conversation token budget), `created_at timestamptz not null default now()`. PK `(conversation_id, seq)`.
 
-`ai_salary_drafts`: `id uuid PK default gen_random_uuid()` (the `draftId`), `conversation_id uuid not null FK ai_conversations(id)`, `employee_id uuid not null FK employees(id)`, `current_amount_minor bigint not null`, `proposed_amount_minor bigint not null CHECK (> 0)`, `currency char(3) not null`, `effective_date date not null`, `reason text not null` (user-pickable reasons only), `note text`, `created_at timestamptz not null default now()`.
+`ai_salary_drafts`: `id uuid PK default gen_random_uuid()` (the `draftId`), `conversation_id uuid not null FK ai_conversations(id)`, `employee_id uuid not null FK employees(id) ON DELETE CASCADE` (so import undo can still delete employees it created), `current_amount_minor bigint not null`, `proposed_amount_minor bigint not null CHECK (> 0)`, `currency char(3) not null`, `effective_date date not null`, `reason text not null` (user-pickable reasons only), `note text`, `version_at_draft int not null` (the employee's `version` when drafted), `created_at`, `expires_at timestamptz not null` (7 days later), `applied_at timestamptz`. A draft is stale when the employee's version changed or `expires_at` has passed.
+
+Built in migration `0007_ask_ai` (decisions #36–#42). `ai_messages` also stores `model`. `salary_changes.ai_draft_id` references `ai_salary_drafts(id)`.
+
+### `ai_sql_runs`
+
+The Ask AI SQL audit log: one row per `run_sql` attempt, rejected ones included, written in its own transaction so a failed answer still leaves a record. Append-only (`acme_app` has `SELECT, INSERT` only). Result rows are never stored.
+
+`id uuid PK`, `conversation_id uuid FK ai_conversations(id)`, `user_id uuid FK users(id)`, `message_seq int`, `tool_call_id text`, `sql_text text`, `countries char(2)[]` (the scope it ran with), `status text CHECK (ok, rejected, error, timeout)`, `error_code text`, `error_message text`, `row_count int`, `truncated boolean`, `duration_ms int`, `model text`, `created_at timestamptz default now()`. Indexes on `(created_at, id)` and `(user_id, created_at)` for the keyset-paged `GET /api/ai/sql-runs`.
 
 ### `app_private.ai_scope` (from auth.md)
 
@@ -389,7 +397,7 @@ Primary keys and `UNIQUE` constraints create their own indexes and are listed in
 | E5 | `employees (created_by_import_id) WHERE created_by_import_id IS NOT NULL` | Import undo | Optional |
 | S1 | `salary_changes (employee_id, effective_date DESC, created_at DESC)` | History, latest-entry rule, RLS subquery, FK | **Required** |
 | S2 | `salary_changes (import_id) WHERE import_id IS NOT NULL` | Import undo | **Recommended** |
-| S3 | `salary_changes (ai_draft_id) WHERE ai_draft_id IS NOT NULL` unique | A draft is applied at most once | Optional (open question 10) |
+| S3 | `salary_changes (ai_draft_id) WHERE ai_draft_id IS NOT NULL` unique | A draft is applied at most once | Built (migration 0007; open question 10 decided) |
 | A1 | `audit_events (occurred_at DESC, id DESC)` | Audit feed for Global HR | **Required** |
 | A2 | `audit_events (country_code, occurred_at DESC, id DESC)` | Audit feed for Country HR (RLS) | **Recommended** |
 | A3 | `audit_events (entity_type, entity_id, occurred_at DESC, id DESC)` | Employee timeline | **Required** |
@@ -526,7 +534,7 @@ create index salary_changes_import on salary_changes (import_id) where import_id
 
 Serves `POST /api/imports/:id/undo` (find the batch's salary rows, write `import_undo` compensations) and the "is this import still the latest change" check. Recommended rather than optional because undo runs inside a request and an import touches up to 10,000 employees.
 
-**S3: a draft is used once.** Optional, depends on open question 10.
+**S3: a draft is used once.** Built in migration 0007: a draft applies once, and a second apply returns `409 draft_applied`.
 
 ```sql
 create unique index salary_changes_ai_draft on salary_changes (ai_draft_id) where ai_draft_id is not null;
@@ -616,7 +624,7 @@ From auth.md, with the proposed changes marked.
 | --- | --- | --- | --- |
 | `acme_owner` | yes | Migrations, seed | Owns everything; runs `SECURITY DEFINER` functions (import undo) |
 | `acme_app` | yes | API server | `SELECT, INSERT, UPDATE` on `employees`, `users`, `imports`, `import_rows`, `ai_conversations`; `SELECT, INSERT` on `salary_changes`, `audit_events`, `ai_messages`, `ai_salary_drafts`; `SELECT, INSERT, UPDATE, DELETE` on `sessions`, `invites`, `app_private.ai_scope`; `SELECT, INSERT, DELETE` on `user_countries`; `SELECT, INSERT, UPDATE, DELETE` on `roles`, `role_permissions`; `SELECT` on `permissions`; `SELECT` on `countries`, `departments`, `job_titles`, `fx_rates`. `NOBYPASSRLS`, no DDL. **The import, AI, catalogue and FX grants are proposed; auth.md does not list them** |
-| `acme_ai_reader` | yes | Ask AI `run_sql` | `SELECT` on `employees`, `salary_changes`, `countries`, `job_titles`, `departments` (auth.md); `fx_rates` proposed. Read-only by default, `statement_timeout = 5s`, no `TEMP` |
+| `acme_ai_reader` | yes | Ask AI `run_sql` | Column-level `SELECT` on `employees` and `salary_changes` without `first_name`, `last_name`, `email`, `termination_note` and `salary_changes.note`; `SELECT` on `countries`, `job_titles`, `departments`, `fx_rates`. Read-only by default, `statement_timeout = 5s`, no `TEMP`, no grant on any `ai_*` table. Built in migration 0007 (auth.md, Ask AI database role) |
 
 | Table | Policy | Status |
 | --- | --- | --- |
@@ -624,8 +632,10 @@ From auth.md, with the proposed changes marked.
 | `salary_changes` | `EXISTS (SELECT 1 FROM employees e WHERE e.id = employee_id)` | auth.md |
 | `audit_events` | Read: `country_code = ANY(scope_countries())` (plus own events, open question 2). Insert: `actor_id = app.user_id` | auth.md, rewritten |
 | `imports`, `import_rows` | `created_by = app.user_id`, or every country in the import is visible (`country_codes <@ scope_countries()`) | **Proposed**; api.md says imports are RLS-scoped but auth.md has no policy (open question 3) |
-| `ai_conversations`, `ai_messages` | `user_id = app.user_id` (messages via their conversation) | **Proposed**; api.md says "own only" |
-| `ai_salary_drafts` | Employee visible, and conversation owned by `app.user_id` | **Proposed** |
+| `ai_conversations`, `ai_messages` | `user_id = app.user_id` (messages via their conversation) | Built (0007); api.md says "own only" |
+| `ai_salary_drafts` | Employee visible, and conversation owned by `app.user_id` | Built (0007) |
+| `ai_sql_runs` | Read: own runs, or all runs for an all-country role. Insert: own `user_id`. No update or delete grant | Built (0007) |
+| `employees`, `salary_changes` for `acme_ai_reader` | `FOR SELECT TO acme_ai_reader`, `country_code = ANY(scope_countries())`, where the scope comes from `app_private.ai_scope` by backend PID | Built (0007) |
 | Auth tables, catalogues, `fx_rates` | No RLS | auth.md |
 
 All scoped tables use `ENABLE` and `FORCE ROW LEVEL SECURITY`. Policies read scope through `(select app_private.fn())`, which Postgres evaluates once per statement, not once per row.
@@ -650,12 +660,12 @@ How the indexes support the policies:
 2. **Audit visibility.** api.md says Country HR sees "events for employees in assigned countries, plus their own imports and exports"; auth.md's read policy only checks `country_code`, and assumes every audit row has one. `export.created`, `import.*` and `user.*` events have no single country. Options: add `OR actor_id = app.user_id` to the read policy (then A4 becomes useful), or store `country_codes char(2)[]` on the event.
 3. **Import scope.** api.md lists imports among RLS-filtered tables; auth.md has no policy for them. This draft proposes "the uploader, or anyone who can see every country in the import". Should a Country HR see imports by other Country HR users for the same country?
 4. **Audit writes: service or trigger?** api.md says the service writes the audit row in the same transaction; auth.md recommends triggers on `employees` and `salary_changes`. The hand-off `CLAUDE.md` also mentioned a "DB trigger guard" for append-only history; the current docs rely on grants only. Pick one.
-5. **Ask AI reader: tables or views?** auth.md grants `acme_ai_reader` the base tables, including employee names and emails. The original hand-off `CLAUDE.md` said views without names and emails (`security_invoker = true`) and "send codes instead of names to the model". The current docs no longer mention views. Confirm that the model may read names and emails.
+5. **Ask AI reader: tables or views?** Decided (decision #37): base tables with column grants that leave out names, emails and notes; the model works with employee codes and the web app shows the names.
 6. **Which 8 countries?** The docs only name IN, GB and US (demo users). The first draft listed US, UK, DE, IN, CA, SG, BR, AU. The `countries` seed migration needs the list, including whether two share a currency.
 7. **`employees.email` as lower-case `text` vs `citext`.** `users.email` is `citext` (auth.md). This draft uses lower-case `text` for employees because `citext` comparison may not be leakproof, which would stop U2 being used by import matching under RLS. Check `pg_proc.proleakproof` on the target Postgres and decide.
 8. **`country_code` on `salary_changes`?** Denormalising it gives a direct RLS predicate and index, at the cost of a second copy of the country rule. Not proposed at this scale.
 9. **Currency consistency on `salary_changes`.** `salary_changes.currency` is copied from the employee by the service. A composite FK `(employee_id, currency) → employees(id, salary_currency)` would enforce it, at the cost of one more unique index on `employees`. Worth it?
-10. **Can an AI draft be applied twice?** If not, add S3.
+10. **Can an AI draft be applied twice?** Decided: no. S3 is built, and stale drafts are refused (decision #39).
 11. **`users.last_sign_in_at` and `users.version`** are added here because api.md returns `lastSignInAt` and takes `version`, but auth.md's table has neither. Update auth.md.
 12. **`sort=name`** sorts by `last_name, first_name, id` in this draft. Confirm, or sort by first name as displayed.
 13. **The trigram index (E2)** should be decided with an `EXPLAIN` as `acme_app`. If it is dropped, api.md's "`pg_trgm` index" line should change.

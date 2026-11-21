@@ -8,7 +8,7 @@ import {
   sampleRoles,
   sampleUsers,
 } from '../../stories/screenSampleData';
-import { render, screen } from '../../test/render';
+import { render, screen, within } from '../../test/render';
 import { AccessView, type AccessViewProps } from './AccessView';
 
 const props = (overrides: Partial<AccessViewProps> = {}): AccessViewProps => ({
@@ -67,5 +67,49 @@ describe('AccessView', () => {
         systemRoles.length -
         sampleRoles.filter((r) => !r.isSystem && r.userCount > 0).length,
     );
+  });
+
+  it('counts the same people on the role card and in the role filter', () => {
+    const countryRole = sampleRoles[1]!;
+    const users = [
+      ...sampleUsers.filter((u) => u.role.id !== countryRole.id),
+      { ...sampleUsers[2]!, id: 'a', name: 'Active One' },
+      { ...sampleUsers[2]!, id: 'b', name: 'Invited One', status: 'invited' as const },
+      {
+        ...sampleUsers[2]!,
+        id: 'c',
+        name: 'Gone One',
+        status: 'deactivated' as const,
+        countries: [],
+      },
+    ];
+    // The API's count leaves out people without access; the card follows the team list instead.
+    render(
+      <AccessView
+        {...props({ users, roles: [sampleRoles[0]!, { ...countryRole, userCount: 2 }] })}
+      />,
+    );
+
+    expect(screen.getByText(/· 1 invited · 1 without access/)).toHaveTextContent(
+      '3 people · 1 invited · 1 without access · System role',
+    );
+    expect(screen.getByRole('radio', { name: 'Country HR 3' })).toBeInTheDocument();
+  });
+
+  it('marks people without access and without countries apart from the country chips', () => {
+    const users = [
+      {
+        ...sampleUsers[2]!,
+        id: 'c',
+        name: 'Gone One',
+        status: 'deactivated' as const,
+        countries: [],
+      },
+    ];
+    render(<AccessView {...props({ users })} />);
+
+    const card = within(screen.getByRole('list', { name: 'Team members' })).getByRole('listitem');
+    expect(within(card).getByText('No access')).toBeInTheDocument();
+    expect(within(card).getByText('No countries')).toBeInTheDocument();
   });
 });

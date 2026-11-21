@@ -101,6 +101,43 @@
   color: var(--acme-color-grey500);
 }
 
+/*
+ * Page actions on phones: Record salary change first and full width, then Edit details and
+ * the destructive Terminate side by side, Terminate last. PageHeader's actions box is
+ * stretched to the row so they can. From tablet width the wrapper drops out and the buttons
+ * sit in PageHeader's row as before.
+ */
+.headerActions {
+  display: contents;
+}
+
+@media (max-width: 767px) {
+  *:has(> .headerActions) {
+    flex: 1 1 100%;
+  }
+
+  .headerActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .headerActions > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .headerActions > .primaryAction {
+    flex-basis: 100%;
+    order: -1;
+  }
+
+  .headerActions > .dangerAction {
+    order: 1;
+  }
+}
+
 @media (min-width: 1024px) {
   .payValue {
     font-size: var(--acme-text-xxxl);

@@ -9,7 +9,8 @@ import { useState } from 'react';
 import { ChoiceChips, Dialog, FormField, Notice, PillButton } from '../../components';
 import { canAssignRole } from '../../session/permissions';
 import form from '../shared/form.module.css';
-import { zodFieldErrors } from '../shared/formErrors';
+import { emailMessage, requiredTextMessage, zodFieldErrors } from '../shared/formErrors';
+import { useFocusFirstError } from '../shared/useFocusFirstError';
 import styles from './Access.module.css';
 
 export interface InviteDialogProps {
@@ -44,6 +45,7 @@ export function InviteDialog({
   const [chosen, setChosen] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
+  const { ref: fieldsRef, focusFirstError } = useFocusFirstError<HTMLDivElement>();
   const scoped = roles.find((r) => r.id === roleId)?.countryScope === 'assigned';
 
   const submit = () => {
@@ -53,10 +55,18 @@ export function InviteDialog({
       roleId,
       countries: scoped ? chosen : [],
     });
-    const fieldErrors = parsed.success ? {} : zodFieldErrors(parsed.error);
+    const fieldErrors = parsed.success
+      ? {}
+      : zodFieldErrors(parsed.error, {
+          name: requiredTextMessage('name', 100),
+          email: emailMessage(email),
+          roleId: () => 'Choose a role',
+          countries: () => 'Choose at least one country',
+        });
     if (scoped && chosen.length === 0) fieldErrors.countries = 'Choose at least one country';
     setErrors(fieldErrors);
-    if (parsed.success && Object.keys(fieldErrors).length === 0) onInvite(parsed.data);
+    if (Object.keys(fieldErrors).length > 0) return focusFirstError();
+    if (parsed.success) onInvite(parsed.data);
   };
 
   if (inviteUrl) {
@@ -107,7 +117,7 @@ export function InviteDialog({
         </>
       }
     >
-      <div className={form.form}>
+      <div ref={fieldsRef} className={form.form}>
         <FormField label="Name" required error={errors.name}>
           {(control) => (
             <input

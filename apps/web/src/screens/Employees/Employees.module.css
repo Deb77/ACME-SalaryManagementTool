@@ -45,15 +45,65 @@
   color: var(--acme-color-grey500);
 }
 
-/* The code never breaks at its hyphen ("ACM-" / "002778"); the detail truncates instead. */
+/* The code never breaks at its hyphen ("ACM-" / "002778"); the detail wraps instead. */
 .cardCode {
   flex: none;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
+/* Title and country wrap to a second line; only a very long pair is clamped (full text in title). */
 .cardDetail {
+  display: -webkit-box;
+  min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+/*
+ * The count under the title while a new search or filter loads: kept in place (no layout
+ * jump) but hidden, so the previous total never reads as the current one.
+ */
+.countPending {
+  visibility: hidden;
+}
+
+/*
+ * Page actions on phones: the primary action first, full width, and the secondary ones
+ * side by side below it (PageHeader's actions box is stretched to the row so they can).
+ * From tablet width the wrapper drops out and the buttons sit in PageHeader's row as before.
+ */
+.headerActions {
+  display: contents;
+}
+
+@media (max-width: 767px) {
+  *:has(> .headerActions) {
+    flex: 1 1 100%;
+  }
+
+  .headerActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .headerActions > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .headerActions > .primaryAction {
+    flex-basis: 100%;
+    order: -1;
+  }
+
+  /* Half a phone row has no room for "Import from Excel"; beside "Export CSV", "Import" is clear. */
+  .longLabel {
+    display: none;
+  }
 }

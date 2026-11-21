@@ -63,6 +63,14 @@ export function InsightsView({
   const selected = overview.countries.find((c) => c.country === selectedCountry);
   const maxPayroll = Math.max(1, ...overview.countries.map((c) => c.payrollUsdIndicativeMinor));
   const ratesNote = `USD is indicative · fixed rates as of ${formatDate(overview.fx.ratesAsOf)}`;
+  /**
+   * The one country of a single-country scope (e.g. India HR): its data is already scoped, so
+   * there is no country to pick, and payroll leads in its own currency with USD secondary.
+   */
+  const only = overview.countries.length === 1 ? overview.countries[0] : undefined;
+  const localPayroll = (c: CountryPayStats) => (
+    <MoneyText amountMinor={c.payrollMinor} currency={c.currency} compact />
+  );
 
   if (overview.countries.length === 0) {
     return (
@@ -95,11 +103,20 @@ export function InsightsView({
     {
       key: 'payroll',
       width: '36%',
-      title: 'Payroll (USD)',
+      title: only ? 'Payroll' : 'Payroll (USD)',
       render: (c) => (
         <div className={styles.payrollCell}>
           <MeterBar value={c.payrollUsdIndicativeMinor} max={maxPayroll} />
-          <span>{usd(c.payrollUsdIndicativeMinor)}</span>
+          {only ? (
+            <span>
+              {localPayroll(c)}{' '}
+              <span className={`${shared.small} ${shared.muted}`}>
+                ≈ {usd(c.payrollUsdIndicativeMinor)}
+              </span>
+            </span>
+          ) : (
+            <span>{usd(c.payrollUsdIndicativeMinor)}</span>
+          )}
         </div>
       ),
     },
@@ -126,13 +143,22 @@ export function InsightsView({
           note={`across ${overview.countries.length} ${overview.countries.length === 1 ? 'country' : 'countries'}`}
           trend={overview.countries.map((c) => c.headcount)}
         />
-        <StatTile
-          label="Annual payroll"
-          value={usd(overview.total.payrollUsdIndicativeMinor)}
-          delta="USD"
-          note="indicative total"
-          trend={overview.countries.map((c) => c.payrollUsdIndicativeMinor)}
-        />
+        {only ? (
+          <StatTile
+            label="Annual payroll"
+            value={localPayroll(only)}
+            delta={only.currency}
+            note={`≈ ${usd(overview.total.payrollUsdIndicativeMinor)} indicative`}
+          />
+        ) : (
+          <StatTile
+            label="Annual payroll"
+            value={usd(overview.total.payrollUsdIndicativeMinor)}
+            delta="USD"
+            note="indicative total"
+            trend={overview.countries.map((c) => c.payrollUsdIndicativeMinor)}
+          />
+        )}
         <StatTile
           label="Countries"
           value={String(overview.countries.length)}
@@ -149,17 +175,19 @@ export function InsightsView({
         )}
       </div>
 
-      <div className={styles.countryPicker}>
-        <SegmentedControl
-          label="Country"
-          options={overview.countries.map((c) => ({
-            value: c.country,
-            label: countryName(c.country),
-          }))}
-          value={selectedCountry}
-          onChange={onCountryChange}
-        />
-      </div>
+      {!only && (
+        <div className={styles.countryPicker}>
+          <SegmentedControl
+            label="Country"
+            options={overview.countries.map((c) => ({
+              value: c.country,
+              label: countryName(c.country),
+            }))}
+            value={selectedCountry}
+            onChange={onCountryChange}
+          />
+        </div>
+      )}
 
       <div className={shared.twoColumns}>
         <TrayCard
@@ -299,7 +327,17 @@ export function InsightsView({
           flush
           extra={
             <span className={shared.small}>
-              Total <strong>{usd(overview.total.payrollUsdIndicativeMinor)}</strong>
+              Total{' '}
+              {only ? (
+                <>
+                  <strong>{localPayroll(only)}</strong>{' '}
+                  <span className={shared.muted}>
+                    ≈ {usd(overview.total.payrollUsdIndicativeMinor)}
+                  </span>
+                </>
+              ) : (
+                <strong>{usd(overview.total.payrollUsdIndicativeMinor)}</strong>
+              )}
             </span>
           }
           footer={ratesNote}
@@ -319,11 +357,12 @@ export function InsightsView({
               <div className={styles.countryCard}>
                 <div className={styles.countryLine}>
                   <strong>{countryName(c.country)}</strong>
-                  <span>{usd(c.payrollUsdIndicativeMinor)}</span>
+                  <span>{only ? localPayroll(c) : usd(c.payrollUsdIndicativeMinor)}</span>
                 </div>
                 <div className={`${shared.small} ${shared.muted}`}>
                   {formatCount(c.headcount)} people · median{' '}
                   <MoneyText amountMinor={c.medianMinor} currency={c.currency} />
+                  {only && ` · ≈ ${usd(c.payrollUsdIndicativeMinor)}`}
                 </div>
                 <MeterBar value={c.payrollUsdIndicativeMinor} max={maxPayroll} />
               </div>

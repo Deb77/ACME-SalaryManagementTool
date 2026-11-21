@@ -20,9 +20,14 @@ export function EmployeesScreen() {
     pageSize: PAGE_SIZE,
   });
 
+  const countries = meta.countries.filter((country) => me.countries.includes(country.code));
+  // With one visible country the list is already scoped to it; naming it keeps salary sortable.
+  const onlyCountry = countries.length === 1 ? countries[0]?.code : undefined;
+  const country = filters.country ?? onlyCountry;
+
   const params = {
     q: q || undefined,
-    country: filters.country ? [filters.country] : undefined,
+    country: country ? [country] : undefined,
     department: filters.department ? [filters.department] : undefined,
     jobTitle: filters.jobTitle ? [filters.jobTitle] : undefined,
     status: filters.status,
@@ -57,10 +62,13 @@ export function EmployeesScreen() {
         setQuery((current) => ({
           ...current,
           page: 1,
-          sort: current.sort?.field === 'salary' && !next.country ? undefined : current.sort,
+          sort:
+            current.sort?.field === 'salary' && !(next.country ?? onlyCountry)
+              ? undefined
+              : current.sort,
         }));
       }}
-      countries={meta.countries.filter((country) => me.countries.includes(country.code))}
+      countries={countries}
       departments={meta.departments.map((d) => ({ value: d.id, label: d.name }))}
       jobTitles={meta.jobTitles.map((t) => ({ value: t.id, label: t.name }))}
       exportHref={can('employees:export') ? employeeExportUrl(params) : undefined}

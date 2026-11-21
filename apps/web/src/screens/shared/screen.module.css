@@ -20,22 +20,21 @@
 }
 
 .toolbar {
-  display: flex;
+  /* Phones: every filter is visible at once, two equal pills a row; nothing scrolls sideways. */
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  padding: 12px 32px 4px 12px;
-  overflow-x: auto;
-  /* Phones: the filters scroll sideways; fading the right edge shows there are more. */
-  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
-  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
-  scrollbar-width: none;
-}
-
-.toolbar::-webkit-scrollbar {
-  display: none;
+  padding: 12px 12px 0;
 }
 
 .toolbar > * {
-  flex: none;
+  min-width: 0;
+}
+
+/* A button after the filters (Clear filters) takes its own row, at the end. */
+.toolbar > button {
+  grid-column: 1 / -1;
+  justify-self: end;
 }
 
 .muted {
@@ -49,11 +48,17 @@
 
 @media (min-width: 768px) {
   .toolbar {
+    display: flex;
     flex-wrap: wrap;
     padding: 12px 16px 0;
-    overflow: visible;
-    -webkit-mask-image: none;
-    mask-image: none;
+  }
+
+  .toolbar > * {
+    flex: none;
+  }
+
+  .toolbar > button {
+    justify-self: auto;
   }
 
   .tiles {

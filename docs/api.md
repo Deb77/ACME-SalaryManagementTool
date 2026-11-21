@@ -62,8 +62,11 @@ Every error has the same envelope (`apiErrorBodySchema`). The existing unknown-r
 | `conflict` | 409 | Duplicate email or employee code, terminating someone already terminated, committing an import twice, undo blocked |
 | `stale_version` | 409 | The `version` in the request doesn't match the current one; the client reloads and retries |
 | `payload_too_large` | 413 | Import file over 5 MB |
-| `rate_limited` | 429 | Ask AI limit reached; includes a `Retry-After` header |
-| `ai_unavailable` | 503 | Both the primary and the fallback model failed. Only Ask AI is affected |
+| `draft_stale` | 409 | An AI draft is out of date: the employee changed since it was drafted, or it is older than 7 days ("This draft is out of date — ask again") |
+| `draft_applied` | 409 | An AI draft was already applied; each draft applies once |
+| `rate_limited` | 429 | Ask AI message limit reached (20 a minute, 200 a day); includes a `Retry-After` header |
+| `ai_budget_exceeded` | 429 | Ask AI token budget used up: 150k tokens for the conversation ("Start a new conversation") or 1M for the user today ("Try again tomorrow") |
+| `ai_unavailable` | 503 | No API key or AI database is configured, or both the primary and the fallback model failed. Only Ask AI is affected |
 | `internal_error` | 500 | Anything unexpected. The message is generic; details go to logs only |
 
 Services throw typed domain errors (`NotFoundError`, `ConflictError`, …). A single error middleware maps them using `apiErrorStatus` from `@acme/shared`. Routes never build error responses themselves.
@@ -71,7 +74,7 @@ Services throw typed domain errors (`NotFoundError`, `ConflictError`, …). A si
 ### Idempotency and rate limits
 
 - There is no `Idempotency-Key` header. The writes that matter are already protected: employee writes require `version`, and import commit/undo are state transitions on the import resource, so repeating one returns `409`.
-- Ask AI: 20 messages per minute and 200 per day per user (in-memory limiter, which is fine for one Render instance), plus a per-conversation token budget. Other endpoints have no limit beyond the session.
+- Ask AI: 20 messages per minute and 200 per day per user (in-memory limiter, which is fine for one Render instance), plus token budgets (150k per conversation, 1M per user per day, counted from stored messages) and, per answer, at most 6 tool rounds and 2,000 output tokens. Other endpoints have no limit beyond the session.
 
 ## 2. Roles and permissions
 
@@ -120,6 +123,9 @@ The auth layer checks each route's permission (`requirePermission`), and Postgre
 | POST | `/api/imports/:id/undo` | Revert the batch | `imports:run` (scoped) |
 | POST | `/api/ai/messages` | Ask a question; streams the answer (SSE) | `ai:ask` (scoped) |
 | GET | `/api/ai/conversations/:id` | Reload a conversation (own only) | `ai:ask` |
+| GET | `/api/ai/sql-runs?userId=&status=&from=&to=&cursor=&limit=` | The SQL audit log: every `run_sql` attempt (cursor-paged, newest first) | `audit:read` (own runs; every run for all-country roles) |
+| GET | `/api/ai/metrics` | In-process Ask AI metrics and active alerts (JSON) | `users:manage` |
+| GET | `/metrics` | The same metrics in Prometheus text format; only when `METRICS_TOKEN` is set, with `Authorization: Bearer <token>` | token |
 | GET | `/api/audit-events` | Who changed what, when, before and after | `audit:read` (scoped) |
 | GET | `/api/users` | HR users with role and countries | `users:manage` |
 | POST | `/api/users` | Invite an HR user | `users:manage` |
@@ -290,7 +296,7 @@ Matching key: `employeeCode`, falling back to `email`. Country HR imports only t
 
 ```
 data: {"type":"conversation","conversationId":"…"}
-data: {"type":"tool_call","callId":"c1","tool":"pay_stats","summary":"Median, min, max for Data Analyst in IN, GB","args":{"jobTitle":"data-analyst","countries":["IN","GB"]}}
+data: {"type":"tool_call","callId":"c1","tool":"run_sql","summary":"Median Data Analyst pay in IN and GB"}
 data: {"type":"tool_result","callId":"c1","rowCount":2}
 data: {"type":"text","delta":"In India the median Data Analyst salary is ₹16,00,000…"}
 data: {"type":"draft_salary_change","draft":{"draftId":"…","employeeId":"…","currentAmount":{…},"proposedAmount":{…},"effectiveDate":"2027-01-01","reason":"market_adjustment","note":null}}
@@ -299,10 +305,21 @@ data: {"type":"done"}
 
 - The request is a POST, not an `EventSource` GET, because it carries a body. The web app reads it with `fetch` and a stream reader.
 - The server keeps the conversation (owned by the user). The client never sends history or tool results, so it cannot inject fake data into the model's context.
-- Tools are read-only, typed functions over our repositories. They run inside the same RLS-scoped transaction as the user, so the assistant can never see more than the user can. `tool_call.summary` and `args` are what the UI shows as "the queries behind each number".
-- Drafts are only data. The UI opens the normal salary-change dialog prefilled. Submitting it is an ordinary `POST /salary-changes` with `aiDraftId`, so the audit log shows that the change started as an AI suggestion and that a named person confirmed it.
-- Fallback model: if the primary model errors or times out before any `text` event has been sent, the server retries the turn once on a second model and the client sees one normal stream. Once text has streamed, it does not switch models, because the answer would repeat or contradict itself.
-- Errors before the stream starts use the normal envelope (`429`, `503 ai_unavailable` when both models fail). Errors mid-stream arrive as an `error` event followed by the end of the stream.
+- **Generated SQL, not typed tools** (decision #36). The model writes SQL through one tool, `run_sql {sql, purpose}`. Before anything reaches the database, a real Postgres parser (`libpg-query`) checks it is exactly one `SELECT` (no `INTO`, no locking clause) over the allowed tables (`employees`, `salary_changes`, `countries`, `job_titles`, `departments`, `fx_rates`), using only allow-listed functions and no `reg*` casts. It is then wrapped to return at most 200 rows (and 20,000 characters of JSON) and run as the `acme_ai_reader` login in `begin read only` … `rollback`, with a 5 s statement timeout. That role cannot bypass RLS and has column grants only (no names, emails, termination notes or salary-change notes), and its country scope comes from the session, never from the model ([auth.md](auth.md#ask-ai-database-role)). Rejected SQL never reaches the database; the reason goes back to the model as a tool error. The UI shows each step as `tool_call.summary` (the model's plain-English `purpose`) with its row count. The SQL itself never reaches the browser, in the stream or in `GET /api/ai/conversations/:id`; it is kept only in the SQL audit log (`GET /api/ai/sql-runs`, `audit:read`), decision #44.
+- **Codes, not names.** `find_employee_codes {name}` returns at most 10 employee codes with title, country and status, never names. Answers mention people by code (`ACM-000123`); the web app looks each code up through the normal employees API and shows "Name (code)" as a link, so names never reach the model.
+- `draft_salary_change {employeeCode, proposedAmountMinor, effectiveDate, reason, note?}` is offered only to users with `salary:change`. The server checks the employee is in scope and active, the date is not in the future or before the current salary, and stores the draft with the employee's `version_at_draft` and a 7-day `expires_at`.
+- Drafts are only data. The UI opens the normal salary-change dialog prefilled. Submitting it is an ordinary `POST /salary-changes` with `aiDraftId`, so the audit log shows that the change started as an AI suggestion and that a named person confirmed it. A draft applies once (a second apply is `409 draft_applied`, backed by a unique index on `salary_changes.ai_draft_id`); if the employee's version changed or the draft is older than 7 days it is `409 draft_stale` and the dialog says "This draft is out of date — ask again". Another user's draft is `404`.
+- Models: primary `claude-sonnet-5-5`, fallback `claude-opus-5-5` (`AI_MODEL_PRIMARY`, `AI_MODEL_FALLBACK`), 30 s per call. If the primary errors, times out or refuses before any `text` event has been sent, the server retries that call once on the fallback and the client sees one normal stream. Once text has streamed, it does not switch models, because the answer would repeat or contradict itself. The system prompt and tools are prompt-cached.
+- Errors before the stream starts use the normal envelope (`429 rate_limited`, `429 ai_budget_exceeded`, `503 ai_unavailable`). Errors mid-stream arrive as an `error` event followed by the end of the stream. Without `ANTHROPIC_API_KEY` or `DATABASE_URL_AI` Ask AI answers `503 ai_unavailable` and the rest of the API works normally.
+- `GET /api/ai/conversations/:id` returns `aiConversationSchema`: the turns (question, steps with their SQL, answer, drafts), `tokensUsed` and `tokenBudget`. Another user's conversation is `404`.
+
+### Ask AI SQL audit log and monitoring
+
+- `GET /api/ai/sql-runs` returns `aiSqlRunsResponseSchema` (`{ items, nextCursor }`, keyset on `(created_at, id)`). Each item has the user, conversation, SQL text, countries it ran with, `status` (`ok`, `rejected`, `error`, `timeout`), error code and message, row count, `truncated`, duration and model. Result rows are never stored. Rows are written for every attempt, rejected ones included, in their own transaction, and cannot be updated or deleted. Filters: `userId`, `status`, `from`/`to` (ISO dates, inclusive); `limit` up to 100.
+- `GET /api/ai/metrics` returns `aiMetricsSchema`: counters (turns by outcome, model calls by model and outcome, fallbacks, SQL runs by status, tokens in/out/cache), latency histograms for turns, model calls and SQL, and the alerts currently firing.
+- `GET /api/health` includes `ai: { configured, database: "ok" | "unreachable" | "not_configured" }`; the app is healthy without AI.
+- Alerts (`AI_ALERT_*`): error rate over 10 % or fallback rate over 20 % across the last 15 minutes (at least 5 turns), or more than 5M tokens today. Each is logged once per window as a `warn` line `ai.alert`.
+- Logs are one JSON line per turn (`ai.turn`) and per SQL run (`ai.sql_run`) with OpenTelemetry-style field names (`gen_ai.request.model`, `gen_ai.usage.input_tokens`, …). They never contain the question, the answer, result rows, names, emails, the SQL text (only its length; the text is in the audit table) or the API key.
 
 ### Audit log
 
@@ -352,6 +369,8 @@ Actions: `employee.created`, `employee.updated`, `employee.terminated`, `salary.
 - **Roles in the database, permissions in code.** Global HR can define roles without a deploy, but only from a fixed catalogue that the routes reference, so the database can never hold a permission that no route checks.
 - **Optimistic concurrency via a `version` body field rather than `If-Match`.** It has the same semantics, is easier to send from forms and Zod, and shows up clearly in the schemas.
 - **No API versioning yet.** The API and the UI deploy together. Versioning now would be ceremony without a consumer.
+
+- **Generated SQL for Ask AI** instead of a fixed set of typed tools: the questions HR asks vary too much for a handful of functions, and the protections sit in the database (role, RLS, column grants, read-only, timeout) and in a parser, not in the model's good behaviour. See decision #36.
 
 ## 6. Open questions
 

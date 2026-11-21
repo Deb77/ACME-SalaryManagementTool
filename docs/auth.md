@@ -135,7 +135,7 @@ Three roles, so the code that serves requests can never bypass RLS or change the
 | --- | --- | --- | --- |
 | `acme_owner` | yes | Drizzle migrations, seed script (`DATABASE_URL_MIGRATOR`) | Owns all tables and functions. Never used by the running server |
 | `acme_app` | yes | The API server (`DATABASE_URL`) | `select/insert/update` on business tables, `insert` only on `salary_changes` and `audit_events`; no `delete`, `truncate` or DDL; `NOBYPASSRLS` |
-| `acme_ai_reader` | yes | Ask AI `run_sql` tool only (`DATABASE_URL_AI`, pool of 2) | `select` on employees, salary_changes, countries, catalogues. Nothing else, including no `TEMP` |
+| `acme_ai_reader` | yes | Ask AI `run_sql` tool only (`DATABASE_URL_AI`, pool of 2) | Column-level `select` on `employees` and `salary_changes` (no names, emails or notes), `select` on `countries`, `job_titles`, `departments`, `fx_rates`. Nothing else, including no `TEMP` or `CREATE`. Created by migration 0007 as `NOLOGIN`; `npm run db:roles` turns on the login and sets its password (see [Ask AI database role](#ask-ai-database-role)) |
 
 ```sql
 -- Run once by the migrator. Passwords come from env via the roles script, never from a migration file.
@@ -246,6 +246,28 @@ Flow for one `run_sql` call:
 4. Delete the `ai_scope` row; release the connection.
 
 `acme_ai_reader` is a separate login role (not `SET ROLE` from `acme_app`), because `RESET ROLE` would let SQL climb back to the session user. This relies on direct connections; transaction-mode PgBouncer would break the PID mapping. Defense in depth in code: parse the SQL and allow only a single `SELECT` with a function allow-list, and cap rows returned.
+
+### Ask AI database role
+
+What migration `0007_ask_ai` and `npm run db:roles` actually do (decisions #36 and #37):
+
+- `acme_ai_reader` is created `NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT CONNECTION LIMIT 4`, with `default_transaction_read_only = on`, `statement_timeout = '5s'` and `idle_in_transaction_session_timeout = '10s'`. `npm run db:roles` (as the migrator, with `ACME_AI_READER_PASSWORD`, at least 16 characters) adds `LOGIN` and a password; it sends a SCRAM-SHA-256 verifier computed locally, so the plain password never reaches the server or its logs.
+- `TEMPORARY` on the database is revoked from `PUBLIC` and granted back to `acme_app`; `CREATE` on `public` was already revoked.
+- Column grants. `employees`: `id, employee_code, country_code, job_title_id, department_id, hire_date, status, termination_date, termination_reason, salary_amount_minor, salary_currency, salary_effective_date, created_at, updated_at`. `salary_changes`: `id, employee_id, country_code, amount_minor, previous_amount_minor, currency, effective_date, reason, created_at`. So `first_name`, `last_name`, `email`, `termination_note` and `salary_changes.note` are a permission error (`42501`) for the model, not a policy it could talk its way around. The model refers to people by `employee_code`; `find_employee_codes` (run as `acme_app`, scoped to the user) turns a name into codes.
+- Scope. `app_private.ai_scope_countries()` is `SECURITY DEFINER` and returns the countries of the `ai_scope` row for `pg_backend_pid()` (or nothing once expired). `scope_countries()` now returns that when `session_user = 'acme_ai_reader'` and the `app.countries` setting otherwise, so `set_config()` from model SQL changes nothing. `acme_app` also has `EXECUTE` on it, because Postgres checks permissions on an inlined SQL function's body when it plans `acme_app`'s own queries.
+- Policies `employees_ai_read` and `salary_changes_ai_read` are `FOR SELECT TO acme_ai_reader` with the same `country_code = ANY(scope_countries())` condition.
+- The runner puts every statement through the parser guard first, then runs `begin read only`, `set local statement_timeout`, the wrapped statement (`select * from (…) as ai_result limit 201`, extended protocol), and `rollback`.
+
+AI tables, all with RLS on `app_private.current_user_id()`:
+
+| Table | `acme_app` | Policy |
+| --- | --- | --- |
+| `ai_conversations` | `select, insert, update` | Own only |
+| `ai_messages` | `select, insert` | Own conversation |
+| `ai_salary_drafts` | `select, insert, update` | Own conversation, and the employee must be visible |
+| `ai_sql_runs` | `select, insert` (append-only) | Read: own runs, or every run for a role whose scope is `all`. Insert: `user_id` is the current user |
+
+`acme_ai_reader` has no grant on any of them.
 
 ## Request flow
 

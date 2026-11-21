@@ -14,6 +14,8 @@
     "db:generate": "npm run db:generate -w @acme/api --",
     "db:migrate": "npm run db:migrate -w @acme/api --",
     "db:seed": "npm run db:seed -w @acme/api --",
+    "db:roles": "npm run db:roles -w @acme/api --",
+    "evals": "npm run evals -w @acme/api --",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint .",

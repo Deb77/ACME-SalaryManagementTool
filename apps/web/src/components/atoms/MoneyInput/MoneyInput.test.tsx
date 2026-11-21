@@ -70,4 +70,16 @@ describe('MoneyInput', () => {
     expect(input).toHaveAccessibleDescription('Enter an amount above zero');
     expect(input).toHaveAttribute('aria-invalid', 'true');
   });
+
+  it('shows the code once when the currency has no symbol of its own', () => {
+    render(
+      <>
+        <label htmlFor="salary">New annual salary</label>
+        <MoneyInput id="salary" currency="SGD" onChange={vi.fn()} />
+      </>,
+    );
+
+    expect(screen.getByText('SGD')).toBeInTheDocument();
+    expect(screen.queryByText('SGD SGD')).not.toBeInTheDocument();
+  });
 });

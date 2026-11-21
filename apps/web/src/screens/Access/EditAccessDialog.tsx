@@ -38,7 +38,6 @@ export function EditAccessDialog({
   const offered = roles.filter((role) => role.id === user.role.id || canAssignRole(me, role));
   const role = roles.find((r) => r.id === roleId);
   const scoped = role?.countryScope === 'assigned';
-  const firstName = user.name.split(' ')[0] ?? user.name;
 
   const save = () => {
     if (scoped && chosen.length === 0) {
@@ -67,7 +66,7 @@ export function EditAccessDialog({
       }
     >
       <div className={form.form}>
-        <PersonCell name={user.name} detail={user.email} />
+        <PersonCell name={user.name} detail={user.email} wrapDetail />
         <fieldset className={form.fieldset} disabled={isLastGlobalHr}>
           <legend className={form.legend}>Role</legend>
           <div className={form.radioRow}>
@@ -86,13 +85,13 @@ export function EditAccessDialog({
           </div>
           {isLastGlobalHr && (
             <p className={form.note}>
-              {firstName} is the last active Global HR, so someone else must hold that role first.
+              {user.name} is the last active Global HR, so someone else must hold that role first.
             </p>
           )}
         </fieldset>
         {scoped && (
           <ChoiceChips
-            legend={`Countries ${firstName} can see and edit`}
+            legend="Countries this person can see and edit"
             options={countries.map((c) => ({
               value: c.code,
               label: c.name,
@@ -108,8 +107,8 @@ export function EditAccessDialog({
         )}
         <div className={styles.preview}>
           {scoped
-            ? `${firstName} will see employees in ${chosen.length} ${chosen.length === 1 ? 'country' : 'countries'}.`
-            : `${firstName} will see employees in every country.`}{' '}
+            ? `They will see employees in ${chosen.length} ${chosen.length === 1 ? 'country' : 'countries'}.`
+            : 'They will see employees in every country.'}{' '}
           Insights, exports and Ask AI answers are limited to the same countries.
         </div>
         {error && (

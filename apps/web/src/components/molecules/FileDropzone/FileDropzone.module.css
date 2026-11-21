@@ -46,3 +46,13 @@
   line-height: var(--acme-leading-xs);
   color: var(--acme-color-grey500);
 }
+
+.dropHint {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dropHint {
+    display: inline;
+  }
+}

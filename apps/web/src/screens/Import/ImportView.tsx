@@ -8,9 +8,10 @@ import type {
   ImportUploadResponse,
 } from '@acme/shared';
 import { importFields } from '@acme/shared';
-import { IconDownload, IconFileSpreadsheet } from '@tabler/icons-react';
+import { IconChevronLeft, IconDownload, IconFileSpreadsheet } from '@tabler/icons-react';
 import { useState } from 'react';
 import {
+  AppLink,
   ConfirmDialog,
   DataTable,
   EmptyState,
@@ -36,6 +37,9 @@ import {
   IMPORT_STEPS,
   OUTCOME_LABELS,
   rowDetail,
+  rowProblems,
+  rowSubtitle,
+  rowTitle,
   STEP_INDEX,
   type ChangeContext,
   type ImportStep,
@@ -94,6 +98,12 @@ export function ImportView(props: ImportViewProps) {
   return (
     <>
       <PageHeader
+        back={
+          <AppLink href="/employees" className={styles.back}>
+            <IconChevronLeft aria-hidden="true" size={18} />
+            Employees
+          </AppLink>
+        }
         title="Import from Excel"
         description="Bring your existing sheet in as it is. Nothing changes until you confirm."
         actions={
@@ -113,6 +123,32 @@ export function ImportView(props: ImportViewProps) {
       {step === 'match' && <MatchStep {...props} />}
       {(step === 'review' || step === 'done') && <ReviewStep {...props} />}
     </>
+  );
+}
+
+/** The review's detail: a row's problems as a short list (one stays a line), else its changes. */
+function RowDetail({ row, context }: { row: ImportRow; context: ChangeContext }) {
+  const problems = rowProblems(row);
+  if (problems.length > 1) {
+    return (
+      <ul className={styles.problemList}>
+        {problems.map((problem, index) => (
+          <li key={index}>{problem}</li>
+        ))}
+      </ul>
+    );
+  }
+  return <>{rowDetail(row, context)}</>;
+}
+
+/** The person a review row is about, with their code (or "New employee") under the name. */
+function RowPerson({ row }: { row: ImportRow }) {
+  const subtitle = rowSubtitle(row);
+  return (
+    <span className={styles.person}>
+      <span className={styles.personName}>{rowTitle(row)}</span>
+      {subtitle && <span className={`${shared.small} ${shared.muted}`}>{subtitle}</span>}
+    </span>
   );
 }
 
@@ -287,11 +323,11 @@ function ReviewStep({
   const blocked = summary.error > 0 && !skipInvalidRows;
   const columns: DataTableColumn<ImportRow>[] = [
     { key: 'row', title: 'Row', render: (row) => row.rowNumber, width: 72 },
-    { key: 'employee', title: 'Employee', render: (row) => row.employeeCode ?? 'New' },
+    { key: 'employee', title: 'Employee', render: (row) => <RowPerson row={row} /> },
     {
       key: 'detail',
       title: outcome === 'error' ? 'Problem' : 'Change',
-      render: (row) => rowDetail(row, changeContext),
+      render: (row) => <RowDetail row={row} context={changeContext} />,
     },
   ];
   return (
@@ -413,11 +449,13 @@ function ReviewStep({
               renderCard={(row) => (
                 <div className={styles.rowCard}>
                   <div className={styles.rowCardTop}>
-                    <strong>{row.employeeCode ?? 'New employee'}</strong>
-                    <span className={`${shared.small} ${shared.muted}`}>Row {row.rowNumber}</span>
+                    <RowPerson row={row} />
+                    <span className={`${styles.rowNumber} ${shared.small} ${shared.muted}`}>
+                      Row {row.rowNumber}
+                    </span>
                   </div>
                   <div className={row.errors.length ? styles.problem : shared.small}>
-                    {rowDetail(row, changeContext)}
+                    <RowDetail row={row} context={changeContext} />
                   </div>
                 </div>
               )}

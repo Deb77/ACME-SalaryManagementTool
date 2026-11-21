@@ -82,4 +82,44 @@ describe('EmployeeFormView', () => {
 
     expect(screen.getByText('Already used')).toBeInTheDocument();
   });
+
+  it('leads to the first error after a failed save', async () => {
+    render(<EmployeeFormView {...props()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save employee' }));
+
+    expect(screen.getByLabelText(/First name/)).toHaveFocus();
+  });
+
+  it('focuses a later field when it is the first one in error', async () => {
+    render(<EmployeeFormView {...props({ employee: samplePriya })} />);
+
+    await userEvent.clear(screen.getByLabelText(/Work email/));
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(screen.getByLabelText(/Work email/)).toHaveFocus();
+  });
+
+  it('leaves straight away on Cancel when nothing changed', () => {
+    render(<EmployeeFormView {...props({ employee: samplePriya, cancelHref: '/employees/1' })} />);
+
+    expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', '/employees/1');
+  });
+
+  it('asks before discarding unsaved changes', async () => {
+    const onCancel = vi.fn();
+    render(<EmployeeFormView {...props({ employee: samplePriya, onCancel })} />);
+
+    await userEvent.type(screen.getByLabelText(/Last name/), 'x');
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.getByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Keep editing' }));
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/Last name/)).toHaveValue(`${samplePriya.lastName}x`);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
 });

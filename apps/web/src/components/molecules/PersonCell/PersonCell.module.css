@@ -62,3 +62,8 @@ a.name:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.wrap {
+  overflow: visible;
+  white-space: normal;
+}
