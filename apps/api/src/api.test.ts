@@ -29,15 +29,16 @@ import { createApp } from './app.js';
 import type { Config } from './config.js';
 import { buildContainer, type AppContainer } from './container.js';
 import { createDb, type Db } from './db/database.js';
-import { migrateToLatest } from './db/migrate.js';
 import { seedDatabase } from './db/seed/seed.js';
 import type { Clock } from './lib/clock.js';
+import { resetAndMigrate } from './evals/test-db.js';
+import { testDatabaseUrl } from './test/database.js';
 
 /**
  * The HTTP API against a real Postgres with row-level security on, through the same container
- * the server uses. Skipped unless TEST_DATABASE_URL is set; it drops and recreates the schema.
+ * the server uses. It drops and recreates the schema.
  */
-const url = process.env.TEST_DATABASE_URL;
+const url = testDatabaseUrl();
 const ORIGIN = 'http://localhost:5173';
 const PASSWORD = 'integration-test-password';
 const GLOBAL = 'global.hr@demo.acme.test';
@@ -46,7 +47,7 @@ const fixedClock: Clock = { now: () => new Date(), today: () => '2026-11-20' };
 
 type Agent = ReturnType<typeof request.agent>;
 
-describe.skipIf(!url)('HTTP API', () => {
+describe('HTTP API', () => {
   let owner: Db;
   let container: AppContainer;
   let app: Express;
@@ -78,12 +79,8 @@ describe.skipIf(!url)('HTTP API', () => {
   }
 
   beforeAll(async () => {
-    owner = createDb(url!, { max: 2 });
-    await owner.execute(sql`drop schema if exists drizzle cascade`);
-    await owner.execute(sql`drop schema if exists app_private cascade`);
-    await owner.execute(sql`drop schema public cascade`);
-    await owner.execute(sql`create schema public`);
-    await migrateToLatest(owner);
+    owner = createDb(url, { max: 2 });
+    await resetAndMigrate(owner);
     await seedDatabase(owner, {
       employees: 400,
       seed: 11,
@@ -94,7 +91,7 @@ describe.skipIf(!url)('HTTP API', () => {
       log: () => {},
     });
     const config: Config = {
-      databaseUrl: url!,
+      databaseUrl: url,
       allowedOrigins: [ORIGIN],
       appUrl: ORIGIN,
       secureCookies: false,

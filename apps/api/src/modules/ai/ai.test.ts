@@ -21,13 +21,14 @@ import { seedDatabase } from '../../db/seed/seed.js';
 import { FakeLlmClient, lastToolResults, type FakeScript } from '../../evals/fake-llm.js';
 import { enableTestAiReader, resetAndMigrate } from '../../evals/test-db.js';
 import type { Clock } from '../../lib/clock.js';
+import { testDatabaseUrl } from '../../test/database.js';
 
 /**
  * Ask AI end to end over HTTP against a real Postgres: the run_sql flow as acme_ai_reader, RLS,
  * column grants, the SQL guard, budgets, fallback, drafts, the SQL audit log and metrics. The
- * model is a scripted fake, so no API key is needed. Skipped without TEST_DATABASE_URL.
+ * model is a scripted fake, so no API key is needed.
  */
-const url = process.env.TEST_DATABASE_URL;
+const url = testDatabaseUrl();
 const ORIGIN = 'http://localhost:5173';
 const PASSWORD = 'integration-test-password';
 const PRIMARY = 'claude-sonnet-5-5';
@@ -55,7 +56,7 @@ interface Logged {
   meta?: Record<string, unknown>;
 }
 
-describe.skipIf(!url)('Ask AI', () => {
+describe('Ask AI', () => {
   let owner: Db;
   let container: AppContainer;
   let app: Express;
@@ -69,7 +70,7 @@ describe.skipIf(!url)('Ask AI', () => {
   const extraContainers: AppContainer[] = [];
 
   const baseConfig = (): Config => ({
-    databaseUrl: url!,
+    databaseUrl: url,
     allowedOrigins: [ORIGIN],
     appUrl: ORIGIN,
     secureCookies: false,
@@ -185,7 +186,7 @@ describe.skipIf(!url)('Ask AI', () => {
   }
 
   beforeAll(async () => {
-    owner = createDb(url!, { max: 2 });
+    owner = createDb(url, { max: 2 });
     await resetAndMigrate(owner);
     await seedDatabase(owner, {
       employees: 400,
@@ -196,7 +197,7 @@ describe.skipIf(!url)('Ask AI', () => {
       demoPassword: PASSWORD,
       log: () => {},
     });
-    const reader = await enableTestAiReader(owner, url!);
+    const reader = await enableTestAiReader(owner, url);
     aiUrl = reader.url;
     restoreReader = reader.restore;
     fake = new FakeLlmClient(() => ({ text: 'Hello.' }));

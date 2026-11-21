@@ -6,12 +6,17 @@ import { configureAiReader } from '../db/roles.js';
 /** A fixed password for the throwaway test cluster's reader role; never used anywhere real. */
 export const TEST_AI_READER_PASSWORD = 'acme-ai-reader-test-only-0000';
 
-/** Drops and recreates the schema, then migrates. Only for throwaway test databases. */
-export async function resetAndMigrate(owner: Db): Promise<void> {
+/** Drops and recreates the schema. Only for throwaway test databases. */
+export async function resetSchema(owner: Db): Promise<void> {
   await owner.execute(sql`drop schema if exists drizzle cascade`);
   await owner.execute(sql`drop schema if exists app_private cascade`);
   await owner.execute(sql`drop schema public cascade`);
   await owner.execute(sql`create schema public`);
+}
+
+/** Drops and recreates the schema, then migrates. Only for throwaway test databases. */
+export async function resetAndMigrate(owner: Db): Promise<void> {
+  await resetSchema(owner);
   await migrateToLatest(owner);
 }
 
