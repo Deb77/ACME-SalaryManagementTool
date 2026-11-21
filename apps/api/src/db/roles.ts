@@ -35,18 +35,29 @@ export function assertUsablePassword(password: string): void {
 /** Sets LOGIN, the password and the role's limits. The role must exist (migration 0007). */
 export async function configureAiReader(db: Db, password: string): Promise<void> {
   assertUsablePassword(password);
-  const { rows } = await db.execute<{ exists: boolean }>(
-    sql`select exists (select 1 from pg_roles where rolname = 'acme_ai_reader') as exists`,
+  const { rows } = await db.execute<{
+    rolsuper: boolean;
+    rolreplication: boolean;
+    rolbypassrls: boolean;
+  }>(
+    sql`select rolsuper, rolreplication, rolbypassrls from pg_roles where rolname = 'acme_ai_reader'`,
   );
-  if (!rows[0]?.exists) {
+  const role = rows[0];
+  if (!role) {
     throw new Error('Role acme_ai_reader does not exist. Run `npm run db:migrate` first.');
+  }
+  // Only a superuser may name SUPERUSER, REPLICATION or BYPASSRLS in ALTER ROLE, even to turn them
+  // off (managed hosts such as Render give no superuser). Migration 0007 creates the role without
+  // them and a non-superuser can't add them, so they are checked here instead of set.
+  if (role.rolsuper || role.rolreplication || role.rolbypassrls) {
+    throw new Error('acme_ai_reader must not be a superuser or have REPLICATION or BYPASSRLS');
   }
   const verifier = scramVerifier(password);
   // The verifier is base64 and `$:` only, so quoting it as a literal is safe.
   if (!/^[A-Za-z0-9+/=$:-]+$/.test(verifier)) throw new Error('Unexpected verifier format');
   await db.execute(
     sql.raw(
-      `alter role acme_ai_reader with login nosuperuser nocreatedb nocreaterole noreplication nobypassrls noinherit connection limit 4 password '${verifier}'`,
+      `alter role acme_ai_reader with login nocreatedb nocreaterole noinherit connection limit 4 password '${verifier}'`,
     ),
   );
   await db.execute(sql`alter role acme_ai_reader set default_transaction_read_only = on`);
