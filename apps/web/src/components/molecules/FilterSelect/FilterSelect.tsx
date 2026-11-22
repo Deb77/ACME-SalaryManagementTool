@@ -17,6 +17,11 @@ export interface FilterSelectProps {
   value: string | undefined;
   onChange: (value: string | undefined) => void;
   allLabel?: string;
+  /**
+   * Fills the cell it is given at every size, showing the name until a value is chosen and then
+   * just the value, as on phones. For rows where choosing a value must not resize the pill.
+   */
+  fill?: boolean;
 }
 
 const MIN_DROPDOWN_PX = 160;
@@ -32,8 +37,9 @@ export function FilterSelect({
   value,
   onChange,
   allLabel = 'All',
+  fill = false,
 }: FilterSelectProps) {
-  const roomy = useMediaQuery(mediaQueries.tablet);
+  const roomy = useMediaQuery(mediaQueries.tablet) && !fill;
   // From tablet it is sized to its own text, like a chip (14px text, about 8px a letter); on
   // phones it fills its grid cell instead, so 16px text never runs under the × or the chevron.
   const shown = options.find((option) => option.value === value)?.label ?? allLabel;
@@ -54,7 +60,7 @@ export function FilterSelect({
       clearSectionMode="clear"
       clearButtonProps={{ className: styles.clear, 'aria-label': `Clear ${label}` }}
       rightSectionWidth={value ? 44 : 32}
-      style={{ '--filter-width': `${width}px` } as CSSProperties}
+      style={{ '--filter-width': fill ? '100%' : `${width}px` } as CSSProperties}
       allowDeselect
       // The tick sits at the end, so the chosen option's name lines up with the others.
       checkIconPosition="right"

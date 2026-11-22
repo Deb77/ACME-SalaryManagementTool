@@ -107,3 +107,18 @@
     display: none;
   }
 }
+
+/* From tablet the filters share one row in equal columns, with Clear filters at the end, so
+   choosing or clearing a value never resizes a pill or wraps the row. Phones keep the shared
+   two-column grid. */
+@media (min-width: 768px) {
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(var(--filter-count, 4), minmax(0, 1fr)) auto;
+    align-items: center;
+  }
+
+  .filters > button {
+    grid-column: auto;
+  }
+}

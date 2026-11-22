@@ -1,4 +1,5 @@
 import type { CountryInfo, Employee } from '@acme/shared';
+import type { CSSProperties } from 'react';
 import { IconDownload, IconPlus, IconUpload } from '@tabler/icons-react';
 import {
   AppLink,
@@ -23,7 +24,13 @@ import { ResourceState } from '../shared/ResourceState';
 import { StatusBadge } from '../shared/StatusBadge';
 import shared from '../shared/screen.module.css';
 import styles from './Employees.module.css';
-import { employeePath, hasActiveFilters, type EmployeeFilters } from './Employees.utils';
+import {
+  CLEARED_FILTERS,
+  countNoun,
+  employeePath,
+  hasActiveFilters,
+  type EmployeeFilters,
+} from './Employees.utils';
 
 export interface EmployeesViewProps {
   status: 'loading' | 'success' | 'error';
@@ -162,7 +169,7 @@ export function EmployeesView({
             // The previous total would read as the new one: a placeholder until the results land.
             <Skeleton inline width={140} height={13} />
           ) : countKnown ? (
-            `${formatCount(total)} ${filtered ? 'matching' : 'active'} ${total === 1 ? 'person' : 'people'}${exportHref ? ' · Export uses the current search and filters' : ''}`
+            `${[formatCount(total), countNoun(filters, appliedSearch), total === 1 ? 'person' : 'people'].filter(Boolean).join(' ')}${exportHref ? ' · Export uses the current search and filters' : ''}`
           ) : (
             'Everyone you can see, in their own currency'
           )
@@ -229,10 +236,17 @@ export function EmployeesView({
           />
         }
       >
-        <div className={shared.toolbar} role="group" aria-label="Filters">
+        <div
+          className={`${shared.toolbar} ${styles.filters}`}
+          role="group"
+          aria-label="Filters"
+          // Every filter gets an equal column, so choosing or clearing one never moves the others.
+          style={{ '--filter-count': singleCountry ? 3 : 4 } as CSSProperties}
+        >
           {!singleCountry && (
             <FilterSelect
               label="Country"
+              fill
               options={countries.map((c) => ({ value: c.code, label: c.name }))}
               value={filters.country}
               onChange={(country) => setFilter({ country })}
@@ -240,6 +254,7 @@ export function EmployeesView({
           )}
           <FilterSelect
             label="Status"
+            fill
             options={STATUS_OPTIONS}
             value={filters.status === 'all' ? undefined : filters.status}
             onChange={(value) =>
@@ -248,28 +263,30 @@ export function EmployeesView({
           />
           <FilterSelect
             label="Department"
+            fill
             options={departments}
             value={filters.department}
             onChange={(department) => setFilter({ department })}
           />
           <FilterSelect
             label="Job title"
+            fill
             options={jobTitles}
             value={filters.jobTitle}
             onChange={(jobTitle) => setFilter({ jobTitle })}
           />
-          {filtered && (
-            <PillButton
-              tone="quiet"
-              size="small"
-              onClick={() => {
-                onSearchChange('');
-                onFiltersChange({ status: 'active' });
-              }}
-            >
-              Clear filters
-            </PillButton>
-          )}
+          {/* Always there, so the row never changes size; disabled when there's nothing to clear. */}
+          <PillButton
+            tone="quiet"
+            size="small"
+            disabled={!filtered}
+            onClick={() => {
+              onSearchChange('');
+              onFiltersChange(CLEARED_FILTERS);
+            }}
+          >
+            Clear filters
+          </PillButton>
         </div>
         <div className={styles.results}>
           <ResourceState
@@ -321,7 +338,7 @@ export function EmployeesView({
                       <PillButton
                         onClick={() => {
                           onSearchChange('');
-                          onFiltersChange({ status: 'active' });
+                          onFiltersChange(CLEARED_FILTERS);
                         }}
                       >
                         Clear filters
