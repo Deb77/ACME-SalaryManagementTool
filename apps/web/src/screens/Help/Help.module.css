@@ -253,6 +253,13 @@
   min-width: 0;
 }
 
+.articleBody {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
 .topicHead {
   display: flex;
   flex-wrap: wrap;
@@ -562,15 +569,30 @@
     overflow-y: auto;
   }
 
+  /* The article keeps a fixed gap at the top and the pager pinned at the bottom; only the
+     body between them scrolls, so nothing is cut off against the panel's edge. */
   .article {
+    gap: 0;
     min-height: 0;
-    padding: 28px 28px 28px 0;
+    padding: 28px 28px 20px 0;
+    overflow: hidden;
+  }
+
+  .articleBody {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-right: 8px;
+    padding-bottom: 20px;
     overflow-y: auto;
   }
 
-  /* Keep each part its natural height so the article scrolls instead of squashing them. */
-  .article > * {
+  /* Keep each part its natural height so the body scrolls instead of squashing them. */
+  .articleBody > * {
     flex-shrink: 0;
+  }
+
+  .pager {
+    flex: none;
   }
 
   .sideList {

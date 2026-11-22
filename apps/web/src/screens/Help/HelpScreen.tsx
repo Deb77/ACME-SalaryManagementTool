@@ -206,75 +206,78 @@ function TopicView({ topic }: { topic: HelpTopic }) {
         </ul>
       </nav>
       <article className={styles.article} aria-labelledby="help-topic-title">
-        <div className={styles.topicHead}>
-          <TopicIcon icon={topic.icon} size={22} large />
-          <div className={styles.topicHeadText}>
-            <h1 id="help-topic-title" className={styles.topicTitle}>
-              {topic.title}
-            </h1>
-            <p className={styles.lead}>{topic.lede}</p>
+        {/* On desktop only this part scrolls; the pager below stays pinned. */}
+        <div className={styles.articleBody}>
+          <div className={styles.topicHead}>
+            <TopicIcon icon={topic.icon} size={22} large />
+            <div className={styles.topicHeadText}>
+              <h1 id="help-topic-title" className={styles.topicTitle}>
+                {topic.title}
+              </h1>
+              <p className={styles.lead}>{topic.lede}</p>
+            </div>
+            <span className={styles.who}>Who: {topic.who}</span>
           </div>
-          <span className={styles.who}>Who: {topic.who}</span>
-        </div>
 
-        {topic.shot && (
-          <figure className={styles.shot}>
-            <picture>
-              <source media="(min-width: 768px)" srcSet={shotUrl('d', topic.shot.stem)} />
-              <img
-                src={shotUrl('m', topic.shot.stem)}
-                alt={topic.shot.alt}
-                className={styles.shotImage}
-              />
-            </picture>
-            <figcaption className={styles.shotCaption}>Screenshot from ACME People</figcaption>
-          </figure>
-        )}
+          {topic.shot && (
+            <figure className={styles.shot}>
+              <picture>
+                <source media="(min-width: 768px)" srcSet={shotUrl('d', topic.shot.stem)} />
+                <img
+                  src={shotUrl('m', topic.shot.stem)}
+                  alt={topic.shot.alt}
+                  className={styles.shotImage}
+                />
+              </picture>
+              <figcaption className={styles.shotCaption}>Screenshot from ACME People</figcaption>
+            </figure>
+          )}
 
-        {topic.steps.length > 0 && (
-          <div className={styles.howTo}>
-            <section aria-labelledby="help-steps">
-              <h2 id="help-steps" className={styles.sectionLabel}>
-                How to
-              </h2>
-              <ol className={styles.steps}>
-                {topic.steps.map((step) => (
-                  <li key={step} className={styles.step}>
-                    <RichText text={step} />
-                  </li>
-                ))}
-              </ol>
-            </section>
-            {topic.tips.length > 0 && (
-              <section aria-labelledby="help-tips" className={styles.tips}>
-                <h2 id="help-tips" className={styles.tipsLabel}>
-                  Good to know
+          {topic.steps.length > 0 && (
+            <div className={styles.howTo}>
+              <section aria-labelledby="help-steps">
+                <h2 id="help-steps" className={styles.sectionLabel}>
+                  How to
                 </h2>
-                <ul className={styles.tipList}>
-                  {topic.tips.map((tip) => (
-                    <li key={tip} className={styles.tip}>
-                      <IconCheck size={16} aria-hidden="true" className={styles.tick} />
-                      <span>
-                        <RichText text={tip} />
-                      </span>
+                <ol className={styles.steps}>
+                  {topic.steps.map((step) => (
+                    <li key={step} className={styles.step}>
+                      <RichText text={step} />
                     </li>
                   ))}
-                </ul>
+                </ol>
               </section>
-            )}
-          </div>
-        )}
+              {topic.tips.length > 0 && (
+                <section aria-labelledby="help-tips" className={styles.tips}>
+                  <h2 id="help-tips" className={styles.tipsLabel}>
+                    Good to know
+                  </h2>
+                  <ul className={styles.tipList}>
+                    {topic.tips.map((tip) => (
+                      <li key={tip} className={styles.tip}>
+                        <IconCheck size={16} aria-hidden="true" className={styles.tick} />
+                        <span>
+                          <RichText text={tip} />
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+          )}
 
-        {topic.faq && (
-          <div className={styles.faq}>
-            {topic.faq.map((item, itemIndex) => (
-              <details key={item.question} className={styles.question} open={itemIndex === 0}>
-                <summary className={styles.questionTitle}>{item.question}</summary>
-                <p className={styles.answer}>{item.answer}</p>
-              </details>
-            ))}
-          </div>
-        )}
+          {topic.faq && (
+            <div className={styles.faq}>
+              {topic.faq.map((item, itemIndex) => (
+                <details key={item.question} className={styles.question} open={itemIndex === 0}>
+                  <summary className={styles.questionTitle}>{item.question}</summary>
+                  <p className={styles.answer}>{item.answer}</p>
+                </details>
+              ))}
+            </div>
+          )}
+        </div>
 
         <nav aria-label="More help topics" className={styles.pager}>
           {previous ? (
