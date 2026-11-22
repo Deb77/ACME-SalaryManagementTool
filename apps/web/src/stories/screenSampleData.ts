@@ -174,7 +174,11 @@ export const sampleOverview: InsightsOverview = {
     payrollMinor: Math.round(avg * headcount) * 100,
     payrollUsdIndicativeMinor: Math.round(usd * 1_000_000 * 100),
   })),
-  total: { headcount: 9500, payrollUsdIndicativeMinor: 73_020_000_000 },
+  total: {
+    headcount: 9500,
+    payrollUsdIndicativeMinor: 73_020_000_000,
+    medianUsdIndicativeMinor: 9_850_000,
+  },
   fx: { indicative: true, ratesAsOf: '2026-11-01', base: 'USD' },
 };
 

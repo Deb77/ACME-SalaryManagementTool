@@ -522,6 +522,31 @@ describe('HTTP API', () => {
       }
     });
 
+    it('gives one median across every country in scope, in indicative USD', async () => {
+      const usdPerMinor = (c: { payrollMinor: number; payrollUsdIndicativeMinor: number }) =>
+        c.payrollUsdIndicativeMinor / c.payrollMinor;
+      const global = insightsOverviewSchema.parse(
+        (await globalHr.get('/api/insights/overview')).body,
+      );
+      const countryMedians = global.countries.map((c) => c.medianMinor * usdPerMinor(c));
+      // Half of each country earns at most its median, so the overall median sits between them.
+      expect(global.total.medianUsdIndicativeMinor).toBeGreaterThanOrEqual(
+        Math.min(...countryMedians) - 1,
+      );
+      expect(global.total.medianUsdIndicativeMinor).toBeLessThanOrEqual(
+        Math.max(...countryMedians) + 1,
+      );
+
+      const india = insightsOverviewSchema.parse(
+        (await indiaHr.get('/api/insights/overview')).body,
+      );
+      const [only] = india.countries;
+      expect(india.total.medianUsdIndicativeMinor).toBeCloseTo(
+        only!.medianMinor * usdPerMinor(only!),
+        -2,
+      );
+    });
+
     it('limits Country HR to their countries', async () => {
       const overview = insightsOverviewSchema.parse(
         (await indiaHr.get('/api/insights/overview')).body,

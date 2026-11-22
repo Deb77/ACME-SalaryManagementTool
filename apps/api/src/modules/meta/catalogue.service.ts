@@ -117,6 +117,14 @@ export class Catalogue {
     return this.countries.find((c) => c.currency === currency)?.minorUnits ?? 2;
   }
 
+  /** USD cents per minor unit of each currency with a rate: what `toUsdMinor` multiplies by. */
+  usdMinorPerMinorUnit(): [currency: string, factor: number][] {
+    return Object.entries(this.usdPerUnit).map(([currency, rate]) => [
+      currency,
+      (rate * 100) / 10 ** this.minorUnitsOf(currency),
+    ]);
+  }
+
   /** Indicative USD cents for an amount in minor units of `currency` (fixed rate table). */
   toUsdMinor(amountMinor: number, currency: string): number {
     const rate = this.usdPerUnit[currency] ?? 0;

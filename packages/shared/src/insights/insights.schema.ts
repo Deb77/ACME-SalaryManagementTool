@@ -27,6 +27,8 @@ export const insightsOverviewSchema = z.object({
   total: z.object({
     headcount: z.int().nonnegative(),
     payrollUsdIndicativeMinor: amountMinorSchema,
+    /** The median salary across every country in scope, each converted to USD first. */
+    medianUsdIndicativeMinor: amountMinorSchema,
   }),
   fx: z.object({ indicative: z.literal(true), ratesAsOf: isoDateSchema, base: z.literal('USD') }),
 });

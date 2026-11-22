@@ -85,79 +85,43 @@ export function InsightsSkeleton() {
           )
         }
       />
-      <div className={shared.tiles}>
-        <StatTile
-          variant="hero"
-          label="Active employees"
-          value={<TileValue width={110} trend />}
-          note={
-            <>
-              across <Skeleton inline width={8} height={12} /> countries
-            </>
-          }
-        />
-        <StatTile
-          label="Annual payroll"
-          value={<TileValue width={130} trend />}
-          delta="USD"
-          note="indicative total"
-        />
-        <StatTile
-          label="Countries"
-          value={<TileValue width={30} />}
-          note="currencies, local stats"
-        />
-        <StatTile
-          label="Median"
-          value={<TileValue width={100} />}
-          note={
-            <>
-              <Skeleton inline width={40} height={12} /> people
-            </>
-          }
-        />
-      </div>
-      <div className={`${styles.countryPicker} ${styles.pickerSkeleton}`}>
-        <Skeleton width={620} height="100%" pill />
-      </div>
-      <div className={`${shared.twoColumns} ${styles.matchedRow}`}>
-        <TrayCard
-          title="Pay by job title"
-          extra={
-            <span className={`${shared.small} ${shared.muted}`}>
-              {/* As wide as "India median ₹25,00,000", so it stays beside the title on phones. */}
-              <Skeleton inline width={44} height={11} /> median{' '}
-              <Skeleton inline width={72} height={11} />
-            </span>
-          }
-          footer={<TitlesNote />}
-        >
-          <PayByTitleSkeleton />
-        </TrayCard>
-        <TrayCard
-          title={<Skeleton inline width={150} height={12} />}
-          className={styles.glance}
-          footer={
-            <span>
-              Average is <Skeleton inline width={70} height={12} /> the median
-            </span>
-          }
-        >
-          <KeyValueList
-            items={['Lowest', 'Median', 'Average', 'Highest', 'People'].map((label) => ({
-              label,
-              value: <Skeleton inline width={80} height={12} />,
-            }))}
+      <section className={shared.stack}>
+        <h2 className={styles.sectionTitle}>
+          <Skeleton inline width={110} height={14} />
+        </h2>
+        <div className={shared.tiles}>
+          <StatTile
+            variant="hero"
+            label="Active employees"
+            value={<TileValue width={110} trend />}
+            note={
+              <>
+                across <Skeleton inline width={8} height={12} /> countries
+              </>
+            }
           />
-        </TrayCard>
-      </div>
-      <div className={`${shared.twoColumns} ${styles.evenColumns}`}>
-        <TrayCard
-          title="Salary spread"
-          footer="Annual salary bands · the darker bar holds the median"
-        >
-          <LoadingState shape="chart" delayMs={0} label="" />
-        </TrayCard>
+          <StatTile
+            label="Annual payroll"
+            value={<TileValue width={130} trend />}
+            delta="USD"
+            note="indicative total"
+          />
+          <StatTile
+            label="Countries"
+            value={<TileValue width={30} />}
+            note="currencies, local stats"
+          />
+          <StatTile
+            label="Median salary"
+            value={<TileValue width={100} />}
+            delta="USD"
+            note={
+              <>
+                across <Skeleton inline width={8} height={12} /> countries, indicative
+              </>
+            }
+          />
+        </div>
         <TrayCard
           title="Payroll by country"
           flush
@@ -181,8 +145,8 @@ export function InsightsSkeleton() {
             query={{ page: 1, pageSize: 8 }}
             onQueryChange={() => {}}
             skeletonRows={8}
-            // Every country fits on the one page, so the real footer has no pager.
-            skeletonPager={false}
+            // Every country is in view, so the real table has no footer.
+            summary={false}
             renderCard={() => null}
             skeletonCard={
               <div className={styles.countryCard}>
@@ -198,7 +162,52 @@ export function InsightsSkeleton() {
             }
           />
         </TrayCard>
-      </div>
+      </section>
+      <section className={shared.stack}>
+        <div className={styles.sectionHeader}>
+          <h2 className={styles.sectionTitle}>By country</h2>
+          <div className={`${styles.countryPicker} ${styles.pickerSkeleton}`}>
+            <Skeleton width={620} height="100%" pill />
+          </div>
+        </div>
+        <div className={`${shared.twoColumns} ${styles.matchedRow}`}>
+          <TrayCard
+            title="Pay by job title"
+            extra={
+              <span className={`${shared.small} ${shared.muted}`}>
+                {/* As wide as "India median ₹25,00,000", so it stays beside the title on phones. */}
+                <Skeleton inline width={44} height={11} /> median{' '}
+                <Skeleton inline width={72} height={11} />
+              </span>
+            }
+            footer={<TitlesNote />}
+          >
+            <PayByTitleSkeleton />
+          </TrayCard>
+          <TrayCard
+            title={<Skeleton inline width={150} height={12} />}
+            className={styles.glance}
+            footer={
+              <span>
+                Average is <Skeleton inline width={70} height={12} /> the median
+              </span>
+            }
+          >
+            <KeyValueList
+              items={['Lowest', 'Median', 'Average', 'Highest', 'People'].map((label) => ({
+                label,
+                value: <Skeleton inline width={80} height={12} />,
+              }))}
+            />
+          </TrayCard>
+        </div>
+        <TrayCard
+          title="Salary spread"
+          footer="Annual salary bands · the darker bar holds the median"
+        >
+          <LoadingState shape="chart" delayMs={0} label="" />
+        </TrayCard>
+      </section>
     </PageSkeleton>
   );
 }

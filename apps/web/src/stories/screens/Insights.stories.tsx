@@ -27,6 +27,7 @@ function Insights(overrides: Partial<InsightsViewProps>) {
       byTitle={{ status: 'success', data: sampleByTitle }}
       distribution={{ status: 'success', data: sampleDistribution }}
       canAsk
+      allCountries
       {...overrides}
     />
   );
@@ -52,6 +53,9 @@ export const CountryHr: Story = () => (
         total: {
           headcount: india.reduce((sum, c) => sum + c.headcount, 0),
           payrollUsdIndicativeMinor: india.reduce((sum, c) => sum + c.payrollUsdIndicativeMinor, 0),
+          medianUsdIndicativeMinor: Math.round(
+            india[0]!.medianMinor * (india[0]!.payrollUsdIndicativeMinor / india[0]!.payrollMinor),
+          ),
         },
       }}
     />

@@ -17,7 +17,11 @@ describe('insightsOverviewSchema', () => {
           payrollUsdIndicativeMinor: 4_501_000_000,
         },
       ],
-      total: { headcount: 9812, payrollUsdIndicativeMinor: 61_230_000_000 },
+      total: {
+        headcount: 9812,
+        payrollUsdIndicativeMinor: 61_230_000_000,
+        medianUsdIndicativeMinor: 7_850_000,
+      },
       fx: { indicative: true, ratesAsOf: '2026-10-01', base: 'USD' },
     };
     expect(insightsOverviewSchema.parse(overview)).toEqual(overview);

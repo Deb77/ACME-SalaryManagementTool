@@ -70,6 +70,7 @@ export function InsightsScreen() {
       byTitle={asAsync(byTitle)}
       distribution={asAsync(distribution)}
       canAsk={can('ai:ask')}
+      allCountries={me.role.countryScope === 'all'}
     />
   );
 }

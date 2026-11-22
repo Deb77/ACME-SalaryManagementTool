@@ -1,3 +1,41 @@
+/* "All countries" and "By country": a heading over each part, with the picker beside it. */
+.sectionTitle {
+  margin: 0;
+  font-size: var(--acme-text-md);
+  line-height: var(--acme-leading-md);
+  font-weight: 600;
+  color: var(--acme-color-grey800);
+}
+
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* The country part starts clear of the payroll table above it. */
+.sectionHeader {
+  margin-top: 8px;
+}
+
+@media (min-width: 768px) {
+  .sectionHeader {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+}
+
+/* One country in scope has no Countries tile: the other three share the row. */
+@media (min-width: 768px) {
+  /* Doubled so it wins over the shared four-column rule whatever order the sheets load in. */
+  .threeTiles.threeTiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 /* Phones: the countries scroll sideways without a scrollbar; the faded right edge shows there
    are more. From tablet they all fit, so neither applies. */
 .countryPicker {
@@ -40,22 +78,7 @@
   min-width: 160px;
 }
 
-/*
- * The payroll table needs about half the width, so this row splits evenly on desktop. The
- * spread card stretches to the table's height and its chart grows with it, so no blank space
- * sits under the chart beside a long country list.
- */
 @media (min-width: 1024px) {
-  .evenColumns {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
-  }
-
-  .spread > :nth-child(2) {
-    display: flex;
-    flex-direction: column;
-  }
-
   /* Pay by job title and the country's figures are the same height; the figures spread out. */
   .matchedRow {
     align-items: stretch;

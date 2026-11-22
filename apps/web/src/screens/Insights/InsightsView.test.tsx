@@ -18,6 +18,7 @@ const props = (overrides: Partial<InsightsViewProps> = {}): InsightsViewProps =>
   byTitle: { status: 'success', data: sampleByTitle },
   distribution: { status: 'success', data: sampleDistribution },
   canAsk: true,
+  allCountries: true,
   ...overrides,
 });
 
@@ -68,7 +69,7 @@ describe('InsightsView', () => {
           overview: {
             ...sampleOverview,
             countries: [],
-            total: { headcount: 0, payrollUsdIndicativeMinor: 0 },
+            total: { headcount: 0, payrollUsdIndicativeMinor: 0, medianUsdIndicativeMinor: 0 },
           },
         })}
       />,
@@ -85,6 +86,7 @@ describe('InsightsView', () => {
       total: {
         headcount: india.headcount,
         payrollUsdIndicativeMinor: india.payrollUsdIndicativeMinor,
+        medianUsdIndicativeMinor: 2_530_000,
       },
     };
     render(<InsightsView {...props({ overview })} />);
@@ -93,11 +95,36 @@ describe('InsightsView', () => {
     const tile = screen.getByText('Annual payroll').parentElement!.parentElement!;
     expect(tile).toHaveTextContent('₹');
     expect(tile).toHaveTextContent(/≈ \$[\d.]+[KMB]? indicative/);
+    // Their whole scope is one country, so its median leads in rupees.
+    const median = screen.getByText('Median salary').parentElement!.parentElement!;
+    expect(median).toHaveTextContent('₹');
+    expect(screen.queryByText('Payroll by country')).not.toBeInTheDocument();
   });
 
   it('keeps the country picker and USD totals across several countries', () => {
     render(<InsightsView {...props()} />);
 
     expect(screen.getByRole('radiogroup', { name: 'Country' })).toBeInTheDocument();
+  });
+
+  it('shows one median for everyone in scope, whichever country is picked', () => {
+    const { rerender } = render(<InsightsView {...props()} />);
+    const median = () => screen.getByText('Median salary').parentElement!.parentElement!;
+    expect(median()).toHaveTextContent('$98.5K');
+    expect(median()).toHaveTextContent('across 8 countries');
+
+    rerender(<InsightsView {...props({ selectedCountry: 'GB' })} />);
+    expect(median()).toHaveTextContent('$98.5K');
+  });
+
+  it('puts payroll by country with the figures for all countries, above the country picker', () => {
+    render(<InsightsView {...props()} />);
+
+    const [payroll] = screen.getAllByText('Payroll by country');
+    const picker = screen.getByRole('radiogroup', { name: 'Country' });
+    expect(
+      payroll!.compareDocumentPosition(picker) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.queryByText(/Showing 1–8 of 8/)).not.toBeInTheDocument();
   });
 });
