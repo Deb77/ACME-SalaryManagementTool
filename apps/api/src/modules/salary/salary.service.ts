@@ -2,7 +2,7 @@ import type { SalaryChange } from '@acme/shared';
 import type { Actor } from '../../auth/actor.js';
 import type { Tx } from '../../db/scope.js';
 import type { Clock } from '../../lib/clock.js';
-import { AppError, invalid, notFound } from '../../lib/errors.js';
+import { AppError, assertNoViolation, invalid, notFound } from '../../lib/errors.js';
 import type { AiRepository } from '../ai/ai.repository.js';
 import type { AuditService } from '../audit/audit.service.js';
 import type { EmployeeRepository, EmployeeRow } from '../employees/employee.repository.js';
@@ -95,7 +95,7 @@ export class SalaryService {
     if (!current) throw notFound('Employee not found');
     const before = current.employee;
     if (input.aiDraftId) await this.useDraft(tx, input.aiDraftId, before);
-    checkSalaryChange({ current: before, input, today: this.clock.today() });
+    assertNoViolation(checkSalaryChange({ current: before, input, today: this.clock.today() }));
 
     const row = await this.changes.insert(tx, {
       employeeId: before.id,

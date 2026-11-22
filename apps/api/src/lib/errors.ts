@@ -1,4 +1,5 @@
 import type { ApiErrorCode } from '@acme/shared';
+import type { RuleViolation } from './violation.js';
 
 export interface ErrorDetail {
   path: string;
@@ -41,4 +42,16 @@ export const invalid = (path: string, message: string) =>
 export function assertFound<T>(value: T | undefined | null, what?: string): T {
   if (value === undefined || value === null) throw notFound(what);
   return value;
+}
+
+/** The client-facing error for a broken domain rule (lib/violation.ts). */
+export function toAppError(violation: RuleViolation): AppError {
+  if (violation.kind === 'stale') return staleVersion();
+  if (violation.kind === 'conflict') return conflict(violation.message);
+  return invalid(violation.field ?? '', violation.message);
+}
+
+/** Throws the client-facing error when a rule was broken. */
+export function assertNoViolation(violation: RuleViolation | null): void {
+  if (violation) throw toAppError(violation);
 }

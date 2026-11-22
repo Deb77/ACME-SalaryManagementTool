@@ -8,3 +8,7 @@ coverage/
 .DS_Store
 apps/web/build/
 apps/api/eval-results/
+
+# Playwright
+test-results/
+playwright-report/
