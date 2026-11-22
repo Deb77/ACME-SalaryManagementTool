@@ -8,20 +8,28 @@ const keys = (permissions: Permission[]) =>
 
 describe('navigation', () => {
   it('shows only the areas the user may open', () => {
-    expect(keys(['employees:read', 'insights:read'])).toEqual(['employees', 'insights']);
+    expect(keys(['employees:read', 'insights:read'])).toEqual(['employees', 'insights', 'help']);
     expect(keys(['employees:read', 'insights:read', 'ai:ask', 'users:manage'])).toEqual([
       'employees',
       'insights',
       'ask',
       'access',
+      'help',
     ]);
-    expect(keys(['roles:manage'])).toEqual(['access']);
+    expect(keys(['roles:manage'])).toEqual(['access', 'help']);
   });
 
   it('drops empty groups and picks the first page as home', () => {
-    expect(navGroupsFor(canFor(['ai:ask'])).map((g) => g.label)).toEqual(['Analyse']);
+    expect(navGroupsFor(canFor(['ai:ask'])).map((g) => g.label)).toEqual(['Analyse', 'Support']);
     expect(homePathFor(canFor(['ai:ask']))).toBe('/ask');
     expect(homePathFor(canFor([]))).toBeNull();
+  });
+
+  it('shows Help to everyone, in the desktop navigation only', () => {
+    const support = navGroupsFor(canFor([])).find((g) => g.label === 'Support');
+    expect(support?.items).toEqual([
+      expect.objectContaining({ key: 'help', href: '/help', desktopOnly: true }),
+    ]);
   });
 
   it('marks the area of nested pages', () => {

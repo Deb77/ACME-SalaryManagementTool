@@ -10,6 +10,9 @@ import { ThemeProvider } from './theme';
 const SignInScreen = lazy(() =>
   import('./screens/SignIn/SignInScreen').then((m) => ({ default: m.SignInScreen })),
 );
+const HelpScreen = lazy(() =>
+  import('./screens/Help/HelpScreen').then((m) => ({ default: m.HelpScreen })),
+);
 const AcceptInviteScreen = lazy(() =>
   import('./screens/SignIn/AcceptInviteScreen').then((m) => ({ default: m.AcceptInviteScreen })),
 );
@@ -25,6 +28,9 @@ export function App() {
                 {/* Public pages: no session yet. */}
                 <Route path="sign-in" element={<SignInScreen />} />
                 <Route path="accept-invite" element={<AcceptInviteScreen />} />
+                {/* Help is public so a link to it can be shared with anyone. */}
+                <Route path="help" element={<HelpScreen />} />
+                <Route path="help/:topic" element={<HelpScreen />} />
                 <Route
                   path="*"
                   element={

@@ -469,3 +469,10 @@
     background: linear-gradient(to top, var(--acme-color-white), rgba(255, 255, 255, 0));
   }
 }
+
+/* Desktop-only navigation (last, so it wins over .groupBlock and .item on phones and tablets). */
+@media (max-width: 1023.98px) {
+  .desktopOnly {
+    display: none;
+  }
+}

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { ApiError, describeError } from '../../api/client';
 import { signIn } from '../../api/endpoints';
-import { FormField, PillButton } from '../../components';
+import { AppLink, FormField, PillButton } from '../../components';
 import form from '../shared/form.module.css';
 import { rememberSignedIn } from '../../session/signedIn';
 import { SignInCard } from './SignInCard';
@@ -78,7 +78,10 @@ export function SignInScreen() {
           Sign in
         </PillButton>
       </form>
-      <p className={styles.footnote}>Forgot your password? Ask Global HR for a new sign-in link.</p>
+      <p className={styles.footnote}>
+        Forgot your password? Ask Global HR for a new sign-in link.{' '}
+        <AppLink href="/help">Help &amp; guide</AppLink>
+      </p>
     </SignInCard>
   );
 }
