@@ -511,8 +511,33 @@
 /* ---- Desktop: the topic list beside the topic ---- */
 
 @media (min-width: 1024px) {
+  /* Like the app: the window never scrolls; the top bar and panel stay put and only the
+     content inside the panel scrolls (on a topic, the article; the topic list stays still). */
+  .page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .bar {
+    position: static;
+    flex: none;
+  }
+
   .panel {
+    flex: 1 1 auto;
+    width: calc(100% - 48px);
+    min-height: 0;
     margin-inline: 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
+  }
+
+  .panelTopic {
+    padding: 0;
+    overflow: hidden;
   }
 
   .title {
@@ -528,12 +553,24 @@
     display: grid;
     grid-template-columns: 240px minmax(0, 1fr);
     gap: 28px;
-    align-items: start;
+    height: 100%;
   }
 
   .side {
-    position: sticky;
-    top: 92px;
+    min-height: 0;
+    padding: 28px 0 28px 28px;
+    overflow-y: auto;
+  }
+
+  .article {
+    min-height: 0;
+    padding: 28px 28px 28px 0;
+    overflow-y: auto;
+  }
+
+  /* Keep each part its natural height so the article scrolls instead of squashing them. */
+  .article > * {
+    flex-shrink: 0;
   }
 
   .sideList {

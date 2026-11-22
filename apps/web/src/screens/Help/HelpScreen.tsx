@@ -99,11 +99,15 @@ export function HelpScreen() {
           </PillButton>
         )}
       </header>
-      <main id="help-content" tabIndex={-1} className={styles.panel}>
+      <main
+        id="help-content"
+        tabIndex={-1}
+        className={topic ? `${styles.panel} ${styles.panelTopic}` : styles.panel}
+      >
         {slug === undefined ? (
           <Landing />
         ) : topic ? (
-          <TopicView topic={topic} />
+          <TopicView key={topic.slug} topic={topic} />
         ) : (
           <EmptyState
             title="That help topic doesn’t exist"
