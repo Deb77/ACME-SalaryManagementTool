@@ -6,6 +6,7 @@ export {
 } from './AppLink/AppLink';
 export type { LinkComponentProps } from './AppLink/AppLink.utils';
 export { IconButton, type IconButtonProps } from './IconButton/IconButton';
+export { Logo, type LogoProps } from './Logo/Logo';
 export { MeterBar, type MeterBarProps } from './MeterBar/MeterBar';
 export { MoneyInput, type MoneyInputProps } from './MoneyInput/MoneyInput';
 export { MoneyText, type MoneyTextProps } from './MoneyText/MoneyText';

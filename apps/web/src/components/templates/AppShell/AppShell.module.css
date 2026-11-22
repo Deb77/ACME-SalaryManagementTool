@@ -115,9 +115,11 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border-radius: 9px;
-  color: var(--acme-color-white);
-  background: linear-gradient(145deg, #5db27f, var(--acme-color-accent) 62%);
+}
+
+.logo > svg {
+  width: 100%;
+  height: 100%;
 }
 
 .avatar {
@@ -320,7 +322,6 @@
   .logo {
     width: 38px;
     height: 38px;
-    border-radius: 11px;
   }
 
   .groupBlock {

@@ -1,7 +1,7 @@
 import { IconLogout } from '@tabler/icons-react';
 import { Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router';
-import { AppShell, ErrorBoundary, IconButton } from '../components';
+import { AppShell, ErrorBoundary, IconButton, Logo } from '../components';
 import { useSession } from '../session/SessionContext';
 import { activeKeyFor, navGroupsFor } from './navigation';
 import { RouteSkeleton } from './RouteSkeleton';
@@ -13,7 +13,7 @@ export function AppLayout() {
   return (
     <AppShell
       productName="ACME People"
-      logo="A"
+      logo={<Logo />}
       navGroups={navGroupsFor(can)}
       activeKey={activeKeyFor(pathname)}
       user={{ name: me.name, role: me.role.name }}

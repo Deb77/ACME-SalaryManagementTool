@@ -3,10 +3,81 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f1f2f1" />
     <title>ACME People</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <style>
+      /*
+       * Boot splash, drawn before any script loads; React replaces it with the same splash
+       * (src/app/SplashScreen) when it mounts, so keep the two in step.
+       */
+      html,
+      body {
+        margin: 0;
+        background: #f1f2f1;
+      }
+      .boot-splash {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 28px;
+        min-height: 100vh;
+        min-height: 100dvh;
+        animation: boot-in 240ms ease-out 120ms both;
+      }
+      .boot-bar {
+        position: relative;
+        width: 96px;
+        height: 3px;
+        overflow: hidden;
+        background: #dfe3df;
+        border-radius: 3px;
+      }
+      .boot-bar::after {
+        content: '';
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 40%;
+        background: #2e6b47;
+        border-radius: 3px;
+        animation: boot-slide 1.1s ease-in-out 120ms infinite;
+      }
+      @keyframes boot-in {
+        from {
+          opacity: 0;
+          transform: scale(0.96);
+        }
+      }
+      @keyframes boot-slide {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(250%);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-splash,
+        .boot-bar::after {
+          animation: none;
+        }
+        .boot-bar::after {
+          left: 30%;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot-splash" aria-busy="true">
+        <img src="/favicon.svg" width="64" height="64" alt="" />
+        <div class="boot-bar"></div>
+        <noscript>ACME People needs JavaScript turned on.</noscript>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

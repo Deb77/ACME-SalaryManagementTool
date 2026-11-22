@@ -52,6 +52,7 @@ describe('App', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading ACME People…');
 
     session.signedOut();
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
