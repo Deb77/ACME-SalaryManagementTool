@@ -5,6 +5,7 @@ export {
   type LinkProviderProps,
 } from './AppLink/AppLink';
 export type { LinkComponentProps } from './AppLink/AppLink.utils';
+export { Confetti, type ConfettiProps } from './Confetti/Confetti';
 export { IconButton, type IconButtonProps } from './IconButton/IconButton';
 export { Logo, type LogoProps } from './Logo/Logo';
 export { MeterBar, type MeterBarProps } from './MeterBar/MeterBar';
