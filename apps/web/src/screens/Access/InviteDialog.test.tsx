@@ -44,4 +44,18 @@ describe('InviteDialog', () => {
     expect(screen.getByText('Enter an email address like name@acme.com')).toBeInTheDocument();
     expect(screen.getByLabelText(/Work email/)).toHaveFocus();
   });
+
+  it('titles a replacement link for the person and says the old one stops working', () => {
+    render(
+      <InviteDialog
+        {...props({
+          inviteUrl: 'https://example.test/accept-invite#token=x',
+          invitee: 'Wei Ling Tan',
+        })}
+      />,
+    );
+
+    expect(screen.getByRole('dialog', { name: 'New link for Wei Ling Tan' })).toBeInTheDocument();
+    expect(screen.getByText(/Any earlier link no longer works/)).toBeInTheDocument();
+  });
 });

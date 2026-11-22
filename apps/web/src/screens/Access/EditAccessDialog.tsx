@@ -18,6 +18,11 @@ export interface EditAccessDialogProps {
   onRemoveAccess: () => void;
   /** A person without access: gives it back, with the role and countries chosen here. */
   onRestoreAccess: (change: { roleId: string; countries: string[] }) => void;
+  /**
+   * A new invite or sign-in link for someone with access (a lost invite, a forgotten password);
+   * earlier links and their sessions stop working. Not offered for your own account.
+   */
+  onSendNewLink: () => void;
   onCancel: () => void;
 }
 
@@ -36,9 +41,11 @@ export function EditAccessDialog({
   onSave,
   onRemoveAccess,
   onRestoreAccess,
+  onSendNewLink,
   onCancel,
 }: EditAccessDialogProps) {
   const removed = user.status === 'deactivated';
+  const canSendLink = !removed && user.id !== me.id;
   const [roleId, setRoleId] = useState(user.role.id);
   const [chosen, setChosen] = useState<string[]>(user.countries);
   const [countryError, setCountryError] = useState<string>();
@@ -130,6 +137,20 @@ export function EditAccessDialog({
           <p role="alert" className={form.error}>
             {error}
           </p>
+        )}
+        {canSendLink && (
+          <div className={styles.linkAction}>
+            <p className={form.note}>
+              {user.status === 'invited'
+                ? `${user.name} has not set a password yet. A new invite link replaces the old one.`
+                : `Forgot their password? A new link signs them out and lets them choose a new password.`}
+            </p>
+            <div>
+              <PillButton disabled={saving} onClick={onSendNewLink}>
+                Send new link
+              </PillButton>
+            </div>
+          </div>
         )}
         {!removed && (
           <div>

@@ -22,6 +22,7 @@ describe('EditAccessDialog', () => {
         onSave={vi.fn()}
         onRemoveAccess={vi.fn()}
         onRestoreAccess={vi.fn()}
+        onSendNewLink={vi.fn()}
         onCancel={vi.fn()}
       />,
     );
@@ -47,6 +48,7 @@ describe('EditAccessDialog', () => {
         onSave={onSave}
         onRemoveAccess={vi.fn()}
         onRestoreAccess={onRestoreAccess}
+        onSendNewLink={vi.fn()}
         onCancel={vi.fn()}
       />,
     );
@@ -59,5 +61,51 @@ describe('EditAccessDialog', () => {
       countries: user.countries,
     });
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  function renderFor(user: (typeof sampleUsers)[number], onSendNewLink = vi.fn()) {
+    render(
+      <EditAccessDialog
+        me={sampleMeGlobal}
+        user={user}
+        roles={sampleRoles}
+        countries={sampleMeta.countries}
+        isLastGlobalHr={false}
+        onSave={vi.fn()}
+        onRemoveAccess={vi.fn()}
+        onRestoreAccess={vi.fn()}
+        onSendNewLink={onSendNewLink}
+        onCancel={vi.fn()}
+      />,
+    );
+    return onSendNewLink;
+  }
+
+  it('sends a new invite link to someone who has not used theirs', async () => {
+    const invited = sampleUsers.find((u) => u.status === 'invited')!;
+    const onSendNewLink = renderFor(invited);
+
+    expect(screen.getByText(/has not set a password yet/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Send new link' }));
+    expect(onSendNewLink).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers a new sign-in link to an active person who forgot their password', () => {
+    renderFor(sampleUsers[2]!);
+
+    expect(screen.getByRole('button', { name: 'Send new link' })).toBeInTheDocument();
+    expect(
+      screen.getByText(/signs them out and lets them choose a new password/),
+    ).toBeInTheDocument();
+  });
+
+  it('offers no new link for your own account or someone without access', () => {
+    renderFor(sampleUsers[0]!); // Riya Kapoor is sampleMeGlobal
+    expect(screen.queryByRole('button', { name: 'Send new link' })).not.toBeInTheDocument();
+  });
+
+  it('offers no new link to someone whose access was removed', () => {
+    renderFor({ ...sampleUsers[2]!, status: 'deactivated' });
+    expect(screen.queryByRole('button', { name: 'Send new link' })).not.toBeInTheDocument();
   });
 });

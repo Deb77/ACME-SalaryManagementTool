@@ -176,6 +176,16 @@ export function AccessScreen() {
               () => {},
             );
           }}
+          onSendNewLink={() => {
+            const { user } = open;
+            void run(
+              async () => {
+                const { inviteUrl } = await reissueInvite(user.id);
+                setOpen({ kind: 'invite', inviteUrl, invitee: user.name });
+              },
+              () => {},
+            );
+          }}
           onSave={(change) =>
             void run(() => updateUser(open.user.id, { ...change, version: open.user.version }))
           }

@@ -81,6 +81,7 @@ export const EditAccess: Story = () => (
     onSave={() => {}}
     onRemoveAccess={() => {}}
     onRestoreAccess={() => {}}
+    onSendNewLink={() => {}}
     onCancel={() => {}}
   />
 );
@@ -96,6 +97,7 @@ export const GiveAccessBack: Story = () => (
     onSave={() => {}}
     onRemoveAccess={() => {}}
     onRestoreAccess={() => {}}
+    onSendNewLink={() => {}}
     onCancel={() => {}}
   />
 );
@@ -111,6 +113,7 @@ export const EditLastGlobalHr: Story = () => (
     onSave={() => {}}
     onRemoveAccess={() => {}}
     onRestoreAccess={() => {}}
+    onSendNewLink={() => {}}
     onCancel={() => {}}
   />
 );

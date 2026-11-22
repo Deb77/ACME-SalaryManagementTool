@@ -76,7 +76,7 @@ export function InviteDialog({
     return (
       <Dialog
         open
-        title="Invite created"
+        title={invitee ? `New link for ${invitee}` : 'Invite created'}
         onClose={onClose}
         actions={
           <PillButton tone="primary" onClick={onClose}>
@@ -87,7 +87,7 @@ export function InviteDialog({
         <div className={form.form}>
           <Notice tone="info" title="Copy this link now">
             Send it to {invitee ?? (name || 'them')} yourself. It is shown once and expires in 72
-            hours.
+            hours.{invitee && ' Any earlier link no longer works.'}
           </Notice>
           <code className={styles.inviteUrl}>{inviteUrl}</code>
           <div>
