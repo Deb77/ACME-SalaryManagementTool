@@ -20,3 +20,19 @@ export function rememberSignedIn(signedIn: boolean): void {
     // Storage blocked: the first paint just assumes a signed-out visitor.
   }
 }
+
+/**
+ * Browsers keep a page in memory when you leave it (the back/forward cache) and show it again,
+ * as it was, on Back, without loading anything. After signing out, Back would so bring back the
+ * last screen with its pay data. When a page comes back that way after this browser has signed
+ * out, reload it instead: the reload asks for the session and lands on the sign-in page.
+ */
+export function reloadRestoredPageAfterSignOut(
+  reload: () => void = () => window.location.reload(),
+): () => void {
+  const onPageShow = (event: PageTransitionEvent) => {
+    if (event.persisted && !wasSignedIn()) reload();
+  };
+  window.addEventListener('pageshow', onPageShow);
+  return () => window.removeEventListener('pageshow', onPageShow);
+}
