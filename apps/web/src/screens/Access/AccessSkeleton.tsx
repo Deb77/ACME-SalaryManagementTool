@@ -1,5 +1,5 @@
 import { permissionKeys } from '@acme/shared';
-import { IconPlus, IconUserPlus } from '@tabler/icons-react';
+import { IconUserPlus } from '@tabler/icons-react';
 import {
   DataTable,
   EmptyState,
@@ -21,21 +21,21 @@ import { accessLayoutFor } from './accessLayout';
 const memberColumns: DataTableColumn<never>[] = [
   {
     key: 'person',
-    width: '30%',
+    width: 'auto',
     title: 'Person',
     render: () => null,
     skeleton: <PersonCellSkeleton nameWidth={120} detailWidth={180} />,
   },
   {
     key: 'role',
-    width: '15%',
+    width: '14%',
     title: 'Role',
     render: () => null,
     skeleton: <Skeleton inline width={90} height={24} pill />,
   },
   {
     key: 'countries',
-    width: '27%',
+    width: '24%',
     title: 'Countries',
     render: () => null,
     skeleton: (
@@ -45,10 +45,10 @@ const memberColumns: DataTableColumn<never>[] = [
       </div>
     ),
   },
-  { key: 'lastActive', width: '17%', title: 'Last active', render: () => null },
+  { key: 'lastActive', width: '15%', title: 'Last active', render: () => null },
   {
     key: 'action',
-    width: '11%',
+    width: 136,
     title: <span className="visually-hidden">Action</span>,
     align: 'right',
     render: () => null,
@@ -87,13 +87,6 @@ export function AccessSkeleton() {
       />
       <TrayCard
         title="Roles"
-        extra={
-          allowed('roles:manage') && (
-            <PillButton size="small" icon={<IconPlus size={14} />}>
-              New role
-            </PillButton>
-          )
-        }
         footer="A role is a set of permissions plus a country scope. Every person has one role."
       >
         <div className={styles.roleGrid}>

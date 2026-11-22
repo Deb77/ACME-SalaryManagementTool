@@ -33,7 +33,6 @@ function Access(overrides: Partial<AccessViewProps>) {
       accessChanges={sampleAccessChanges}
       onInvite={() => {}}
       onEditUser={() => {}}
-      onNewRole={() => {}}
       onEditRole={() => {}}
       onDeleteRole={() => {}}
       now={now}

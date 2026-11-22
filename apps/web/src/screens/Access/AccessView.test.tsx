@@ -21,7 +21,6 @@ const props = (overrides: Partial<AccessViewProps> = {}): AccessViewProps => ({
   accessChanges: sampleAccessChanges,
   onInvite: vi.fn(),
   onEditUser: vi.fn(),
-  onNewRole: vi.fn(),
   onEditRole: vi.fn(),
   onDeleteRole: vi.fn(),
   now: new Date('2026-11-20T12:00:00.000Z'),
@@ -29,14 +28,14 @@ const props = (overrides: Partial<AccessViewProps> = {}): AccessViewProps => ({
 });
 
 describe('AccessView', () => {
-  it('lets Global HR invite people, create roles and edit access', async () => {
+  it('lets Global HR invite people and edit access, with no way to add a role', async () => {
     const onInvite = vi.fn();
     const onEditUser = vi.fn();
     render(<AccessView {...props({ onInvite, onEditUser })} />);
 
     await userEvent.click(screen.getByRole('button', { name: /Invite person/ }));
     expect(onInvite).toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: /New role/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /New role/ })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Edit access for Ananya Rao' }));
     expect(onEditUser).toHaveBeenCalledWith(sampleUsers[2]);
     expect(screen.getByText('Recent access changes')).toBeInTheDocument();

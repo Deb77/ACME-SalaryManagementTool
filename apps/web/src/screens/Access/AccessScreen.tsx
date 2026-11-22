@@ -120,7 +120,6 @@ export function AccessScreen() {
         accessChanges={changes.data?.items}
         onInvite={() => setOpen({ kind: 'invite' })}
         onEditUser={(user) => setOpen({ kind: 'edit-user', user })}
-        onNewRole={() => setOpen({ kind: 'role' })}
         onEditRole={(role) => setOpen({ kind: 'role', role })}
         onDeleteRole={(role) => setOpen({ kind: 'delete-role', role })}
       />
