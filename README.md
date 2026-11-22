@@ -2,7 +2,7 @@
 
 **Salary management for ACME's HR team: 10,000 employees, 8 countries, no more Excel.**
 
-[Live app](https://acme-salary-management-9fjv.onrender.com) · [Help guide](https://acme-salary-management-9fjv.onrender.com/help) · [Video walkthrough](docs/demo/walkthrough.webm) · [Requirements](docs/requirements.md) · [Decision log](docs/decisions.md)
+[Live app](https://acme-salary-management-9fjv.onrender.com) · [Help guide](https://acme-salary-management-9fjv.onrender.com/help) · [Video demo](https://drive.google.com/file/d/1vX7R7bJzom3V1UOAET5yAU_DWTIFrOnr/view?usp=sharing) · [Requirements](docs/requirements.md) · [Decision log](docs/decisions.md)
 
 An HR manager can find anyone in seconds, add joiners and record leavers, and change pay with a permanent history (date, reason, previous amount). They can import the spreadsheets they already have, and answer "how do we pay people?" from an Insights screen or by asking in plain English (Ask AI). Country HR staff only ever see their own countries, and the database enforces that.
 
@@ -32,7 +32,7 @@ An HR manager can find anyone in seconds, add joiners and record leavers, and ch
 | **React with a component library** | React 19 on Vite with Mantine 9 ([ADR 0004](docs/adr/0004-mantine-css-modules.md)). Vite, not Next.js, because the Express API already owns the server side ([decision #6](docs/decisions.md)). |
 | **Seed with 10,000 employees** | `npm run db:seed` ([apps/api/src/db/seed](apps/api/src/db/seed)): deterministic, 10,000 employees in 8 countries |
 | **Deployed** | [acme-salary-management-9fjv.onrender.com](https://acme-salary-management-9fjv.onrender.com): one Render web service plus Render Postgres ([decision #8](docs/decisions.md)) |
-| **Video demo** | [docs/demo/walkthrough.webm](docs/demo/walkthrough.webm): a 1:42 captioned walkthrough with background music (search, a raise, insights, Country HR scope, Excel import, Ask AI), recorded with a Playwright script against a local seeded copy of the app |
+| **Video demo** | [Watch on Google Drive](https://drive.google.com/file/d/1vX7R7bJzom3V1UOAET5yAU_DWTIFrOnr/view?usp=sharing): a 1:42 captioned walkthrough with background music (search, a raise, insights, Country HR scope, Excel import, Ask AI), recorded with a Playwright script against a local seeded copy of the app |
 | **Fast, deterministic unit tests** | 544 tests in 104 files, about 18 s with `npm test` ([Testing](#testing)) |
 | **Agentic AI tools** | Claude Code, with [CLAUDE.md](CLAUDE.md) as standing instructions ([How AI tools were used](#how-ai-tools-were-used)) |
 | **Incremental commits** | About 100 commits, mostly through pull requests: scaffold → requirements → component library → contracts → database → API → screens → Ask AI → refactors and fixes |
