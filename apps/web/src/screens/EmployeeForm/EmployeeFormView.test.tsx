@@ -139,4 +139,42 @@ describe('EmployeeFormView', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
     expect(onCancel).toHaveBeenCalledOnce();
   });
+
+  it('keeps the median panel in place, with a prompt until a job title and country are chosen', async () => {
+    const { rerender } = render(<EmployeeFormView {...props({ benchmark: null })} />);
+
+    expect(screen.getByText('Median pay for the role')).toBeInTheDocument();
+    expect(
+      screen.getByText('Choose a job title and country to see what ACME pays for it.'),
+    ).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText(/Job title/), 'Data Analyst');
+    expect(screen.getByText('Choose a country to see what ACME pays for it.')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText(/Country/), 'India');
+    rerender(<EmployeeFormView {...props({ benchmark: null, benchmarkLoading: true })} />);
+    expect(screen.getByText('Loading what ACME pays for this role…')).toBeInTheDocument();
+
+    rerender(
+      <EmployeeFormView
+        {...props({
+          benchmark: {
+            jobTitle: 'Data Analyst',
+            countryName: 'India',
+            currency: 'INR',
+            headcount: 42,
+            minMinor: 90_000_000,
+            medianMinor: 140_000_000,
+            maxMinor: 210_000_000,
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText('Data Analysts in India')).toBeInTheDocument();
+    expect(screen.queryByText('Median pay for the role')).not.toBeInTheDocument();
+  });
+
+  it('shows no pay guide to people who cannot see insights', () => {
+    render(<EmployeeFormView {...props()} />);
+
+    expect(screen.queryByText('Median pay for the role')).not.toBeInTheDocument();
+  });
 });

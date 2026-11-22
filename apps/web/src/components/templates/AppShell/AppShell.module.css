@@ -206,6 +206,8 @@
 }
 
 .main {
+  /* Side padding, read by the forms' Save bar so it can run edge to edge. */
+  --acme-main-gutter: 16px;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -260,6 +262,7 @@
   }
 
   .main {
+    --acme-main-gutter: 24px;
     gap: 20px;
     padding: 24px 24px calc(112px + env(safe-area-inset-bottom));
   }
@@ -421,6 +424,7 @@
     --acme-main-padding-top: 26px;
     /* Read by the forms' Save bar so it can stick flush to the bottom. */
     --acme-main-padding-bottom: 30px;
+    --acme-main-gutter: 26px;
     flex: 1 1 0;
     min-height: 0;
     padding: var(--acme-main-padding-top) 26px var(--acme-main-padding-bottom);

@@ -36,8 +36,10 @@ export function EmployeeFormScreen() {
   if (id && !existing.data) return <EmployeeFormSkeleton mode="edit" />;
 
   const row = role && comparison.data?.rows.find((r) => r.country === role.country);
-  const benchmark: RoleBenchmark | null =
-    role && row
+  // Without insights:read there is no pay guide at all (undefined); otherwise null until loaded.
+  const benchmark: RoleBenchmark | null | undefined = !can('insights:read')
+    ? undefined
+    : role && row
       ? {
           jobTitle: meta.jobTitles.find((t) => t.id === role.jobTitleId)?.name ?? '',
           countryName: countryInfo(role.country)?.name ?? role.country,
@@ -57,6 +59,7 @@ export function EmployeeFormScreen() {
       departments={meta.departments}
       jobTitles={meta.jobTitles}
       benchmark={benchmark}
+      benchmarkLoading={comparison.status === 'loading'}
       onRoleChange={(jobTitleId, country) => setRole({ jobTitleId, country })}
       saving={saving}
       error={error && Object.keys(formErrors).length === 0 ? describeError(error) : undefined}

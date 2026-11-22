@@ -125,14 +125,19 @@ textarea.control {
   accent-color: var(--acme-color-accent);
 }
 
-/* Form actions stick above the phone tab bar so Save is always reachable. */
+/*
+ * Form actions stick above the phone tab bar so Save is always reachable. The bar runs the full
+ * width of the scrolling area (cancelling its side padding), so it reads as a fixed footer and
+ * nothing behind it shows past its ends.
+ */
 .actions {
   position: sticky;
   bottom: calc(var(--acme-tabbar-height) + env(safe-area-inset-bottom));
   z-index: 10;
   display: flex;
   gap: 8px;
-  padding: 12px 0;
+  margin-inline: calc(-1 * var(--acme-main-gutter, 0px));
+  padding: 12px var(--acme-main-gutter, 0px);
   background: var(--acme-color-white);
   border-top: 1px solid var(--acme-color-grey100);
 }

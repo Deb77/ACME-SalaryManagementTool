@@ -57,8 +57,13 @@ export interface EmployeeFormViewProps {
   countries: readonly CountryInfo[];
   departments: readonly CatalogueRef[];
   jobTitles: readonly CatalogueRef[];
-  /** Pay for the chosen title and country, shown as a guide; omitted without `insights:read`. */
+  /**
+   * Pay for the chosen title and country, shown as a guide: null until there is one to show.
+   * Omitted without `insights:read`, which hides the guide.
+   */
   benchmark?: RoleBenchmark | null;
+  /** The benchmark for the current choice is still loading. */
+  benchmarkLoading?: boolean;
   /** Lets the container load the benchmark for the current choice. */
   onRoleChange?: (jobTitleId: string, country: string) => void;
   saving?: boolean;
@@ -90,6 +95,7 @@ export function EmployeeFormView({
   departments,
   jobTitles,
   benchmark,
+  benchmarkLoading = false,
   onRoleChange,
   saving = false,
   error,
@@ -329,27 +335,46 @@ export function EmployeeFormView({
                 }
               </FormField>
             )}
-            {benchmark && (
-              <div className={styles.benchmark}>
-                <div className={styles.benchmarkTitle}>
-                  {benchmark.jobTitle}s in {benchmark.countryName}
-                </div>
-                <div className={`${shared.small} ${shared.muted}`}>
-                  {formatCount(benchmark.headcount)} people · median{' '}
-                  <MoneyText amountMinor={benchmark.medianMinor} currency={benchmark.currency} /> ·
-                  range{' '}
-                  <MoneyText
-                    amountMinor={benchmark.minMinor}
-                    currency={benchmark.currency}
-                    compact
-                  />
-                  –
-                  <MoneyText
-                    amountMinor={benchmark.maxMinor}
-                    currency={benchmark.currency}
-                    compact
-                  />
-                </div>
+            {benchmark !== undefined && (
+              // Always shown, with a prompt until there are figures, so the form doesn't jump.
+              <div className={styles.benchmark} aria-live="polite">
+                {benchmark ? (
+                  <>
+                    <div className={styles.benchmarkTitle}>
+                      {benchmark.jobTitle}s in {benchmark.countryName}
+                    </div>
+                    <div className={`${shared.small} ${shared.muted}`}>
+                      {formatCount(benchmark.headcount)} people · median{' '}
+                      <MoneyText
+                        amountMinor={benchmark.medianMinor}
+                        currency={benchmark.currency}
+                      />{' '}
+                      · range{' '}
+                      <MoneyText
+                        amountMinor={benchmark.minMinor}
+                        currency={benchmark.currency}
+                        compact
+                      />
+                      –
+                      <MoneyText
+                        amountMinor={benchmark.maxMinor}
+                        currency={benchmark.currency}
+                        compact
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.benchmarkTitle}>Median pay for the role</div>
+                    <div className={`${shared.small} ${shared.muted}`}>
+                      {!draft.jobTitleId || !draft.country
+                        ? `Choose a ${[!draft.jobTitleId && 'job title', !draft.country && 'country'].filter(Boolean).join(' and ')} to see what ACME pays for it.`
+                        : benchmarkLoading
+                          ? 'Loading what ACME pays for this role…'
+                          : 'No one at ACME has this job title in this country yet.'}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </fieldset>
