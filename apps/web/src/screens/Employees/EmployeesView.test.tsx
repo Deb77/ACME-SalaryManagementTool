@@ -171,4 +171,29 @@ describe('EmployeesView', () => {
     expect(group).toContainElement(screen.getByRole('link', { name: /^Export/ }));
     expect(group).toContainElement(screen.getByRole('link', { name: /Import from Excel/ }));
   });
+
+  it('clears every filter, Status included, and keeps Clear filters in place when there is nothing to clear', async () => {
+    const onFiltersChange = vi.fn();
+    const onSearchChange = vi.fn();
+    const { rerender } = render(
+      <EmployeesView
+        {...props({
+          search: 'pri',
+          appliedSearch: 'pri',
+          filters: { status: 'active', country: 'IN' },
+          onFiltersChange,
+          onSearchChange,
+        })}
+      />,
+    );
+
+    const filters = screen.getByRole('group', { name: 'Filters' });
+    await userEvent.click(within(filters).getByRole('button', { name: 'Clear filters' }));
+    expect(onSearchChange).toHaveBeenCalledWith('');
+    expect(onFiltersChange).toHaveBeenCalledWith({ status: 'all' });
+
+    rerender(<EmployeesView {...props({ total: 10004, filters: { status: 'all' } })} />);
+    expect(within(filters).getByRole('button', { name: 'Clear filters' })).toBeDisabled();
+    expect(screen.getByText(/^10,004 people/)).toBeInTheDocument();
+  });
 });

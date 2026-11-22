@@ -1,4 +1,4 @@
-import { IconLogout } from '@tabler/icons-react';
+import { IconHelpCircle, IconLogout } from '@tabler/icons-react';
 import { Suspense, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
 import { AppShell, ErrorBoundary, ErrorState, IconButton, Logo } from '../components';
@@ -22,6 +22,13 @@ export function AppLayout() {
       navGroups={navGroupsFor(can)}
       activeKey={activeKeyFor(pathname)}
       user={{ name: me.name, role: me.role.name }}
+      phoneActions={
+        <IconButton
+          label="Help & guide"
+          icon={<IconHelpCircle size={20} stroke={1.75} />}
+          href="/help"
+        />
+      }
       userAction={
         <IconButton
           label="Sign out"

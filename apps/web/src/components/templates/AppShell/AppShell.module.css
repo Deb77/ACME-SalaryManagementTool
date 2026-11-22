@@ -208,6 +208,12 @@
 .main {
   /* Side padding, read by the forms' Save bar so it can run edge to edge. */
   --acme-main-gutter: 16px;
+  /*
+   * Space main leaves after its content beyond where a bar pinned to the bottom sits (here the
+   * 28px over the tab bar). The forms' Save bar cancels it, so at the end of the scroll it rests
+   * exactly where it was pinned instead of lifting off the bottom.
+   */
+  --acme-main-tail: 28px;
   display: flex;
   flex: 1;
   flex-direction: column;
@@ -263,6 +269,7 @@
 
   .main {
     --acme-main-gutter: 24px;
+    --acme-main-tail: calc(112px - var(--acme-tabbar-height));
     gap: 20px;
     padding: 24px 24px calc(112px + env(safe-area-inset-bottom));
   }
@@ -425,6 +432,8 @@
     /* Read by the forms' Save bar so it can stick flush to the bottom. */
     --acme-main-padding-bottom: 30px;
     --acme-main-gutter: 26px;
+    /* The bottom fade below (main::after) takes 28px after the content. */
+    --acme-main-tail: 28px;
     flex: 1 1 0;
     min-height: 0;
     padding: var(--acme-main-padding-top) 26px var(--acme-main-padding-bottom);
@@ -458,5 +467,12 @@
     margin-top: -20px;
     pointer-events: none;
     background: linear-gradient(to top, var(--acme-color-white), rgba(255, 255, 255, 0));
+  }
+}
+
+/* Desktop-only navigation (last, so it wins over .groupBlock and .item on phones and tablets). */
+@media (max-width: 1023.98px) {
+  .desktopOnly {
+    display: none;
   }
 }

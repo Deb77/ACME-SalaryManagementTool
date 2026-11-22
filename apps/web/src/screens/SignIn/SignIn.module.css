@@ -68,6 +68,11 @@
   color: var(--acme-color-grey500);
 }
 
+.footnote a {
+  font-weight: 500;
+  color: var(--acme-color-accent);
+}
+
 @media (min-width: 768px) {
   .card {
     padding: 36px 32px;

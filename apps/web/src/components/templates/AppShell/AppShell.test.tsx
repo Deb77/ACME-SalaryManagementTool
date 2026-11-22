@@ -123,4 +123,34 @@ describe('AppShell on small screens', () => {
 
     expect(screen.getByRole('banner')).not.toHaveAttribute('data-phone-only');
   });
+
+  it('keeps desktop-only links out of the phone tab bar and shows phone actions there instead', () => {
+    render(
+      <AppShell
+        productName="ACME People"
+        navGroups={[
+          ...navGroups,
+          {
+            label: 'Support',
+            items: [{ key: 'help', label: 'Help & guide', href: '/help', desktopOnly: true }],
+          },
+        ]}
+        activeKey="insights"
+        user={null}
+        phoneActions={<a href="/help">Help on phones</a>}
+      >
+        <p>Page</p>
+      </AppShell>,
+    );
+
+    const help = within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', {
+      name: 'Help & guide',
+    });
+    // The class hides it below desktop width; the whole group goes with it.
+    expect(help.closest('li')?.className).toMatch(/desktopOnly/);
+    expect(help.closest('li')?.parentElement?.parentElement?.className).toMatch(/desktopOnly/);
+    expect(screen.getByRole('link', { name: 'Help on phones' }).parentElement?.className).toMatch(
+      /phoneOnly/,
+    );
+  });
 });

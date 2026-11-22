@@ -106,4 +106,17 @@ describe('App', () => {
     expect(window.location.pathname).not.toBe('/sign-in');
     expect(window.localStorage.getItem('acme.signedIn')).toBe('1');
   });
+
+  it('opens Help without signing in or asking for a session', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    window.history.pushState(null, '', '/help/import');
+    render(<App />);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Import from Excel' }),
+    ).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/help/import');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

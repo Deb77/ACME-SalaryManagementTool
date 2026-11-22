@@ -11,6 +11,8 @@ export interface NavItem {
   icon?: ReactNode;
   /** Label in the phone tab bar when `label` is too long, e.g. "Access" for "Access & roles". */
   shortLabel?: string;
+  /** Only in the desktop navigation, never a phone tab (e.g. Help, which phones reach via `phoneActions`). */
+  desktopOnly?: boolean;
 }
 
 export interface NavGroup {
@@ -31,6 +33,8 @@ export interface AppShellProps {
   topBarEnd?: ReactNode;
   /** Account action next to the user (e.g. a sign-out IconButton): nav on desktop, top bar on phones. */
   userAction?: ReactNode;
+  /** Extra top-bar actions on phones and tablets, e.g. a link that is a desktop-only nav item. */
+  phoneActions?: ReactNode;
   children: ReactNode;
 }
 
@@ -50,6 +54,7 @@ export function AppShell({
   topBarStart,
   topBarEnd,
   userAction,
+  phoneActions,
   children,
 }: AppShellProps) {
   const logoMark = logo && (
@@ -68,17 +73,29 @@ export function AppShell({
           {productName}
         </div>
         {navGroups.map((group) => (
-          <div key={group.label} className={styles.groupBlock}>
+          <div
+            key={group.label}
+            className={
+              group.items.every((item) => item.desktopOnly)
+                ? `${styles.groupBlock} ${styles.desktopOnly}`
+                : styles.groupBlock
+            }
+          >
             <div className={styles.groupLabel} id={`nav-${group.label}`}>
               {group.label}
             </div>
             <ul
               className={styles.group}
               aria-labelledby={`nav-${group.label}`}
-              style={{ flexGrow: group.items.length }}
+              style={{ flexGrow: group.items.filter((item) => !item.desktopOnly).length }}
             >
               {group.items.map((item) => (
-                <li key={item.key} className={styles.item}>
+                <li
+                  key={item.key}
+                  className={
+                    item.desktopOnly ? `${styles.item} ${styles.desktopOnly}` : styles.item
+                  }
+                >
                   <AppLink
                     href={item.href}
                     className={item.shortLabel ? `${styles.link} ${styles.hasShort}` : styles.link}
@@ -128,6 +145,7 @@ export function AppShell({
           <div className={styles.topBarStart}>{topBarStart}</div>
           <div className={styles.topBarEnd}>
             {topBarEnd}
+            {phoneActions && <span className={styles.phoneOnly}>{phoneActions}</span>}
             {userAction && <span className={styles.phoneOnly}>{userAction}</span>}
             {user ? (
               <span
