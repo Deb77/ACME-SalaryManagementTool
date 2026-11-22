@@ -3,7 +3,7 @@
 .page {
   min-height: 100vh;
   min-height: 100dvh;
-  background: var(--acme-color-frame);
+  background: var(--acme-color-white);
   color: var(--acme-color-grey900);
 }
 
@@ -432,12 +432,19 @@
   color: var(--acme-color-grey700);
 }
 
+/* Previous / next stay at the bottom of the screen while the topic scrolls. */
 .pager {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  padding-top: 16px;
-  border-top: 1px solid var(--acme-color-grey100);
+  margin-inline: -16px;
+  margin-bottom: calc(-40px - env(safe-area-inset-bottom));
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: var(--acme-color-white);
+  border-top: 1px solid var(--acme-color-grey150);
 }
 
 .pagerLink {
@@ -479,12 +486,12 @@
   }
 
   .panel {
-    max-width: 1200px;
-    margin: 16px auto 24px;
-    padding: 28px;
-    border: 1px solid var(--acme-color-grey200);
-    border-radius: var(--acme-radius-xxl);
-    box-shadow: var(--acme-shadow-frame);
+    padding: 28px 24px 40px;
+  }
+
+  .pager {
+    margin-inline: -24px;
+    padding-inline: 24px;
   }
 
   .header {
@@ -535,10 +542,8 @@
 
   .panel {
     flex: 1 1 auto;
-    width: calc(100% - 48px);
     min-height: 0;
-    margin-inline: 24px;
-    box-sizing: border-box;
+    padding: 32px 32px 40px;
     overflow-y: auto;
   }
 
@@ -558,15 +563,15 @@
 
   .topicLayout {
     display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
-    gap: 28px;
+    grid-template-columns: 272px minmax(0, 1fr);
     height: 100%;
   }
 
   .side {
     min-height: 0;
-    padding: 28px 0 28px 28px;
+    padding: 24px 16px;
     overflow-y: auto;
+    border-right: 1px solid var(--acme-color-grey150);
   }
 
   /* The article keeps a fixed gap at the top and the pager pinned at the bottom; only the
@@ -574,15 +579,13 @@
   .article {
     gap: 0;
     min-height: 0;
-    padding: 28px 28px 20px 0;
     overflow: hidden;
   }
 
   .articleBody {
     flex: 1 1 auto;
     min-height: 0;
-    padding-right: 8px;
-    padding-bottom: 20px;
+    padding: 32px 40px;
     overflow-y: auto;
   }
 
@@ -592,7 +595,10 @@
   }
 
   .pager {
+    position: static;
     flex: none;
+    margin: 0;
+    padding: 12px 40px;
   }
 
   .sideList {
@@ -604,11 +610,5 @@
   .topicTitle {
     font-size: var(--acme-text-xxl);
     line-height: var(--acme-leading-xxl);
-  }
-}
-
-@media (min-width: 1248px) {
-  .panel {
-    margin-inline: auto;
   }
 }
