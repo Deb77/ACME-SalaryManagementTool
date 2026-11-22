@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
+import { sampleMeGlobal, sampleMeta } from './stories/screenSampleData';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -77,5 +78,32 @@ describe('App', () => {
     session.signedOut();
     await screen.findByRole('heading', { name: 'Sign in' });
     expect(window.localStorage.getItem('acme.signedIn')).toBeNull();
+  });
+
+  it('keeps a user signed in, and says so, when the server refuses to end the session', async () => {
+    window.localStorage.setItem('acme.signedIn', '1');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith('/auth/me')) return Response.json(sampleMeGlobal);
+        if (url.endsWith('/meta')) return Response.json(sampleMeta);
+        if (url.endsWith('/auth/sign-out'))
+          return Response.json(
+            { error: { code: 'forbidden', message: 'Cross-site request blocked' } },
+            { status: 403 },
+          );
+        return new Promise<Response>(() => {});
+      }),
+    );
+    window.history.pushState(null, '', '/');
+    render(<App />);
+
+    const [signOut] = await screen.findAllByRole('button', { name: 'Sign out' });
+    fireEvent.click(signOut!);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('You are still signed in');
+    expect(window.location.pathname).not.toBe('/sign-in');
+    expect(window.localStorage.getItem('acme.signedIn')).toBe('1');
   });
 });

@@ -7,7 +7,10 @@ export interface Session {
   can: (permission: Permission) => boolean;
   country: (code: string) => CountryInfo | undefined;
   countryName: (code: string) => string;
-  /** Ends the session on the server and returns to the sign-in page. */
+  /**
+   * Ends the session on the server and returns to the sign-in page. Rejects, leaving the user
+   * signed in, when the server did not end it.
+   */
   signOut: () => Promise<void>;
 }
 
