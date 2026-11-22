@@ -8,7 +8,7 @@ import type {
 import { assertCountryInScope, type Actor } from '../../auth/actor.js';
 import type { ScopedDb } from '../../db/scope.js';
 import { notFound } from '../../lib/errors.js';
-import type { CatalogueService } from '../meta/catalogue.service.js';
+import type { Catalogue, CatalogueService } from '../meta/catalogue.service.js';
 
 interface StatsRow extends Record<string, unknown> {
   key: string;
@@ -75,9 +75,32 @@ export class InsightsService {
           (sum, c) => sum + c.payrollUsdIndicativeMinor,
           0,
         ),
+        medianUsdIndicativeMinor: await this.medianUsd(actor, catalogue),
       },
       fx: { indicative: true, ratesAsOf: catalogue.ratesAsOf, base: 'USD' },
     };
+  }
+
+  /**
+   * One median over every active employee in scope. Currencies cannot be compared as they are,
+   * so each salary is converted to USD at the catalogue's fixed rates before ranking.
+   */
+  private async medianUsd(actor: Actor, catalogue: Catalogue): Promise<number> {
+    const rates = catalogue.usdMinorPerMinorUnit();
+    if (rates.length === 0) return 0;
+    const values = sql.join(
+      rates.map(([currency, factor]) => sql`(${currency}, ${String(factor)}::numeric)`),
+      sql`, `,
+    );
+    const rows = await this.query(
+      actor,
+      sql`select percentile_disc(0.5) within group (order by e.salary_amount_minor * r.factor)
+                 as median_minor
+            from employees e
+            join (values ${values}) as r(currency, factor) on r.currency = e.salary_currency
+           where e.status = 'active'`,
+    );
+    return Math.round(Number(rows[0]?.median_minor ?? 0));
   }
 
   async byTitle(actor: Actor, country: string, department?: string): Promise<InsightsByTitle> {

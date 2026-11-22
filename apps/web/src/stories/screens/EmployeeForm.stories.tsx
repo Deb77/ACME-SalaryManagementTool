@@ -42,7 +42,7 @@ export const AddEmployeeCountryHr: Story = () => (
     />
   </ScreenFrame>
 );
-AddEmployeeCountryHr.storyName = 'Add employee, Country HR (one country, no benchmark)';
+AddEmployeeCountryHr.storyName = 'Add employee, Country HR (one country, before choosing a role)';
 AddEmployeeCountryHr.meta = { fullscreen: true };
 
 export const EditDetails: Story = () => (

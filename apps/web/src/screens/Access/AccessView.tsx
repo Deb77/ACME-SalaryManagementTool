@@ -1,6 +1,6 @@
 import type { AuditEvent, CountryInfo, Me, Role, User } from '@acme/shared';
 import { permissionKeys } from '@acme/shared';
-import { IconPencil, IconPlus, IconUserCheck, IconUserPlus } from '@tabler/icons-react';
+import { IconPencil, IconUserCheck, IconUserPlus } from '@tabler/icons-react';
 import {
   DataTable,
   EmptyState,
@@ -36,7 +36,6 @@ export interface AccessViewProps {
   accessChanges?: readonly AuditEvent[];
   onInvite: () => void;
   onEditUser: (user: User) => void;
-  onNewRole: () => void;
   onEditRole: (role: Role) => void;
   onDeleteRole: (role: Role) => void;
   /** Fixed "now" for relative times (stories and tests). */
@@ -75,13 +74,11 @@ export function AccessView({
   accessChanges,
   onInvite,
   onEditUser,
-  onNewRole,
   onEditRole,
   onDeleteRole,
   now,
 }: AccessViewProps) {
   const canManageUsers = me.permissions.includes('users:manage');
-  const canManageRoles = me.permissions.includes('roles:manage');
   const countryName = (code: string) => countries.find((c) => c.code === code)?.name ?? code;
   const roleById = new Map(roles.map((role) => [role.id, role]));
   const shownUsers = (users ?? []).filter((u) => roleFilter === 'all' || u.role.id === roleFilter);
@@ -168,13 +165,14 @@ export function AccessView({
   const columns: DataTableColumn<User>[] = [
     {
       key: 'person',
-      width: '30%',
+      // Takes what the fixed columns leave, so the table always fits its card.
+      width: 'auto',
       title: 'Person',
       render: (user) => <PersonCell name={displayName(user)} detail={user.email} />,
     },
     {
       key: 'role',
-      width: '15%',
+      width: '14%',
       title: 'Role',
       render: (user) => (
         <StatusTag tone={user.role.key === 'global_hr' ? 'success' : 'info'}>
@@ -184,14 +182,15 @@ export function AccessView({
     },
     {
       key: 'countries',
-      width: '27%',
+      width: '24%',
       title: 'Countries',
       render: (user) => <div className={styles.chips}>{countryChips(user)}</div>,
     },
-    { key: 'lastActive', width: '17%', title: 'Last active', render: lastActive },
+    { key: 'lastActive', width: '15%', title: 'Last active', render: lastActive },
     {
       key: 'action',
-      width: '11%',
+      // Wide enough for "Give access", the longest button, plus the cell's padding.
+      width: 136,
       title: <span className="visually-hidden">Action</span>,
       align: 'right',
       render: (user) => editButton(user, false),
@@ -214,13 +213,6 @@ export function AccessView({
 
       <TrayCard
         title="Roles"
-        extra={
-          canManageRoles && (
-            <PillButton size="small" icon={<IconPlus size={14} />} onClick={onNewRole}>
-              New role
-            </PillButton>
-          )
-        }
         footer="A role is a set of permissions plus a country scope. Every person has one role."
       >
         <div className={styles.roleGrid}>

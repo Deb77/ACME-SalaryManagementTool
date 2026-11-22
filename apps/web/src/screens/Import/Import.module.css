@@ -307,3 +307,80 @@
   font-size: var(--acme-text-sm);
   color: var(--acme-color-grey500);
 }
+
+/* The last step: a success panel of its own, not the review layout. */
+.done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 24px;
+  text-align: center;
+  background: var(--acme-color-white);
+  border-radius: var(--acme-radius-lg);
+  box-shadow: var(--acme-shadow-panel);
+}
+
+.doneIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  color: var(--acme-color-success-text);
+  background: var(--acme-color-green100);
+  border-radius: 50%;
+}
+
+.doneTitle {
+  margin: 4px 0 0;
+  font-size: var(--acme-text-xxl);
+  line-height: var(--acme-leading-xxl);
+  font-weight: 600;
+  color: var(--acme-color-grey900);
+}
+
+.doneText {
+  max-width: 52ch;
+  margin: 0;
+  font-size: var(--acme-text-sm);
+  line-height: var(--acme-leading-sm);
+  color: var(--acme-color-grey600);
+}
+
+.doneStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: min(100%, 480px);
+  margin: 8px 0;
+}
+
+.doneStats div {
+  padding: 12px;
+  background: var(--acme-color-grey50);
+  border-radius: var(--acme-radius-md);
+}
+
+.doneStats dt {
+  font-size: var(--acme-text-xs);
+  line-height: var(--acme-leading-xs);
+  color: var(--acme-color-grey500);
+}
+
+.doneStats dd {
+  margin: 2px 0 0;
+  font-size: var(--acme-text-lg);
+  line-height: var(--acme-leading-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--acme-color-grey900);
+}
+
+.doneActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+}

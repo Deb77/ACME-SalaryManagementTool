@@ -20,13 +20,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     Promise.all([getMe({ signal }), getMeta({ signal })]),
   );
   const endSession = useCallback(async () => {
-    rememberSignedIn(false);
     try {
       await signOut();
-    } finally {
-      // A full load drops every cached screen, so nothing from this user lingers in memory.
-      window.location.assign('/sign-in');
+    } catch (error) {
+      // Only a session that has already ended counts as signed out. Any other failure means
+      // the server still holds it, so the next page would open straight back into the app:
+      // say so (the caller shows it) rather than pretend.
+      if (!(error instanceof ApiError && error.code === 'unauthenticated')) throw error;
     }
+    rememberSignedIn(false);
+    // A full load drops every cached screen, so nothing from this user lingers in memory.
+    window.location.assign('/sign-in');
   }, []);
   const session = useMemo(
     () => (resource.data ? createSession(resource.data[0], resource.data[1], endSession) : null),

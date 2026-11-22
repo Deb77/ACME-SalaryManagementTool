@@ -27,7 +27,6 @@ const record = {
 function Import({ step: initial, ...overrides }: Partial<ImportViewProps> & { step: ImportStep }) {
   const [step, setStep] = useState(initial);
   const [outcome, setOutcome] = useState<ImportOutcome>('error');
-  const [skip, setSkip] = useState(true);
   const items =
     outcome === 'error' ? sampleImportErrors : outcome === 'update' ? sampleImportUpdates : [];
   return (
@@ -42,8 +41,6 @@ function Import({ step: initial, ...overrides }: Partial<ImportViewProps> & { st
       onOutcomeChange={setOutcome}
       rows={{ status: 'success', items, total: items.length, page: 1, pageSize: 25 }}
       onRowsPageChange={() => {}}
-      skipInvalidRows={skip}
-      onSkipInvalidRowsChange={setSkip}
       onCommit={() => setStep('done')}
       onStartOver={() => setStep('upload')}
       onUndo={() => {}}

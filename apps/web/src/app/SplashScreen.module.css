@@ -1,0 +1,62 @@
+/*
+ * The boot splash. index.html draws the same thing (.boot-splash) before any script runs, and
+ * this takes over from it when React mounts; keep the two in step.
+ */
+.splash {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--acme-color-frame, #f1f2f1);
+  animation: splashIn 240ms ease-out both;
+}
+
+.bar {
+  position: relative;
+  width: 96px;
+  height: 3px;
+  overflow: hidden;
+  background: #dfe3df;
+  border-radius: 3px;
+}
+
+.bar::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  background: #2e6b47;
+  border-radius: 3px;
+  animation: splashSlide 1.1s ease-in-out infinite;
+  animation-delay: inherit;
+}
+
+@keyframes splashIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes splashSlide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash,
+  .bar::after {
+    animation: none;
+  }
+
+  .bar::after {
+    left: 30%;
+  }
+}

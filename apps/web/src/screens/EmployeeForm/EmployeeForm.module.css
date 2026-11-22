@@ -17,7 +17,11 @@
 .benchmark {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
+  /* Title plus two lines of figures, so swapping the prompt for figures doesn't move the form. */
+  min-height: calc(var(--acme-leading-sm) + 2 * var(--acme-leading-xs) + 2px + 26px);
+  box-sizing: border-box;
   padding: 12px 14px;
   background: var(--acme-color-green50);
   border: 1px solid var(--acme-color-green200);

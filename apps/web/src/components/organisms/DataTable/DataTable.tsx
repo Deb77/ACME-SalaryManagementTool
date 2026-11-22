@@ -76,6 +76,11 @@ export interface DataTableProps<T, F extends string = string> {
    */
   skeletonPager?: boolean;
   /**
+   * The footer: "Showing 1–10 of 2,412 …" and the pager. Turn it off only for a short table
+   * that always shows every row on one page, where the line repeats what is in view.
+   */
+  summary?: boolean;
+  /**
    * Each row holds a link to its item (a PersonCell name, say): a click anywhere on the row
    * follows it, as a bigger target. The link stays the keyboard and screen reader route.
    */
@@ -142,6 +147,7 @@ export function DataTable<T, F extends string = string>({
   skeletonRows,
   skeletonCard = DEFAULT_CARD_SKELETON,
   skeletonPager = true,
+  summary = true,
   rowLink = false,
 }: DataTableProps<T, F>) {
   const placeholderCount = skeletonRows || (loading ? DEFAULT_LOADING_ROWS : 0);
@@ -305,7 +311,7 @@ export function DataTable<T, F extends string = string>({
       </VisuallyHidden>
       {body}
 
-      {footerSkeleton && (
+      {footerSkeleton && summary && (
         <div className={styles.footer} aria-hidden="true">
           <span className={styles.summary}>
             <Skeleton inline width={170} height={11} />
@@ -314,7 +320,7 @@ export function DataTable<T, F extends string = string>({
         </div>
       )}
 
-      {!footerSkeleton && total > 0 && (
+      {!footerSkeleton && total > 0 && summary && (
         <div className={styles.footer}>
           <span className={styles.summary}>
             {`Showing ${from.toLocaleString()}–${to.toLocaleString()} of ${total.toLocaleString()} ${itemName}`}

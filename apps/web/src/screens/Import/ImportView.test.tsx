@@ -29,8 +29,6 @@ const props = (overrides: Partial<ImportViewProps> = {}): ImportViewProps => ({
   onOutcomeChange: vi.fn(),
   rows: { status: 'success', items: sampleImportErrors, total: 6, page: 1, pageSize: 25 },
   onRowsPageChange: vi.fn(),
-  skipInvalidRows: true,
-  onSkipInvalidRowsChange: vi.fn(),
   onCommit: vi.fn(),
   onStartOver: vi.fn(),
   onUndo: vi.fn(),
@@ -52,20 +50,23 @@ describe('ImportView', () => {
     expect(screen.queryByRole('link', { name: /template/i })).not.toBeInTheDocument();
   });
 
-  it('goes from upload straight to review, with the file preview there and no matching step', () => {
+  it('goes from upload straight to review, with no matching step', () => {
     render(<ImportView {...props({ step: 'review' })} />);
 
     expect(screen.getByRole('list', { name: 'Import progress' })).not.toHaveTextContent(
       /Match columns/,
     );
-    expect(screen.getByRole('region', { name: 'Sheet preview' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit matching' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Replace file' })).toBeInTheDocument();
   });
 
-  it('drops the preview once the import is done', () => {
-    render(<ImportView {...props({ step: 'done', record: { ...record, status: 'committed' } })} />);
+  it('shows the file only when Preview file is clicked', async () => {
+    render(<ImportView {...props({ step: 'review' })} />);
+
     expect(screen.queryByRole('region', { name: 'Sheet preview' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Preview file' }));
+    const dialog = await screen.findByRole('dialog', { name: sampleUpload.fileName });
+    expect(within(dialog).getByRole('region', { name: 'Sheet preview' })).toBeInTheDocument();
   });
 
   it('reviews the rows that need fixing and imports the rest', async () => {
@@ -78,10 +79,39 @@ describe('ImportView', () => {
     expect(onCommit).toHaveBeenCalled();
   });
 
-  it('blocks the import until errors are fixed when the user chooses to stop', () => {
-    render(<ImportView {...props({ step: 'review', skipInvalidRows: false })} />);
+  it('notes that rows needing fixes are left out, with no option to stop', () => {
+    render(<ImportView {...props({ step: 'review' })} />);
 
-    expect(screen.getByRole('button', { name: 'Import 59 rows' })).toBeDisabled();
+    expect(screen.queryByText(/stop/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/upload the fixed version/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Import 59 rows' })).toBeEnabled();
+  });
+
+  it('celebrates the import on its own step, without the review table', () => {
+    const onStartOver = vi.fn();
+    render(
+      <ImportView
+        {...props({ step: 'done', record: { ...record, status: 'committed' }, onStartOver })}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Imported 59 rows' })).toBeInTheDocument();
+    expect(screen.getByTestId('confetti')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: 'Need fixing rows' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Import \d+ rows/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go to Employees' })).toHaveAttribute(
+      'href',
+      '/employees',
+    );
+    expect(screen.getByRole('button', { name: 'Import another file' })).toBeInTheDocument();
+  });
+
+  it('shows no confetti once the import is undone', () => {
+    render(<ImportView {...props({ step: 'done', record: { ...record, status: 'undone' } })} />);
+
+    expect(screen.getByRole('heading', { name: 'Import undone' })).toBeInTheDocument();
+    expect(screen.queryByTestId('confetti')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Undo import' })).not.toBeInTheDocument();
   });
 
   it('offers undo after the import', async () => {

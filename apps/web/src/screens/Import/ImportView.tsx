@@ -5,11 +5,13 @@ import type {
   ImportRow,
   ImportUploadResponse,
 } from '@acme/shared';
-import { IconAlertCircle, IconFileSpreadsheet } from '@tabler/icons-react';
+import { IconAlertCircle, IconCircleCheck, IconFileSpreadsheet } from '@tabler/icons-react';
 import { useState } from 'react';
 import {
+  Confetti,
   ConfirmDialog,
   DataTable,
+  Dialog,
   EmptyState,
   Notice,
   PillButton,
@@ -65,8 +67,6 @@ export interface ImportViewProps {
   onOutcomeChange: (outcome: ImportOutcome) => void;
   rows: ImportRowsPage;
   onRowsPageChange: (page: number) => void;
-  skipInvalidRows: boolean;
-  onSkipInvalidRowsChange: (skip: boolean) => void;
   onCommit: () => void;
   onStartOver: () => void;
   onUndo: () => void;
@@ -76,7 +76,7 @@ export interface ImportViewProps {
 
 /**
  * Import from Excel: upload (columns are matched from the headers and the rows checked at once)
- * → review the file and the dry run → import (and undo).
+ * → review the dry run (the file itself behind a Preview button) → imported, with undo.
  */
 export function ImportView(props: ImportViewProps) {
   const { step, scopeNote, error } = props;
@@ -90,7 +90,8 @@ export function ImportView(props: ImportViewProps) {
         </Notice>
       )}
       {step === 'upload' && <UploadStep {...props} />}
-      {(step === 'review' || step === 'done') && <ReviewStep {...props} />}
+      {step === 'review' && <ReviewStep {...props} />}
+      {step === 'done' && <DoneStep {...props} />}
     </>
   );
 }
@@ -150,7 +151,6 @@ function FileSummary({
 }
 
 function ReviewStep({
-  step,
   upload,
   mapping,
   record,
@@ -158,20 +158,15 @@ function ReviewStep({
   onOutcomeChange,
   rows,
   onRowsPageChange,
-  skipInvalidRows,
-  onSkipInvalidRowsChange,
   busy,
   onCommit,
   onStartOver,
-  onUndo,
   changeContext,
 }: ImportViewProps) {
-  const [confirmingUndo, setConfirmingUndo] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const summary = record?.summary;
   if (!summary) return null;
-  const done = step === 'done';
   const importable = summary.create + summary.update;
-  const blocked = summary.error > 0 && !skipInvalidRows;
   const columns: DataTableColumn<ImportRow>[] = [
     { key: 'row', title: 'Row', render: (row) => row.rowNumber, width: 72 },
     { key: 'employee', title: 'Employee', render: (row) => <RowPerson row={row} /> },
@@ -198,46 +193,32 @@ function ReviewStep({
         <FileSummary
           upload={upload}
           actions={
-            !done && (
+            <>
+              <PillButton size="small" onClick={() => setPreviewing(true)}>
+                Preview file
+              </PillButton>
               <PillButton size="small" onClick={onStartOver}>
                 Replace file
               </PillButton>
-            )
+            </>
           }
         />
       )}
-      {upload && !done && (
-        <TrayCard
-          title="Preview"
-          footer={
+      {upload && (
+        <Dialog
+          open={previewing}
+          title={upload.fileName}
+          width={960}
+          onClose={() => setPreviewing(false)}
+          footerNote={
             upload.rowCount > upload.sampleRows.length
               ? `First ${upload.sampleRows.length} of ${formatCount(upload.rowCount)} rows, as they are in your file`
               : `All ${formatCount(upload.rowCount)} ${upload.rowCount === 1 ? 'row' : 'rows'}, as they are in your file`
           }
+          actions={<PillButton onClick={() => setPreviewing(false)}>Close</PillButton>}
         >
           <SheetPreview upload={upload} mapping={mapping} />
-        </TrayCard>
-      )}
-      {done && (
-        <Notice
-          tone="accent"
-          title={
-            record.status === 'undone'
-              ? 'Import undone'
-              : `Imported ${formatCount(importable)} rows`
-          }
-          action={
-            record.status === 'committed' && (
-              <PillButton onClick={() => setConfirmingUndo(true)} loading={busy}>
-                Undo import
-              </PillButton>
-            )
-          }
-        >
-          {record.status === 'undone'
-            ? 'Every change from this file was reversed. Salary history keeps both entries.'
-            : 'Each change is in salary history. You can undo this import until someone edits an employee it changed.'}
-        </Notice>
+        </Dialog>
       )}
       <div className={shared.tiles}>
         <StatTile
@@ -335,53 +316,89 @@ function ReviewStep({
             />
           </ResourceState>
         </TrayCard>
-        {!done && (
-          <TrayCard title="Before you import" as="aside">
-            <div className={form.form}>
-              {summary.error > 0 && (
-                <fieldset className={form.fieldset}>
-                  <legend className={form.legend}>Rows that need fixing</legend>
-                  <label className={form.radio}>
-                    <input
-                      type="radio"
-                      name="skip"
-                      checked={skipInvalidRows}
-                      onChange={() => onSkipInvalidRowsChange(true)}
-                    />
-                    Skip them for now
-                  </label>
-                  <label className={form.radio}>
-                    <input
-                      type="radio"
-                      name="skip"
-                      checked={!skipInvalidRows}
-                      onChange={() => onSkipInvalidRowsChange(false)}
-                    />
-                    Stop and fix first
-                  </label>
-                  <p className={form.note}>
-                    {skipInvalidRows
-                      ? `Import the other ${formatCount(importable)} rows; fix the ${formatCount(summary.error)} later.`
-                      : 'Nothing is imported until every row is valid. Fix your file and replace it.'}
-                  </p>
-                </fieldset>
-              )}
-              <ul className={styles.facts}>
-                <li>Each salary change is added to salary history, so nothing is overwritten.</li>
-                <li>You can undo this import until someone edits an employee it changed.</li>
-              </ul>
-              <PillButton
-                tone="primary"
-                loading={busy}
-                disabled={blocked || importable === 0}
-                onClick={onCommit}
-              >
-                {`Import ${formatCount(importable)} rows`}
-              </PillButton>
-            </div>
-          </TrayCard>
-        )}
+        <TrayCard title="Before you import" as="aside">
+          <div className={form.form}>
+            {summary.error > 0 && (
+              <Notice tone="warning">
+                {`${formatCount(summary.error)} ${summary.error === 1 ? 'row needs' : 'rows need'} fixing and won't be imported. Fix ${summary.error === 1 ? 'it' : 'them'} in your file, then upload the fixed version to add ${summary.error === 1 ? 'it' : 'them'}.`}
+              </Notice>
+            )}
+            <ul className={styles.facts}>
+              <li>Each salary change is added to salary history, so nothing is overwritten.</li>
+              <li>You can undo this import until someone edits an employee it changed.</li>
+            </ul>
+            <PillButton
+              tone="primary"
+              loading={busy}
+              disabled={importable === 0}
+              onClick={onCommit}
+            >
+              {`Import ${formatCount(importable)} rows`}
+            </PillButton>
+          </div>
+        </TrayCard>
       </div>
+    </>
+  );
+}
+
+/** The last step: what was imported, a burst of confetti, undo, and where to go next. */
+function DoneStep({ record, busy, onStartOver, onUndo }: ImportViewProps) {
+  const [confirmingUndo, setConfirmingUndo] = useState(false);
+  const summary = record?.summary;
+  if (!summary) return null;
+  const undone = record.status === 'undone';
+  const imported = summary.create + summary.update;
+  return (
+    <>
+      {!undone && <Confetti />}
+      <section className={styles.done} aria-labelledby="import-done">
+        <span className={styles.doneIcon} aria-hidden="true">
+          <IconCircleCheck size={40} stroke={1.75} />
+        </span>
+        <h2 id="import-done" className={styles.doneTitle}>
+          {undone ? 'Import undone' : `Imported ${formatCount(imported)} rows`}
+        </h2>
+        <p className={styles.doneText}>
+          {undone
+            ? 'Every change from this file was reversed. Salary history keeps both entries.'
+            : `${record.fileName} is in. Each change is in salary history, and you can undo this import until someone edits an employee it changed.`}
+        </p>
+        {!undone && (
+          <dl className={styles.doneStats}>
+            <div>
+              <dt>New employees</dt>
+              <dd>{formatCount(summary.create)}</dd>
+            </div>
+            <div>
+              <dt>Updated</dt>
+              <dd>{formatCount(summary.update)}</dd>
+            </div>
+            <div>
+              <dt>Not imported</dt>
+              <dd>{formatCount(summary.error)}</dd>
+            </div>
+          </dl>
+        )}
+        {!undone && summary.error > 0 && (
+          <p className={`${shared.small} ${shared.muted}`}>
+            {summary.error === 1
+              ? 'To add the row that needed fixing, fix it in your file and import the fixed version.'
+              : `To add the ${formatCount(summary.error)} rows that needed fixing, fix them in your file and import the fixed version.`}
+          </p>
+        )}
+        <div className={styles.doneActions}>
+          <PillButton tone="primary" href="/employees">
+            Go to Employees
+          </PillButton>
+          <PillButton onClick={onStartOver}>Import another file</PillButton>
+          {record.status === 'committed' && (
+            <PillButton tone="danger" onClick={() => setConfirmingUndo(true)} loading={busy}>
+              Undo import
+            </PillButton>
+          )}
+        </div>
+      </section>
       <ConfirmDialog
         open={confirmingUndo}
         title="Undo this import?"

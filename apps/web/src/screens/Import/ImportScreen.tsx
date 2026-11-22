@@ -25,11 +25,11 @@ export function ImportScreen() {
   const [record, setRecord] = useState<Import>();
   const [outcome, setOutcome] = useState<ImportOutcome>('error');
   const [page, setPage] = useState(1);
-  const [skipInvalidRows, setSkipInvalidRows] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
-  const reviewing = (step === 'review' || step === 'done') && record;
+  // The done step shows totals only, so rows are fetched while reviewing.
+  const reviewing = step === 'review' && record;
   const rows = useResource(
     reviewing ? `import-rows-${record.id}-${outcome}-${page}-${record.status}` : null,
     (signal) => listImportRows(record?.id ?? '', outcome, page, { signal }),
@@ -111,12 +111,10 @@ export function ImportScreen() {
         onRetry: rows.reload,
       }}
       onRowsPageChange={setPage}
-      skipInvalidRows={skipInvalidRows}
-      onSkipInvalidRowsChange={setSkipInvalidRows}
       onCommit={() =>
         run(async () => {
           if (!record) return;
-          setRecord(await commitImport(record.id, { skipInvalidRows }));
+          setRecord(await commitImport(record.id, { skipInvalidRows: true }));
           setStep('done');
         })
       }

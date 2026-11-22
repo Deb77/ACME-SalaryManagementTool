@@ -1,7 +1,7 @@
 import { IconLogout } from '@tabler/icons-react';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { Outlet, useLocation } from 'react-router';
-import { AppShell, ErrorBoundary, IconButton } from '../components';
+import { AppShell, ErrorBoundary, ErrorState, IconButton, Logo } from '../components';
 import { useSession } from '../session/SessionContext';
 import { activeKeyFor, navGroupsFor } from './navigation';
 import { RouteSkeleton } from './RouteSkeleton';
@@ -10,10 +10,15 @@ import { RouteSkeleton } from './RouteSkeleton';
 export function AppLayout() {
   const { me, can, signOut } = useSession();
   const { pathname } = useLocation();
+  const [signOutFailed, setSignOutFailed] = useState(false);
+  const endSession = () => {
+    setSignOutFailed(false);
+    signOut().catch(() => setSignOutFailed(true));
+  };
   return (
     <AppShell
       productName="ACME People"
-      logo="A"
+      logo={<Logo />}
       navGroups={navGroupsFor(can)}
       activeKey={activeKeyFor(pathname)}
       user={{ name: me.name, role: me.role.name }}
@@ -21,10 +26,18 @@ export function AppLayout() {
         <IconButton
           label="Sign out"
           icon={<IconLogout size={20} stroke={1.75} />}
-          onClick={() => void signOut()}
+          onClick={endSession}
         />
       }
     >
+      {signOutFailed && (
+        <ErrorState
+          title="You are still signed in"
+          description="ACME People could not end your session, so this browser can still open the app. Try again, or close the browser if it keeps failing."
+          onRetry={endSession}
+          retryLabel="Try signing out again"
+        />
+      )}
       <ErrorBoundary key={pathname}>
         <Suspense fallback={<RouteSkeleton pathname={pathname} />}>
           <Outlet />
