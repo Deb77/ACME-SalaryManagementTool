@@ -133,10 +133,12 @@ textarea.control {
 .actions {
   position: sticky;
   bottom: calc(var(--acme-tabbar-height) + env(safe-area-inset-bottom));
-  z-index: 10;
+  /* Above the shell's bottom fade (main::after, z-index 20), which would wash out the buttons. */
+  z-index: 21;
   display: flex;
   gap: 8px;
   margin-inline: calc(-1 * var(--acme-main-gutter, 0px));
+  margin-bottom: calc(-1 * var(--acme-main-tail, 0px));
   padding: 12px var(--acme-main-gutter, 0px);
   background: var(--acme-color-white);
   border-top: 1px solid var(--acme-color-grey100);
@@ -163,12 +165,13 @@ textarea.control {
 
 /*
  * Desktop: <main> scrolls, so the bar pins to its bottom edge. The negative offset and matching
- * padding cover main's bottom padding, so nothing scrolls visibly below the buttons.
+ * padding cover main's bottom padding, so nothing scrolls visibly below the buttons; the margin
+ * also cancels that padding and the tail, so the bar doesn't move at the end of the scroll.
  */
 @media (min-width: 1024px) {
   .actions {
     bottom: calc(-1 * var(--acme-main-padding-bottom, 0px));
-    margin-bottom: calc(-1 * var(--acme-main-padding-bottom, 0px));
+    margin-bottom: calc(-1 * (var(--acme-main-padding-bottom, 0px) + var(--acme-main-tail, 0px)));
     padding-bottom: calc(12px + var(--acme-main-padding-bottom, 0px));
   }
 }
