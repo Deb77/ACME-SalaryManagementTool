@@ -4,6 +4,22 @@
 
 The UI's visual direction was inspired by the [Agentic Dashboard](https://dribbble.com/shots/27449642-Agentic-Dashboard) shot on Dribbble. The screens for this app (Employees, Employee detail, salary change, Add employee, Insights, Ask AI, Access & roles, Import from Excel) were designed separately for ACME's HR workflows, borrowing that shot's overall look: neutral grey frame, white rounded panels, pill buttons and a single accent colour.
 
+### Design documents
+
+The designs and plans live on claude.ai. The links open only for people the owner has shared them with; the written versions are in [docs/](docs/).
+
+| Document | What it covers | In the repo |
+|---|---|---|
+| [UI Design](https://claude.ai/artifact/QzyAt4YWZdkEfquH1jWT7y) | Every screen on desktop and phone, plus a component library artboard | [docs/ui.md](docs/ui.md) |
+| [Requirements](https://claude.ai/artifact/KZHfskEayTD5jTwuRAgi9r) | Who uses the tool and what it must do | [docs/requirements.md](docs/requirements.md) |
+| [Auth Design](https://claude.ai/artifact/7TkVuqNHNnfTVfRpsomgtc) | Sign-in, sessions, roles and country scope | [docs/auth.md](docs/auth.md) |
+| [Database Design](https://claude.ai/artifact/B2kPMpoBH9EuFDpKQgwHtW) | Tables, constraints and row-level security | [docs/database.md](docs/database.md) |
+| [Salary Database](https://claude.ai/artifact/1J9AyCP5DMfDHLQHXXqwEQ) | Schema diagram | [docs/database.md](docs/database.md) |
+| [API and Database Plan](https://claude.ai/artifact/U4tbeYzu3z89NWFk3hinPP) | Endpoints and how they map to the database | [docs/api.md](docs/api.md) |
+| [API and Database Build Plan](https://claude.ai/artifact/AXEkC7C1qnEwNnhGJu2mhC) | The order the backend was built in | |
+| [Import Queue and Caching Plan](https://claude.ai/artifact/GqseU3MHP9S2aHUrpaWkSw) | Excel import jobs and caching | [docs/api.md](docs/api.md) |
+| [Ask AI Text-to-SQL Plan](https://claude.ai/artifact/PKQHWJPFmfT49HYUWBykXA) | How Ask AI writes, checks and runs SQL | [docs/api.md](docs/api.md#ask-ai) |
+
 ## Database
 
 Postgres 16+ (Render Postgres in production), with [Drizzle ORM](https://orm.drizzle.team). The design is in [docs/database.md](docs/database.md) and [docs/auth.md](docs/auth.md).

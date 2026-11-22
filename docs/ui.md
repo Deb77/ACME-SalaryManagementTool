@@ -1,7 +1,7 @@
 # UI foundation
 
 How the web app's look and shared components are built. Decision records: [ADR 0004](adr/0004-mantine-css-modules.md) (Mantine and CSS modules), which supersedes [ADR 0003](adr/0003-ui-library.md) (Ant Design).
-Designs: the Claude Design canvas "ACME Salary Management – UI Design" (Employees, Employee detail, Record salary change, Add employee, Insights, Ask AI, Access & roles, Import from Excel, and a Component library artboard that mirrors this document).
+Designs: the Claude Design canvas [ACME Salary Management – UI Design](https://claude.ai/artifact/QzyAt4YWZdkEfquH1jWT7y) (Employees, Employee detail, Record salary change, Add employee, Insights, Ask AI, Access & roles, Import from Excel, and a Component library artboard that mirrors this document).
 
 ## Viewing the components
 
